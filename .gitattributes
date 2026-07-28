@@ -1,0 +1,3 @@
+# Force LF in the repo and working tree so shell/YAML/Python/Swift never carry
+# CRLF onto the macOS CI runner (a stray \r breaks bash and YAML parsing).
+* text=auto eol=lf

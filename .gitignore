@@ -1,0 +1,21 @@
+# Pipeline handoff artifacts (dev-team)
+pipeline/
+
+# XcodeGen output — regenerated in CI, never committed
+*.xcodeproj/
+
+# Xcode / SwiftPM build products
+build/
+DerivedData/
+.build/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+Package.resolved
+
+# Screenshots pulled from CI
+screenshots/
+
+# macOS / misc
+.DS_Store
+*.log

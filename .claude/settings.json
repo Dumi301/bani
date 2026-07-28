@@ -1,0 +1,5 @@
+{
+  "env": {
+    "LANGFUSE_USER_ID": "bani-ios-v1-ci"
+  }
+}

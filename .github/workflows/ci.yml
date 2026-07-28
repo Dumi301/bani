@@ -1,0 +1,247 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Runner image carrying Xcode 26 / iOS 26 SDK. If this label is invalid on the
+  # account, the first run fails fast at queue time — flip to macos-15/macos-latest.
+  MACOS_IMAGE: macos-26
+
+jobs:
+  build-test:
+    name: build-test (unit)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$XC" ]; then XC=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1); fi
+          echo "Selected Xcode: $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+
+      - name: Toolchain discovery
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+          echo "---- available simulators ----"
+          xcrun simctl list devices available | sed -n '1,150p'
+          echo "---- available SDKs ----"
+          xcodebuild -showsdks | grep -i ios || true
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
+          VER=$(xcodegen --version | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)
+          MAJOR=$(echo "$VER" | cut -d. -f1); MINOR=$(echo "$VER" | cut -d. -f2)
+          if [ "$MAJOR" -lt 2 ] || { [ "$MAJOR" -eq 2 ] && [ "$MINOR" -lt 42 ]; }; then
+            echo "::error::XcodeGen $VER does not support syncedFolder (need >= 2.42)"; exit 1
+          fi
+          echo "XcodeGen $VER supports syncedFolder"
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(python3 .github/scripts/pick_sim.py)
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Using simulator UDID: $UDID"
+
+      - name: Build & unit test
+        run: |
+          set -o pipefail
+          xcodebuild build test \
+            -project Bani.xcodeproj \
+            -scheme Bani \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:BaniTests \
+            -skip-testing:BaniTests/WhisperServiceTests \
+            -resultBundlePath build/build-test.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-result
+          path: build/build-test.xcresult
+          if-no-files-found: ignore
+
+  screenshots:
+    name: screenshots (UI)
+    needs: build-test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$XC" ]; then XC=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1); fi
+          sudo xcode-select -s "$XC/Contents/Developer"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Pick simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(python3 .github/scripts/pick_sim.py)
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Run UI tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Bani.xcodeproj \
+            -scheme Bani \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:BaniUITests \
+            -resultBundlePath build/ui.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p screenshots
+          xcrun xcresulttool export attachments \
+            --path build/ui.xcresult \
+            --output-path screenshots || echo "attachment export skipped"
+          ls -la screenshots || true
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            screenshots
+            build/ui.xcresult
+          if-no-files-found: warn
+
+  whisper-tests:
+    name: whisper-tests (model)
+    needs: build-test
+    runs-on: macos-26
+    continue-on-error: true   # non-blocking but reported; skips explicitly if model unavailable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$XC" ]; then XC=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1); fi
+          sudo xcode-select -s "$XC/Contents/Developer"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Cache Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/whisperkit
+          key: whisper-openai_whisper-small-v1
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Pick simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          UDID=$(python3 .github/scripts/pick_sim.py)
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Run WhisperService tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project Bani.xcodeproj \
+            -scheme Bani \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:BaniTests/WhisperServiceTests \
+            -resultBundlePath build/whisper.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
+  ipa:
+    name: ipa (unsigned)
+    needs: build-test
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$XC" ]; then XC=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1); fi
+          sudo xcode-select -s "$XC/Contents/Developer"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Archive (unsigned, device)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Bani.xcodeproj \
+            -scheme Bani \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Bani.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          cd build
+          mkdir -p Payload
+          cp -R Bani.xcarchive/Products/Applications/Bani.app Payload/
+          zip -qr Bani-unsigned.ipa Payload
+          ls -la Bani-unsigned.ipa
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bani-unsigned-ipa
+          path: build/Bani-unsigned.ipa
+          if-no-files-found: error
