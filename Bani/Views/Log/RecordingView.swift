@@ -50,6 +50,9 @@ struct RecordingView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(isProcessing ? "Understanding your recording" : "Recording \(context.label) transaction. Tap to stop.")
         .accessibilityAddTraits(isProcessing ? [] : .isButton)
+        // Stable hook so RecordingCrashRegressionUITests can assert the
+        // recording screen actually appeared after a Personal/Work tap.
+        .accessibilityIdentifier("recordingView.root")
     }
 
     private var waveform: some View {

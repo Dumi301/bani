@@ -84,7 +84,13 @@ final class WhisperService {
             let folder = try await WhisperKit.download(
                 variant: Self.modelVariant,
                 useBackgroundSession: true,
-                progressCallback: { [weak self] progress in
+                // `@Sendable` (nonisolated) for the SAME reason as the Recorder
+                // tap block: this closure is formed in a `@MainActor` context
+                // but WhisperKit invokes it from a background download queue.
+                // Left main-actor-isolated it would hit the identical Swift 6
+                // executor trap off the main thread. It only reads a local
+                // `Double` and hops to the main actor via `Task { @MainActor }`.
+                progressCallback: { @Sendable [weak self] progress in
                     let fraction = progress.fractionCompleted
                     Task { @MainActor in
                         self?.modelState = .downloading(progress: fraction)

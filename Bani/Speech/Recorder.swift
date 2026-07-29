@@ -76,7 +76,19 @@ final class Recorder {
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
         tapState.reset(audioFile: file, url: url)
 
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+        // The tap block MUST be `@Sendable` (i.e. nonisolated). Without it,
+        // this closure — formed here inside `@MainActor`-isolated
+        // `beginRecording()` and itself non-Sendable — is INFERRED to be
+        // `@MainActor`-isolated. AVFAudio then invokes it on its realtime
+        // "RealtimeMessenger.mServiceQueue"; Swift 6's dynamic executor check
+        // (`swift_task_isCurrentExecutor`) sees a non-main executor and the
+        // app traps (EXC_BREAKPOINT / SIGTRAP) — the on-device crash. The
+        // `@preconcurrency import` only silences the *warning*, it does NOT
+        // strip the inherited isolation. `@Sendable` does: the block runs on
+        // the audio thread as intended and only calls the already-`nonisolated`
+        // `processTap`, which touches locals + `tapState` and hops to the main
+        // actor via `Task { @MainActor }`.
+        input.installTap(onBus: 0, bufferSize: 4096, format: format) { @Sendable [weak self] buffer, _ in
             self?.processTap(buffer: buffer)
         }
 
