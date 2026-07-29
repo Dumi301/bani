@@ -15,10 +15,12 @@ final class Recorder {
     }
 
     /// Length of trailing silence that triggers an automatic stop.
-    static let trailingSilenceWindow: TimeInterval = 2.0
+    /// `nonisolated` so the real-time render-thread tap can read it without an actor hop.
+    nonisolated static let trailingSilenceWindow: TimeInterval = 2.0
     /// RMS amplitude (0...1, linear PCM) below which a buffer is treated as
     /// silence for the purposes of auto-stop.
-    static let silenceRMSThreshold: Float = 0.02
+    /// `nonisolated` so the real-time render-thread tap can read it without an actor hop.
+    nonisolated static let silenceRMSThreshold: Float = 0.02
 
     private(set) var state: RecordingState = .idle
     /// 0...1, drives the waveform.
