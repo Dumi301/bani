@@ -22,13 +22,25 @@ final class LocalizationCompletenessTests: XCTestCase {
         let ro = try XCTUnwrap(stringsDict(for: "ro"),
                                "the app must ship a Romanian localization (ro.lproj/Localizable.strings)")
         let critical = [
-            "Save", "Delete", "Cancel", "Finances", "Settings", "Transaction",
-            "category.fuel", "category.groceries", "category.dining", "category.other",
+            // Core chrome + actions.
+            "Save", "Delete", "Cancel", "Undo", "Edit", "Apply", "From", "To",
+            "Finances", "Settings", "Transaction", "Understanding…",
+            // Every enum-label display key (the leak-prone class: rendered via
+            // Text(enum.label) so the enum itself must localize).
+            "category.fuel", "category.groceries", "category.dining", "category.transport",
+            "category.utilities", "category.shopping", "category.health",
+            "category.entertainment", "category.other", "category.uncategorized",
             "context.work", "context.personal", "finances.segment.all",
-            "chart.thisPeriod", "chart.previous", "chart.kind.overTime",
-            "categories.title", "category.new", "category.duplicate",
+            "appearance.system", "appearance.light", "appearance.dark",
+            "timeframe.week", "timeframe.month", "timeframe.sixMonths", "timeframe.year", "timeframe.custom",
+            "grouping.category", "grouping.month", "grouping.merchant",
+            "chart.kind.category", "chart.kind.overTime", "chart.kind.trend",
+            "chart.thisPeriod", "chart.previous", "chart.total",
+            "model.small", "model.medium", "language.system",
+            "decisions.trusted", "decisions.asking",
+            // Feature surfaces.
+            "categories.title", "category.new", "category.duplicate", "category.none",
             "settings.language", "confirm.noDescription", "finances.searchPrompt",
-            "timeframe.month", "grouping.category", "appearance.system",
         ]
         let missing = critical.filter { ro[$0] == nil || (ro[$0]?.isEmpty ?? true) }
         XCTAssertTrue(missing.isEmpty, "Romanian is missing translations for: \(missing.sorted())")

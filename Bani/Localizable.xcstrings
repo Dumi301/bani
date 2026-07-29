@@ -66,6 +66,42 @@
         "ro" : { "stringUnit" : { "state" : "translated", "value" : "Despre" } }
       }
     },
+    "appearance.dark" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dark" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Întunecat" } }
+      }
+    },
+    "appearance.light" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Light" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Luminos" } }
+      }
+    },
+    "appearance.system" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sistem" } }
+      }
+    },
+    "From" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "From" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "De la" } }
+      }
+    },
+    "To" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "To" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Până la" } }
+      }
+    },
+    "Understanding…" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Understanding…" } },
+        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se procesează…" } }
+      }
+    },
     "Add Transaction" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Add Transaction" } },
