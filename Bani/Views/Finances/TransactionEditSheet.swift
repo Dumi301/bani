@@ -17,6 +17,8 @@ struct TransactionEditSheet: View {
     @State private var category: TransactionCategory?
     @State private var descriptionText: String
     @State private var merchant: String
+    /// C3: the transaction's date+time, pre-filled (never blank) and editable.
+    @State private var date: Date
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -26,6 +28,7 @@ struct TransactionEditSheet: View {
         _category = State(initialValue: transaction.category)
         _descriptionText = State(initialValue: transaction.descriptionText)
         _merchant = State(initialValue: transaction.merchant ?? "")
+        _date = State(initialValue: transaction.date)
     }
 
     var body: some View {
@@ -53,6 +56,9 @@ struct TransactionEditSheet: View {
                 Section("Details") {
                     TextField("Description", text: $descriptionText)
                     TextField("Merchant (optional)", text: $merchant)
+                    // C3: editable, locale-aware date+time picker (pre-filled).
+                    DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                        .accessibilityIdentifier("editDatePicker")
                 }
 
                 Section("Context") {
@@ -101,6 +107,7 @@ struct TransactionEditSheet: View {
         transaction.category = category
         transaction.descriptionText = cleanDescription
         transaction.merchant = merchant.isEmpty ? nil : merchant
+        transaction.date = date
         try? modelContext.save()
 
         // D2: a category correction here feeds the SAME learning path as the

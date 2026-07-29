@@ -15,7 +15,13 @@ import Foundation
 /// without a persisted `Transaction` or an explicit user swipe.
 struct VoicePipelineResult: Equatable, Sendable {
     var parsed: ParsedTransaction
+    /// The TRUE raw Whisper transcript, verbatim — persisted as
+    /// `Transaction.rawTranscript` and shown as "Heard". Never refined.
     var transcript: String
+    /// The refined transcript (A1) the parser/categorizer actually consumed and
+    /// the description is derived from. Equals `transcript` when the rule-based
+    /// refiner found nothing to clean. Empty on a transcription failure.
+    var cleanText: String = ""
     /// Non-nil when transcription failed or produced nothing usable. Carries
     /// the raw underlying message so the card can surface it for device
     /// debugging; `nil` on a normal (even amount-less) transcript.
@@ -42,13 +48,17 @@ struct VoicePipelineResult: Equatable, Sendable {
     }
 }
 
-/// Runs the voice pipeline with injectable `transcribe` / `parse` so the real
-/// UI path and the unit tests exercise the SAME decision logic. Never throws:
-/// a transcription failure is folded into `errorMessage`, never a dropped flow.
+/// Runs the voice pipeline with injectable `transcribe` / `refine` / `parse` so
+/// the real UI path and the unit tests exercise the SAME decision logic. Never
+/// throws: a transcription failure is folded into `errorMessage`, never a dropped
+/// flow. The refiner (A1) is the new stage between transcription and parsing —
+/// `transcript` stays the TRUE raw output, `cleanText` is what the parser sees.
+/// `refine` defaults to the deterministic rule-based refiner (the CI path).
 @MainActor
 func runVoicePipeline(
     audioFileURL: URL,
     transcribe: @MainActor (URL) async throws -> String,
+    refine: (String) async -> RefinedTranscript = { await RuleBasedRefiner().refine($0) },
     parse: @MainActor (String) async -> ParsedTransaction
 ) async -> VoicePipelineResult {
     let transcript: String
@@ -60,6 +70,7 @@ func runVoicePipeline(
         return VoicePipelineResult(
             parsed: ParsedTransaction(amount: nil, descriptionText: ""),
             transcript: "",
+            cleanText: "",
             errorMessage: error.localizedDescription
         )
     }
@@ -70,14 +81,33 @@ func runVoicePipeline(
         return VoicePipelineResult(
             parsed: ParsedTransaction(amount: nil, descriptionText: ""),
             transcript: transcript,
+            cleanText: "",
             errorMessage: VoicePipelineResult.emptyTranscriptMessage
         )
     }
 
-    let parsed = await parse(transcript)
+    // A1: clean the raw transcript before parsing. If refinement leaves nothing
+    // meaningful (recording was only non-speech artifacts), route to the SAME
+    // no-speech error path — never a blank card, never an invented amount.
+    let refined = await refine(transcript)
+    guard refined.hadContent else {
+        return VoicePipelineResult(
+            parsed: ParsedTransaction(amount: nil, descriptionText: ""),
+            transcript: transcript,
+            cleanText: refined.cleanText,
+            errorMessage: VoicePipelineResult.emptyTranscriptMessage
+        )
+    }
+
+    let parsed = await parse(refined.cleanText)
     // A non-empty transcript is a success even when no amount was found: the
     // card opens in edit mode with the transcript visible (handled downstream).
-    return VoicePipelineResult(parsed: parsed, transcript: transcript, errorMessage: nil)
+    return VoicePipelineResult(
+        parsed: parsed,
+        transcript: transcript,
+        cleanText: refined.cleanText,
+        errorMessage: nil
+    )
 }
 
 /// Records the outcome of the most recent voice attempt to `@AppStorage` so the
@@ -90,6 +120,10 @@ enum VoiceSessionLog {
     /// separate from `appStorageKey` so the transcript summary and the file
     /// diagnostics render as two independent lines.
     static let forensicsKey = "lastVoiceForensics"
+    /// Key holding the A1 refinement pair — raw AND refined side by side — so the
+    /// Settings "Last voice session" row shows exactly what the refiner changed.
+    /// Empty when the refiner left the transcript untouched (nothing to show).
+    static let refinementKey = "lastVoiceRefinement"
 
     /// `captureNote` is the recording signal chain (A1 — voice-processed vs.
     /// plain-input fallback); `segmentDiagnostics` is the A2 segment-gate result
@@ -123,5 +157,15 @@ enum VoiceSessionLog {
         if let captureNote, !captureNote.isEmpty { forensicsLine += " · \(captureNote)" }
         if let segmentDiagnostics, !segmentDiagnostics.isEmpty { forensicsLine += " · \(segmentDiagnostics)" }
         UserDefaults.standard.set(forensicsLine, forKey: forensicsKey)
+
+        // A1/A2: raw AND refined, side by side — only when the refiner actually
+        // changed something, so an untouched transcript doesn't show a redundant
+        // duplicate line. Diacritics/numbers are preserved verbatim by the refiner.
+        let clean = result.cleanText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !clean.isEmpty, clean != transcript {
+            UserDefaults.standard.set("raw “\(transcript)” → refined “\(clean)”", forKey: refinementKey)
+        } else {
+            UserDefaults.standard.set("", forKey: refinementKey)
+        }
     }
 }

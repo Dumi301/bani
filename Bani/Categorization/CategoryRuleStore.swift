@@ -48,6 +48,17 @@ enum CategoryRuleStore {
         return Categorizer.bestMatch(for: text, rules: snapshots(context))
     }
 
+    /// The persistent `id` of the rule that fires for a description(+merchant) —
+    /// the stable key the feedback ledger scores trust on (B4). `nil` when no rule
+    /// matches (the guess is `.other`, which is never trusted).
+    static func firedRuleID(description: String, merchant: String? = nil, in context: ModelContext) -> UUID? {
+        guard let match = bestMatch(description: description, merchant: merchant, in: context) else { return nil }
+        let keyword = match.keyword
+        let descriptor = FetchDescriptor<CategoryRule>(predicate: #Predicate { $0.keyword == keyword })
+        let rules = (try? context.fetch(descriptor)) ?? []
+        return rules.first { $0.origin == match.origin }?.id
+    }
+
     // MARK: - Writing (the learning path, C4)
 
     /// A user corrected the category → remember it. Extracts the salient keyword

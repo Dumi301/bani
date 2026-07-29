@@ -24,6 +24,11 @@ struct TransactionRow: View {
                             .lineLimit(1)
                     }
                     contextTag
+                    Text(dateText)
+                        .font(.caption2)
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .lineLimit(1)
+                        .accessibilityIdentifier("transactionRow.date")
                 }
             }
 
@@ -32,6 +37,15 @@ struct TransactionRow: View {
             amountText
         }
         .padding(.vertical, 4)
+    }
+
+    /// C3: today's entries show just the time; older entries show a compact
+    /// date+time. Locale-aware `FormatStyle`, so an RO device reads RO order.
+    private var dateText: String {
+        if Calendar.current.isDateInToday(transaction.date) {
+            return transaction.date.formatted(date: .omitted, time: .shortened)
+        }
+        return transaction.date.formatted(.dateTime.day().month(.abbreviated).hour().minute())
     }
 
     private var categoryIcon: some View {

@@ -19,6 +19,10 @@ struct SettingsView: View {
     /// avg/peak RMS) — discriminates an empty/mis-formatted/clipped file from a
     /// genuinely silent one if the "No speech detected" bug ever recurs.
     @AppStorage(VoiceSessionLog.forensicsKey) private var lastVoiceForensics: String = ""
+    /// The A1 refinement pair (raw → refined) for the last voice attempt — shown
+    /// only when the refiner changed the transcript, so a mishear-vs-clean is
+    /// spottable on-device.
+    @AppStorage(VoiceSessionLog.refinementKey) private var lastVoiceRefinement: String = ""
 
     private var appearance: Binding<AppearanceMode> {
         Binding(
@@ -115,6 +119,13 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundStyle(Color("BaniSecondaryInk"))
                             .fixedSize(horizontal: false, vertical: true)
+                        if !lastVoiceRefinement.isEmpty {
+                            Text(lastVoiceRefinement)
+                                .font(.caption)
+                                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.85))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("settings.lastVoiceRefinement")
+                        }
                         if !lastVoiceForensics.isEmpty {
                             Text(lastVoiceForensics)
                                 .font(.caption.monospacedDigit())
@@ -128,6 +139,16 @@ struct SettingsView: View {
                     .listRowBackground(Color("BaniSurface"))
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("settings.lastVoiceSessionRow")
+
+                    NavigationLink {
+                        DecisionsView()
+                    } label: {
+                        Text("Decisions")
+                            .font(.system(.body, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color("BaniInk"))
+                    }
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityIdentifier("settings.decisionsRow")
                 } header: {
                     Text("Diagnostics")
                         .foregroundStyle(Color("BaniSecondaryInk"))

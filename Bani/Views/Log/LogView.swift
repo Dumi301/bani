@@ -14,9 +14,11 @@ struct LogView: View {
     @Environment(\.modelContext) private var modelContext
 
     /// Constructed once per view identity. `-forceRuleParser` (test seam,
-    /// see interfaces.md) forces the deterministic rule-based parser;
+    /// see interfaces.md) forces the deterministic rule-based parser + refiner;
     /// otherwise Foundation Models with a silent rule-based fallback.
     private let parser: any TransactionParsing
+    /// The A1 refinement stage — same availability selection as the parser.
+    private let refiner: any TranscriptRefiner
 
     @State private var stage: Stage = .idle
     @State private var recorder: Recorder?
@@ -26,9 +28,23 @@ struct LogView: View {
     init() {
         if ProcessInfo.processInfo.arguments.contains("-forceRuleParser") {
             parser = RuleBasedParser()
+            refiner = RuleBasedRefiner()
         } else {
             parser = FoundationModelsParser(fallback: RuleBasedParser())
+            refiner = FoundationModelsRefiner(fallback: RuleBasedRefiner())
         }
+    }
+
+    /// Everything the confirmation card needs, pre-computed on the main actor when
+    /// the pipeline finishes so the card's chip, context, and trust flow are all
+    /// resolved the instant it appears.
+    private struct ConfirmationSetup: Equatable {
+        var result: VoicePipelineResult
+        var category: TransactionCategory
+        var context: TransactionContext
+        var autoContextApplied: Bool
+        var firedRuleID: UUID?
+        var trusted: Bool
     }
 
     /// Local flow state. `Equatable` so `.onChange`/`.animation` can key off it.
@@ -39,7 +55,7 @@ struct LogView: View {
         case recording
         case processing
         case micDenied
-        case confirming(VoicePipelineResult, TransactionCategory)
+        case confirming(ConfirmationSetup)
     }
 
     var body: some View {
@@ -64,13 +80,17 @@ struct LogView: View {
             ManualEntrySheet()
         }
         .overlay(alignment: .bottom) {
-            if case .confirming(let result, let category) = stage {
+            if case .confirming(let setup) = stage {
                 ConfirmationCard(
-                    parsed: result.parsed,
-                    transcript: result.transcript,
-                    errorMessage: result.errorMessage,
-                    context: activeContext,
-                    category: category,
+                    parsed: setup.result.parsed,
+                    transcript: setup.result.transcript,
+                    errorMessage: setup.result.errorMessage,
+                    context: setup.context,
+                    category: setup.category,
+                    autoContextApplied: setup.autoContextApplied,
+                    firedRuleID: setup.firedRuleID,
+                    trusted: setup.trusted,
+                    refinedText: setup.result.cleanText,
                     onComplete: { stage = .idle }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -205,9 +225,10 @@ struct LogView: View {
     private func transcribeAndParse(url: URL) async {
         // Grab the capture signal-chain note before the recorder is torn down.
         let captureNote = recorder?.captureChainNote
-        let result = await runVoicePipeline(
+        var result = await runVoicePipeline(
             audioFileURL: url,
             transcribe: { try await whisper.transcribe(audioFileURL: $0) },
+            refine: { await refiner.refine($0) },
             parse: { await parser.parse($0) }
         )
         // A3: surface the outcome + recording forensics for on-device debugging
@@ -220,6 +241,14 @@ struct LogView: View {
             captureNote: captureNote,
             segmentDiagnostics: whisper.lastSegmentDiagnostics
         )
+
+        // B3: if this exact (normalized) transcript has been corrected before,
+        // reuse that description before categorizing — the memory forming.
+        if result.errorMessage == nil,
+           let remembered = CorrectionMemoryStore.lookup(rawTranscript: result.transcript, in: modelContext) {
+            result.parsed.descriptionText = remembered
+        }
+
         // C: pre-compute the category guess so the confirmation card's chip is
         // filled the instant it appears (falls back to Other).
         let guess = CategoryRuleStore.guess(
@@ -227,7 +256,30 @@ struct LogView: View {
             merchant: result.parsed.merchant,
             in: modelContext
         )
-        stage = .confirming(result, guess)
+        // B4: the rule that fired (trust key) + whether it is trusted right now.
+        let firedRuleID = CategoryRuleStore.firedRuleID(
+            description: result.parsed.descriptionText,
+            merchant: result.parsed.merchant,
+            in: modelContext
+        )
+        let trusted = DecisionLedger.isTrusted(ruleID: firedRuleID, in: modelContext)
+        // B3: a learned context rule can pre-select the context regardless of the
+        // Personal/Work button that was tapped.
+        let autoContext = ContextRuleStore.preselectedContext(
+            description: result.parsed.descriptionText,
+            merchant: result.parsed.merchant,
+            in: modelContext
+        )
+        let effectiveContext = autoContext ?? activeContext
+
+        stage = .confirming(ConfirmationSetup(
+            result: result,
+            category: guess,
+            context: effectiveContext,
+            autoContextApplied: autoContext != nil,
+            firedRuleID: firedRuleID,
+            trusted: trusted
+        ))
         recorder = nil
     }
 }

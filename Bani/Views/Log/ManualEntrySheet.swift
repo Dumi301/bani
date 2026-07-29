@@ -15,6 +15,9 @@ struct ManualEntrySheet: View {
     @State private var currency: Currency = .ron
     @State private var descriptionText = ""
     @State private var context: TransactionContext = .personal
+    /// C2: date+time for the manual entry, default now, editable for logging past
+    /// expenses.
+    @State private var date = Date()
 
     private var parsedAmount: Decimal? {
         Decimal(string: amountText.replacingOccurrences(of: ",", with: "."))
@@ -64,6 +67,10 @@ struct ManualEntrySheet: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("manualEntry.contextPicker")
+
+                    // C2: locale-aware date+time picker, pre-filled with now.
+                    DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                        .accessibilityIdentifier("manualEntry.datePicker")
                 } header: {
                     Text("Details")
                 }
@@ -106,6 +113,7 @@ struct ManualEntrySheet: View {
             context: context,
             category: category,
             descriptionText: cleanDescription,
+            date: date,
             rawTranscript: nil,
             source: .manual
         )

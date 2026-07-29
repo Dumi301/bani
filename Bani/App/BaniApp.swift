@@ -34,9 +34,15 @@ struct BaniApp: App {
 
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-            // CategoryRule joins the schema as a separate, additive entity —
-            // `Transaction` is unchanged, so this is a lightweight migration.
-            container = try ModelContainer(for: Transaction.self, CategoryRule.self, configurations: config)
+            // CategoryRule + the feedback-ledger entities (DecisionRecord,
+            // ContextRule, CorrectionMemory) join the schema as separate, additive
+            // entities — `Transaction` is unchanged, so this stays a lightweight
+            // migration; existing rows are untouched.
+            container = try ModelContainer(
+                for: Transaction.self, CategoryRule.self,
+                DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
+                configurations: config
+            )
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
