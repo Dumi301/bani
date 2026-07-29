@@ -20,8 +20,7 @@ struct FinancesView: View {
     @AppStorage("financesGrouping") private var groupingRaw: String = TransactionGrouping.category.rawValue
 
     @State private var selectedFilter: FinancesFilter
-    @State private var editingTransaction: Transaction?
-    @State private var isEditSheetPresented = false
+    @State private var selectedTransaction: Transaction?
     @State private var recentlyDeleted: DeletedTransactionSnapshot?
 
     init() {
@@ -55,10 +54,8 @@ struct FinancesView: View {
                 }
             }
             .navigationTitle("Finances")
-            .sheet(isPresented: $isEditSheetPresented) {
-                if let editingTransaction {
-                    TransactionEditSheet(transaction: editingTransaction)
-                }
+            .navigationDestination(item: $selectedTransaction) { transaction in
+                TransactionDetailView(transaction: transaction)
             }
             .overlay(alignment: .bottom) {
                 if let recentlyDeleted {
@@ -171,8 +168,7 @@ struct FinancesView: View {
                         TransactionRow(transaction: transaction)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                editingTransaction = transaction
-                                isEditSheetPresented = true
+                                selectedTransaction = transaction
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {

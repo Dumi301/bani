@@ -91,7 +91,16 @@ enum VoiceSessionLog {
     /// diagnostics render as two independent lines.
     static let forensicsKey = "lastVoiceForensics"
 
-    static func record(_ result: VoicePipelineResult, audioFileURL: URL?) {
+    /// `captureNote` is the recording signal chain (A1 — voice-processed vs.
+    /// plain-input fallback); `segmentDiagnostics` is the A2 segment-gate result
+    /// (kept/dropped counts + drop reasons). Both are appended to the forensics
+    /// row so a single line discriminates a degraded route or gated-out audio.
+    static func record(
+        _ result: VoicePipelineResult,
+        audioFileURL: URL?,
+        captureNote: String? = nil,
+        segmentDiagnostics: String? = nil
+    ) {
         let transcript = result.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         let summary: String
         if let error = result.errorMessage {
@@ -108,9 +117,11 @@ enum VoiceSessionLog {
         // empty / mis-formatted / clipped recording apart from a genuine "user
         // said nothing". `analyze` returns nil when the file is missing or
         // unreadable — itself a diagnostic (a wrong or never-written URL).
-        let forensicsLine = audioFileURL
+        var forensicsLine = audioFileURL
             .flatMap(RecordingForensics.analyze(url:))?
             .summaryLine ?? "no readable recording file"
+        if let captureNote, !captureNote.isEmpty { forensicsLine += " · \(captureNote)" }
+        if let segmentDiagnostics, !segmentDiagnostics.isEmpty { forensicsLine += " · \(segmentDiagnostics)" }
         UserDefaults.standard.set(forensicsLine, forKey: forensicsKey)
     }
 }

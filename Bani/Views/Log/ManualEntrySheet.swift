@@ -88,11 +88,24 @@ struct ManualEntrySheet: View {
 
     private func save() {
         guard let amount = parsedAmount, amount > 0 else { return }
+        let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // C3: manual saves get a category guess too (no picker here — the guess
+        // runs at save time). Reinforce the rule that fired; Other if none.
+        let category: TransactionCategory
+        if let match = CategoryRuleStore.bestMatch(description: cleanDescription, in: modelContext) {
+            CategoryRuleStore.reinforce(keyword: match.keyword, origin: match.origin, in: modelContext)
+            category = match.category
+        } else {
+            category = .other
+        }
+
         let transaction = Transaction(
             amount: amount,
             currency: currency,
             context: context,
-            descriptionText: descriptionText.trimmingCharacters(in: .whitespacesAndNewlines),
+            category: category,
+            descriptionText: cleanDescription,
             rawTranscript: nil,
             source: .manual
         )

@@ -92,13 +92,27 @@ struct TransactionEditSheet: View {
     }
 
     private func save() {
+        let categoryChanged = category != transaction.category
+        let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
+
         transaction.amount = amount
         transaction.currency = currency
         transaction.context = context
         transaction.category = category
-        transaction.descriptionText = descriptionText
+        transaction.descriptionText = cleanDescription
         transaction.merchant = merchant.isEmpty ? nil : merchant
         try? modelContext.save()
+
+        // D2: a category correction here feeds the SAME learning path as the
+        // confirmation card (C4) — one learning seam, not two.
+        if categoryChanged, let category {
+            CategoryRuleStore.learn(
+                correctedCategory: category,
+                description: cleanDescription,
+                merchant: merchant.isEmpty ? nil : merchant,
+                in: modelContext
+            )
+        }
         dismiss()
     }
 }

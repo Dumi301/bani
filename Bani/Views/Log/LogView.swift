@@ -32,12 +32,14 @@ struct LogView: View {
     }
 
     /// Local flow state. `Equatable` so `.onChange`/`.animation` can key off it.
+    /// `.confirming` carries the categorizer's guess so the card's chip is
+    /// pre-filled from the moment it appears (Q2 — never blank).
     private enum Stage: Equatable {
         case idle
         case recording
         case processing
         case micDenied
-        case confirming(VoicePipelineResult)
+        case confirming(VoicePipelineResult, TransactionCategory)
     }
 
     var body: some View {
@@ -62,12 +64,13 @@ struct LogView: View {
             ManualEntrySheet()
         }
         .overlay(alignment: .bottom) {
-            if case .confirming(let result) = stage {
+            if case .confirming(let result, let category) = stage {
                 ConfirmationCard(
                     parsed: result.parsed,
                     transcript: result.transcript,
                     errorMessage: result.errorMessage,
                     context: activeContext,
+                    category: category,
                     onComplete: { stage = .idle }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -200,16 +203,31 @@ struct LogView: View {
     /// (with the raw error and/or transcript visible) — never inventing an
     /// amount and never dropping the flow. See `runVoicePipeline`.
     private func transcribeAndParse(url: URL) async {
+        // Grab the capture signal-chain note before the recorder is torn down.
+        let captureNote = recorder?.captureChainNote
         let result = await runVoicePipeline(
             audioFileURL: url,
             transcribe: { try await whisper.transcribe(audioFileURL: $0) },
             parse: { await parser.parse($0) }
         )
-        // A3: surface the outcome + recording forensics for on-device
-        // debugging (Settings row). The file is closed by `finish()` before
-        // `.finished(url)` is published, so it is fully readable here.
-        VoiceSessionLog.record(result, audioFileURL: url)
-        stage = .confirming(result)
+        // A3: surface the outcome + recording forensics for on-device debugging
+        // (Settings row) — including the A1 capture chain and the A2 segment-gate
+        // result. The file is closed by `finish()` before `.finished(url)` is
+        // published, so it is fully readable here.
+        VoiceSessionLog.record(
+            result,
+            audioFileURL: url,
+            captureNote: captureNote,
+            segmentDiagnostics: whisper.lastSegmentDiagnostics
+        )
+        // C: pre-compute the category guess so the confirmation card's chip is
+        // filled the instant it appears (falls back to Other).
+        let guess = CategoryRuleStore.guess(
+            description: result.parsed.descriptionText,
+            merchant: result.parsed.merchant,
+            in: modelContext
+        )
+        stage = .confirming(result, guess)
         recorder = nil
     }
 }

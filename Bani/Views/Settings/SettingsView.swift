@@ -9,6 +9,9 @@ struct SettingsView: View {
     @Environment(WhisperService.self) private var whisper
 
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+    /// Auto-save countdown length for the confirmation card, in seconds (2–8).
+    /// `ConfirmationCard` reads the same key; default 4 s.
+    @AppStorage("confirmationDuration") private var confirmationDuration: Double = ConfirmationCard.defaultAutoSaveDelay
     /// Last voice-pipeline outcome (transcript+parse, or the thrown error),
     /// written by `VoiceSessionLog.record` on every voice attempt (A3).
     @AppStorage(VoiceSessionLog.appStorageKey) private var lastVoiceSession: String = ""
@@ -38,6 +41,33 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.appearancePicker")
                 } header: {
                     Text("Appearance")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Confirmation time")
+                                .font(.system(.body, design: .rounded).weight(.medium))
+                                .foregroundStyle(Color("BaniInk"))
+                            Spacer()
+                            Text("\(Int(confirmationDuration.rounded())) s")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(Color("BaniSecondaryInk"))
+                        }
+                        Slider(value: $confirmationDuration, in: ConfirmationCard.minAutoSaveDelay...ConfirmationCard.maxAutoSaveDelay, step: 1)
+                            .tint(Color("BaniAccent"))
+                            .accessibilityIdentifier("settings.confirmationTimeSlider")
+                            .accessibilityLabel("Confirmation time")
+                            .accessibilityValue("\(Int(confirmationDuration.rounded())) seconds")
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color("BaniSurface"))
+                } header: {
+                    Text("Logging")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                } footer: {
+                    Text("How long the confirmation card waits before auto-saving. Tap the card to pause and edit.")
                         .foregroundStyle(Color("BaniSecondaryInk"))
                 }
 

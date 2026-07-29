@@ -24,6 +24,11 @@ final class WhisperService {
     private(set) var modelState: ModelState = .notReady
     let modelSizeMB: Int = 485
 
+    /// A2 forensics: the segment-gate result of the most recent transcription
+    /// (kept/dropped counts + drop reasons), surfaced under the Settings
+    /// "Last voice session" row. `nil` until the first transcription.
+    private(set) var lastSegmentDiagnostics: String?
+
     /// When `true`, WhisperKit is never touched — used by the UI-test /
     /// manual-only path. `modelState` stays `.notReady` forever and
     /// `transcribe` throws a clear error.
@@ -75,7 +80,31 @@ final class WhisperService {
         // transcribe(...) returns [TranscriptionResult] — concatenate .text
         // across results rather than assuming a single element.
         let results = try await pipe.transcribe(audioPath: audioFileURL.path, decodeOptions: options)
-        return results.map(\.text).joined(separator: " ")
+
+        // A2: gate on per-segment metadata so background music / ambient noise —
+        // which Whisper otherwise transcribes or hallucinates text from — never
+        // reaches a saved entry.
+        let segments = results.flatMap(\.segments).map {
+            SpeechSegment(
+                text: $0.text,
+                noSpeechProb: $0.noSpeechProb,
+                avgLogprob: $0.avgLogprob,
+                compressionRatio: $0.compressionRatio
+            )
+        }
+
+        guard !segments.isEmpty else {
+            // No segment metadata to gate on — return the raw text untouched
+            // rather than risk dropping a valid transcription.
+            lastSegmentDiagnostics = nil
+            return results.map(\.text).joined(separator: " ")
+        }
+
+        let gate = SegmentGate.filter(segments)
+        lastSegmentDiagnostics = gate.diagnostics
+        // When every segment is dropped, `keptText` is empty — `runVoicePipeline`
+        // then routes to the existing "No speech was detected" path.
+        return gate.keptText
     }
 
     private func downloadAndLoad() async {

@@ -119,6 +119,37 @@ final class VoiceFlowIntegrationTests: XCTestCase {
         XCTAssertTrue(fetched.isEmpty, "no Transaction may be written when transcription fails")
     }
 
+    /// C6: a voice save carries the category the categorizer guessed for it.
+    func testVoiceSaveCarriesTheGuessedCategory() async throws {
+        let container = try ModelContainer(
+            for: Transaction.self, CategoryRule.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        CategoryRuleStore.seedIfNeeded(context)
+
+        let parser = RuleBasedParser()
+        let transcript = "50 de lei benzină"
+        let parsed = await parser.parse(transcript)
+
+        let guess = CategoryRuleStore.guess(
+            description: parsed.descriptionText,
+            merchant: parsed.merchant,
+            in: context
+        )
+        XCTAssertEqual(guess, .fuel, "benzină must categorize as fuel via the seed table")
+
+        let saved = saveVoiceTransaction(
+            parsed: parsed,
+            transcript: transcript,
+            context: .personal,
+            category: guess,
+            into: context
+        )
+        let transaction = try XCTUnwrap(saved)
+        XCTAssertEqual(transaction.category, .fuel, "the voice save must carry the guessed category")
+    }
+
     func testManualEntryNeverSetsRawTranscript() throws {
         // Guards the `source`/`rawTranscript` contract from the other side:
         // manual entries (Unit C's `ManualEntrySheet`) must never populate

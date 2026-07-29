@@ -25,6 +25,10 @@ final class Recorder {
     private(set) var state: RecordingState = .idle
     /// 0...1, drives the waveform.
     private(set) var level: Float = 0
+    /// Which capture signal chain the current/last session used (voice-processed
+    /// vs. plain-input fallback). Surfaced under Settings → Last voice session so
+    /// a degraded route is visible on-device. Set by `beginRecording`.
+    private(set) var captureChainNote: String = ""
 
     private let engine = AVAudioEngine()
     /// Mutated only from the audio engine's real-time render thread —
@@ -64,34 +68,77 @@ final class Recorder {
 
     private func beginRecording() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers])
+        // Voice-oriented session (was `.measurement`, which asks for RAW,
+        // unprocessed input and let media playing on the phone bleed into the
+        // recording). `.voiceChat` requests the OS voice signal chain.
+        try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.duckOthers])
         try session.setActive(true)
 
         let input = engine.inputNode
+
+        // A1: turn on iOS voice processing — OS-level echo cancellation + noise
+        // suppression. This is what strips media playing from the phone itself
+        // (the source of the background-music transcriptions) before Whisper
+        // ever sees the audio.
+        var usingVoiceProcessing = false
+        do {
+            try input.setVoiceProcessingEnabled(true)
+            usingVoiceProcessing = true
+        } catch {
+            // Some routes (e.g. certain Bluetooth HFP links) reject voice
+            // processing. Degrade to the plain input rather than failing to
+            // record at all — noted in the Last voice session row.
+            usingVoiceProcessing = false
+        }
+
+        do {
+            try startCapture(on: input)
+        } catch {
+            // The voice-processing render chain can itself fail to start on some
+            // routes. Tear it down, disable VP, and retry once on plain input so
+            // recording still begins.
+            guard usingVoiceProcessing else { throw error }
+            input.removeTap(onBus: 0)
+            engine.stop()
+            try? input.setVoiceProcessingEnabled(false)
+            usingVoiceProcessing = false
+            try startCapture(on: input)
+        }
+
+        captureChainNote = usingVoiceProcessing
+            ? "voice-processed input (echo cancel + noise suppression)"
+            : "plain input — voice processing unavailable on this route"
+    }
+
+    /// Opens the capture file in the input node's CURRENT output format and
+    /// installs the write tap + starts the engine.
+    ///
+    /// The format is re-derived HERE — AFTER any `setVoiceProcessingEnabled`
+    /// change — on purpose: enabling voice processing changes the input node's
+    /// delivered format, and the tap/file settings MUST match the format
+    /// actually delivered or the write path decodes as noise. Recording still
+    /// happens in the node's native format and is handed to WhisperKit untouched
+    /// (its AudioProcessor resamples to 16 kHz mono on load) — no AVAudioConverter.
+    private func startCapture(on input: AVAudioInputNode) throws {
         let format = input.outputFormat(forBus: 0)
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("wav")
-        // Record in the input node's NATIVE format (typically 48 kHz float32
-        // mono) and hand WhisperKit the file untouched — its AudioProcessor
-        // resamples to 16 kHz mono on load. No AVAudioConverter, no second
-        // conversion that could decode as silence.
         let file = try Self.makeFile(at: url, format: format)
         tapState.reset(audioFile: file, url: url)
 
         // The tap block MUST be `@Sendable` (i.e. nonisolated). Without it,
-        // this closure — formed here inside `@MainActor`-isolated
-        // `beginRecording()` and itself non-Sendable — is INFERRED to be
-        // `@MainActor`-isolated. AVFAudio then invokes it on its realtime
-        // "RealtimeMessenger.mServiceQueue"; Swift 6's dynamic executor check
-        // (`swift_task_isCurrentExecutor`) sees a non-main executor and the
-        // app traps (EXC_BREAKPOINT / SIGTRAP) — the on-device crash. The
-        // `@preconcurrency import` only silences the *warning*, it does NOT
-        // strip the inherited isolation. `@Sendable` does: the block runs on
-        // the audio thread as intended and only calls the already-`nonisolated`
-        // `processTap`, which touches locals + `tapState` and hops to the main
-        // actor via `Task { @MainActor }`.
+        // this closure — formed here inside `@MainActor`-isolated code and
+        // itself non-Sendable — is INFERRED to be `@MainActor`-isolated. AVFAudio
+        // then invokes it on its realtime "RealtimeMessenger.mServiceQueue";
+        // Swift 6's dynamic executor check (`swift_task_isCurrentExecutor`) sees
+        // a non-main executor and the app traps (EXC_BREAKPOINT / SIGTRAP) — the
+        // on-device crash. The `@preconcurrency import` only silences the
+        // *warning*, it does NOT strip the inherited isolation. `@Sendable` does:
+        // the block runs on the audio thread as intended and only calls the
+        // already-`nonisolated` `processTap`, which touches locals + `tapState`
+        // and hops to the main actor via `Task { @MainActor }`.
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { @Sendable [weak self] buffer, _ in
             self?.processTap(buffer: buffer)
         }

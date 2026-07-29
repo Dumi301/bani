@@ -34,7 +34,9 @@ struct BaniApp: App {
 
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-            container = try ModelContainer(for: Transaction.self, configurations: config)
+            // CategoryRule joins the schema as a separate, additive entity —
+            // `Transaction` is unchanged, so this is a lightweight migration.
+            container = try ModelContainer(for: Transaction.self, CategoryRule.self, configurations: config)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -45,6 +47,16 @@ struct BaniApp: App {
         if args.contains("-seedSampleData") {
             SampleData.seed(into: container)
         }
+        // Deterministic BNR rate for UI tests (no network) so the detail view's
+        // currency-conversion line renders. Read by RateService.init below.
+        if args.contains("-seedRate") {
+            UserDefaults.standard.set(4.97, forKey: "bnr.rate")
+            UserDefaults.standard.set("2026-07-29", forKey: "bnr.date")
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "bnr.fetchedAt")
+        }
+        // Seed the categorizer's keyword table on first launch (idempotent —
+        // a no-op once rules exist). Uses a fresh context, like SampleData.
+        CategoryRuleStore.seedIfNeeded(ModelContext(container))
 
         _whisper = State(initialValue: WhisperService(modelAbsent: absent))
         _rates = State(initialValue: RateService())
