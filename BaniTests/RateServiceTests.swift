@@ -8,9 +8,9 @@ import XCTest
 @MainActor
 final class RateServiceTests: XCTestCase {
 
-    private static let bnrRateKey = "bnr.rate"
-    private static let bnrDateKey = "bnr.date"
-    private static let bnrFetchedAtKey = "bnr.fetchedAt"
+    nonisolated private static let bnrRateKey = "bnr.rate"
+    nonisolated private static let bnrDateKey = "bnr.date"
+    nonisolated private static let bnrFetchedAtKey = "bnr.fetchedAt"
 
     override func setUp() {
         super.setUp()
