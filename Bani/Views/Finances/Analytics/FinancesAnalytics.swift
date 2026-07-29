@@ -1,12 +1,29 @@
 import Foundation
 
 /// A transaction reduced to the fields analytics needs — a pure value type so
-/// all aggregation is unit-testable with no SwiftData.
+/// all aggregation is unit-testable with no SwiftData. Carries BOTH the preset
+/// enum and the optional custom id (C3); `categoryRef` unifies them for grouping.
 struct SpendItem: Equatable, Sendable {
     var amount: Decimal
     var currency: Currency
     var category: TransactionCategory?
+    var customCategoryID: UUID?
     var date: Date
+
+    init(amount: Decimal, currency: Currency, category: TransactionCategory? = nil, customCategoryID: UUID? = nil, date: Date) {
+        self.amount = amount
+        self.currency = currency
+        self.category = category
+        self.customCategoryID = customCategoryID
+        self.date = date
+    }
+
+    /// The unified category identity used for chart/breakdown grouping.
+    var categoryRef: CategoryRef? {
+        if let customCategoryID { return .custom(customCategoryID) }
+        if let category { return .preset(category) }
+        return nil
+    }
 }
 
 /// All Finances-tab aggregation (D3). Money stays `Decimal` throughout; EUR→RON
@@ -58,28 +75,31 @@ enum FinancesAnalytics {
     // MARK: - Category breakdown
 
     struct CategoryTotal: Equatable, Identifiable, Sendable {
-        var category: TransactionCategory?
+        var categoryRef: CategoryRef?
         var total: Decimal
         var count: Int
-        var id: String { category?.rawValue ?? "uncategorized" }
+        var id: String { CategoryRef.sortKey(categoryRef) }
+        /// Back-compat accessor: the preset value when this total is a preset.
+        var category: TransactionCategory? { categoryRef?.presetValue }
     }
 
     /// Per-category totals (RON-combined when `rate` given, else the passed items
-    /// should already be single-currency), sorted by total descending.
+    /// should already be single-currency), sorted by total descending. Custom
+    /// categories aggregate as their own `CategoryRef.custom` buckets (C3).
     static func byCategory(_ items: [SpendItem], rate: Double?) -> [CategoryTotal] {
-        var totals: [TransactionCategory?: (total: Decimal, count: Int)] = [:]
+        var totals: [CategoryRef?: (total: Decimal, count: Int)] = [:]
         for item in items {
             let value = ronValue(item, rate: rate)
-            var entry = totals[item.category] ?? (0, 0)
+            var entry = totals[item.categoryRef] ?? (0, 0)
             entry.total += value
             entry.count += 1
-            totals[item.category] = entry
+            totals[item.categoryRef] = entry
         }
         return totals
-            .map { CategoryTotal(category: $0.key, total: $0.value.total, count: $0.value.count) }
+            .map { CategoryTotal(categoryRef: $0.key, total: $0.value.total, count: $0.value.count) }
             .sorted { lhs, rhs in
                 if lhs.total != rhs.total { return lhs.total > rhs.total }
-                return (lhs.category?.rawValue ?? "~") < (rhs.category?.rawValue ?? "~")
+                return CategoryRef.sortKey(lhs.categoryRef) < CategoryRef.sortKey(rhs.categoryRef)
             }
     }
 
@@ -118,6 +138,14 @@ enum FinancesAnalytics {
             guardCount += 1
         }
         return buckets
+    }
+
+    /// The half-open date range `[start, start + 1 unit)` a bar bucket covers —
+    /// the exact filter applied to the transaction list when a bar is tapped
+    /// (A3). Calendar-based so month-length edges (28/30/31 days) are correct (A4).
+    static func bucketRange(start: Date, unit: Calendar.Component, calendar: Calendar) -> DateInterval {
+        let end = calendar.date(byAdding: unit, value: 1, to: start) ?? start
+        return DateInterval(start: start, end: end)
     }
 
     /// Mean bucket total — the "average" line overlaid on the bars (D1b).

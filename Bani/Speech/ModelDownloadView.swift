@@ -111,6 +111,6 @@ struct ModelDownloadView: View {
     }
 
     private var subtitle: String {
-        "Bani is downloading its on-device speech model so you can log expenses by voice, in Romanian or English. This only happens once — skip it and enter transactions manually any time."
+        String(localized: "download.subtitle")
     }
 }

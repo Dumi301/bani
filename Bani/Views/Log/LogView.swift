@@ -40,7 +40,7 @@ struct LogView: View {
     /// resolved the instant it appears.
     private struct ConfirmationSetup: Equatable {
         var result: VoicePipelineResult
-        var category: TransactionCategory
+        var categoryRef: CategoryRef
         var context: TransactionContext
         var autoContextApplied: Bool
         var firedRuleID: UUID?
@@ -86,7 +86,7 @@ struct LogView: View {
                     transcript: setup.result.transcript,
                     errorMessage: setup.result.errorMessage,
                     context: setup.context,
-                    category: setup.category,
+                    categoryRef: setup.categoryRef,
                     autoContextApplied: setup.autoContextApplied,
                     firedRuleID: setup.firedRuleID,
                     trusted: setup.trusted,
@@ -250,8 +250,9 @@ struct LogView: View {
         }
 
         // C: pre-compute the category guess so the confirmation card's chip is
-        // filled the instant it appears (falls back to Other).
-        let guess = CategoryRuleStore.guess(
+        // filled the instant it appears (falls back to Other). A learned custom
+        // category (C3) resolves here too via `guessRef`.
+        let guess = CategoryRuleStore.guessRef(
             description: result.parsed.descriptionText,
             merchant: result.parsed.merchant,
             in: modelContext
@@ -274,7 +275,7 @@ struct LogView: View {
 
         stage = .confirming(ConfirmationSetup(
             result: result,
-            category: guess,
+            categoryRef: guess,
             context: effectiveContext,
             autoContextApplied: autoContext != nil,
             firedRuleID: firedRuleID,

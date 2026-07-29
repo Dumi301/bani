@@ -31,7 +31,7 @@ enum CategoryRuleStore {
     private static func snapshots(_ context: ModelContext) -> [CategoryRuleSnapshot] {
         let rules = (try? context.fetch(FetchDescriptor<CategoryRule>())) ?? []
         return rules.map {
-            CategoryRuleSnapshot(keyword: $0.keyword, category: $0.category, origin: $0.origin, hitCount: $0.hitCount)
+            CategoryRuleSnapshot(keyword: $0.keyword, category: $0.category, customCategoryID: $0.customCategoryID, origin: $0.origin, hitCount: $0.hitCount)
         }
     }
 
@@ -40,6 +40,13 @@ enum CategoryRuleStore {
     static func guess(description: String, merchant: String? = nil, in context: ModelContext) -> TransactionCategory {
         let text = Categorizer.categorizationText(description: description, merchant: merchant)
         return Categorizer.category(for: text, rules: snapshots(context))
+    }
+
+    /// The unified category-ref guess (C3) — resolves to a learned custom category
+    /// when one matches, else the preset guess (`.other` fallback).
+    static func guessRef(description: String, merchant: String? = nil, in context: ModelContext) -> CategoryRef {
+        let text = Categorizer.categorizationText(description: description, merchant: merchant)
+        return Categorizer.categoryRef(for: text, rules: snapshots(context))
     }
 
     /// The full winning rule (so callers can reinforce exactly the rule that fired).
@@ -61,10 +68,22 @@ enum CategoryRuleStore {
 
     // MARK: - Writing (the learning path, C4)
 
-    /// A user corrected the category → remember it. Extracts the salient keyword
-    /// from the description and upserts a `learned` rule (learned beats seed).
+    /// A user corrected the category to a PRESET → remember it (the original path).
     static func learn(
         correctedCategory: TransactionCategory,
+        description: String,
+        merchant: String? = nil,
+        in context: ModelContext
+    ) {
+        learn(correctedRef: .preset(correctedCategory), description: description, merchant: merchant, in: context)
+    }
+
+    /// A user corrected the category to a preset OR a custom category → remember
+    /// it (C3). Extracts the salient keyword and upserts one `learned` rule
+    /// (learned beats seed) referencing the corrected target. A custom target
+    /// stores `.other` in `category` and the custom id in `customCategoryID`.
+    static func learn(
+        correctedRef: CategoryRef,
         description: String,
         merchant: String? = nil,
         in context: ModelContext
@@ -72,7 +91,12 @@ enum CategoryRuleStore {
         let text = Categorizer.categorizationText(description: description, merchant: merchant)
         let keyword = Categorizer.salientKeyword(in: text)
         guard !keyword.isEmpty else { return }
-        upsertLearned(keyword: keyword, category: correctedCategory, in: context)
+        switch correctedRef {
+        case .preset(let category):
+            upsertLearned(keyword: keyword, category: category, customCategoryID: nil, in: context)
+        case .custom(let id):
+            upsertLearned(keyword: keyword, category: .other, customCategoryID: id, in: context)
+        }
     }
 
     /// An unedited save that matched a rule → bump that rule's `hitCount`,
@@ -86,13 +110,14 @@ enum CategoryRuleStore {
 
     // MARK: - Upsert helpers
 
-    private static func upsertLearned(keyword: String, category: TransactionCategory, in context: ModelContext) {
+    private static func upsertLearned(keyword: String, category: TransactionCategory, customCategoryID: UUID?, in context: ModelContext) {
         if let existing = fetchRule(keyword: keyword, origin: .learned, in: context) {
             existing.category = category
+            existing.customCategoryID = customCategoryID
             existing.hitCount += 1
             existing.updatedAt = .now
         } else {
-            context.insert(CategoryRule(keyword: keyword, category: category, origin: .learned, hitCount: 1))
+            context.insert(CategoryRule(keyword: keyword, category: category, customCategoryID: customCategoryID, origin: .learned, hitCount: 1))
         }
         try? context.save()
     }

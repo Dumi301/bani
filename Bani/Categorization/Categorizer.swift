@@ -6,8 +6,25 @@ import Foundation
 struct CategoryRuleSnapshot: Equatable, Sendable {
     let keyword: String
     let category: TransactionCategory
+    /// Set when the rule maps to a user-defined custom category (C3); takes
+    /// precedence over `category` in `ref`.
+    let customCategoryID: UUID?
     let origin: CategoryRuleOrigin
     let hitCount: Int
+
+    init(keyword: String, category: TransactionCategory, customCategoryID: UUID? = nil, origin: CategoryRuleOrigin, hitCount: Int) {
+        self.keyword = keyword
+        self.category = category
+        self.customCategoryID = customCategoryID
+        self.origin = origin
+        self.hitCount = hitCount
+    }
+
+    /// The unified category this rule maps to — custom when present, else preset.
+    var ref: CategoryRef {
+        if let customCategoryID { return .custom(customCategoryID) }
+        return .preset(category)
+    }
 }
 
 /// Deterministic keyword categorizer — no LLM, no embeddings. Pure value logic,
@@ -78,6 +95,12 @@ enum Categorizer {
     /// confirmation card's chip is ALWAYS filled, never a placeholder.
     static func category(for text: String, rules: [CategoryRuleSnapshot]) -> TransactionCategory {
         bestMatch(for: text, rules: rules)?.category ?? .other
+    }
+
+    /// The unified category-ref guess for `text` — resolves to a custom category
+    /// when a learned rule points there (C3), else the preset, else `.other`.
+    static func categoryRef(for text: String, rules: [CategoryRuleSnapshot]) -> CategoryRef {
+        bestMatch(for: text, rules: rules)?.ref ?? .preset(.other)
     }
 
     /// The keyword a correction should be remembered under: the longest

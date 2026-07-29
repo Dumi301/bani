@@ -5,6 +5,9 @@ import SwiftUI
 /// design system's "positive amounts" rule (`## DESIGN SYSTEM & THEME`).
 struct TransactionRow: View {
     let transaction: Transaction
+    /// Lookup for resolving a custom category's symbol/color (C3); empty → presets
+    /// and uncategorized only.
+    var customs: CustomCategoryLookup = [:]
 
     var body: some View {
         HStack(spacing: 12) {
@@ -49,9 +52,11 @@ struct TransactionRow: View {
     }
 
     private var categoryIcon: some View {
-        Image(systemName: transaction.category?.systemImage ?? "circle.dashed")
+        let ref = transaction.categoryRef
+        let style = categoryStyle(ref, customs: customs)
+        return Image(systemName: ref == nil ? "circle.dashed" : style.systemImage)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(Color("BaniSecondaryInk"))
+            .foregroundStyle(ref == nil ? Color("BaniSecondaryInk") : style.color)
             .frame(width: 32, height: 32)
             .background(Color("BaniCanvas"), in: Circle())
     }

@@ -22,10 +22,11 @@ enum TransactionContext: String, Codable, CaseIterable, Hashable, Sendable {
     case personal
     case work
 
+    /// Localized display name (B1) — the stored `rawValue` is unchanged.
     var label: String {
         switch self {
-        case .personal: "Personal"
-        case .work: "Work"
+        case .personal: String(localized: "context.personal")
+        case .work: String(localized: "context.work")
         }
     }
 
@@ -42,7 +43,21 @@ enum TransactionContext: String, Codable, CaseIterable, Hashable, Sendable {
 enum TransactionCategory: String, Codable, CaseIterable, Hashable, Sendable {
     case fuel, groceries, dining, transport, utilities, shopping, health, entertainment, other
 
-    var label: String { rawValue.capitalized }
+    /// Localized display name (B1) — the stored `rawValue` is unchanged, so
+    /// existing data and the categorizer keep working on the raw enum.
+    var label: String {
+        switch self {
+        case .fuel: String(localized: "category.fuel")
+        case .groceries: String(localized: "category.groceries")
+        case .dining: String(localized: "category.dining")
+        case .transport: String(localized: "category.transport")
+        case .utilities: String(localized: "category.utilities")
+        case .shopping: String(localized: "category.shopping")
+        case .health: String(localized: "category.health")
+        case .entertainment: String(localized: "category.entertainment")
+        case .other: String(localized: "category.other")
+        }
+    }
     var systemImage: String {
         switch self {
         case .fuel: "fuelpump.fill"
@@ -76,6 +91,12 @@ final class Transaction {
     var currency: Currency
     var context: TransactionContext
     var category: TransactionCategory?
+    /// C1 — the SINGLE sanctioned exception to the frozen seam: an optional
+    /// reference to a user-defined `CustomCategory`. When set it takes precedence
+    /// over `category` (see `Transaction.categoryRef`). Additive + optional, so
+    /// this stays a lightweight SwiftData migration — existing rows migrate to
+    /// `nil` and survive untouched.
+    var customCategoryID: UUID?
     var descriptionText: String
     var merchant: String?
     var date: Date
@@ -89,6 +110,7 @@ final class Transaction {
         currency: Currency,
         context: TransactionContext,
         category: TransactionCategory? = nil,
+        customCategoryID: UUID? = nil,
         descriptionText: String,
         merchant: String? = nil,
         date: Date = .now,
@@ -101,6 +123,7 @@ final class Transaction {
         self.currency = currency
         self.context = context
         self.category = category
+        self.customCategoryID = customCategoryID
         self.descriptionText = descriptionText
         self.merchant = merchant
         self.date = date

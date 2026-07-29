@@ -14,11 +14,11 @@ enum TimeframePreset: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .week: "Week"
-        case .month: "Month"
-        case .sixMonths: "6M"
-        case .year: "Year"
-        case .custom: "Custom"
+        case .week: String(localized: "timeframe.week")
+        case .month: String(localized: "timeframe.month")
+        case .sixMonths: String(localized: "timeframe.sixMonths")
+        case .year: String(localized: "timeframe.year")
+        case .custom: String(localized: "timeframe.custom")
         }
     }
 

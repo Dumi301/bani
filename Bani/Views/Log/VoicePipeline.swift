@@ -28,10 +28,10 @@ struct VoicePipelineResult: Equatable, Sendable {
     var errorMessage: String?
 
     /// Friendly headline shown on the card when `errorMessage != nil`.
-    static let errorHeadline = "Transcription failed — type it?"
+    static var errorHeadline: String { String(localized: "voice.transcriptionFailed") }
     /// Synthesized message for the "recording produced no speech" case, where
     /// nothing was thrown but the transcript is empty/whitespace.
-    static let emptyTranscriptMessage = "No speech was detected in the recording."
+    static var emptyTranscriptMessage: String { String(localized: "voice.noSpeech") }
 
     /// The card opens in edit mode when there is no amount to confirm OR there
     /// is an error the user must resolve. Pure derivation — `ConfirmationCard`'s

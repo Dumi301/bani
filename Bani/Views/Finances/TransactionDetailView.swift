@@ -7,6 +7,7 @@ import SwiftData
 /// Delete stays a swipe on the list — there is deliberately no delete button here.
 struct TransactionDetailView: View {
     @Environment(RateService.self) private var rates
+    @Query private var customCategories: [CustomCategory]
 
     let transaction: Transaction
 
@@ -107,15 +108,16 @@ struct TransactionDetailView: View {
     // MARK: - Tags
 
     private var categoryChip: some View {
-        HStack(spacing: 5) {
-            Image(systemName: transaction.category?.systemImage ?? "square.grid.2x2.fill")
-            Text(transaction.category?.label ?? "Uncategorized")
+        let style = categoryStyle(transaction.categoryRef, customs: customCategories.lookup)
+        return HStack(spacing: 5) {
+            Image(systemName: style.systemImage)
+            Text(style.label)
         }
         .font(.system(.subheadline, design: .rounded).weight(.semibold))
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color("BaniAccent").opacity(0.14), in: Capsule())
-        .foregroundStyle(Color("BaniAccent"))
+        .background(style.color.opacity(0.16), in: Capsule())
+        .foregroundStyle(style.color)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("detail.categoryChip")
     }
@@ -134,7 +136,7 @@ struct TransactionDetailView: View {
 
     private var detailsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(transaction.descriptionText.isEmpty ? "No description" : transaction.descriptionText)
+            Text(transaction.descriptionText.isEmpty ? String(localized: "confirm.noDescription") : transaction.descriptionText)
                 .font(.system(.title3, design: .rounded).weight(.medium))
                 .foregroundStyle(Color("BaniInk"))
 

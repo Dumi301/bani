@@ -8,12 +8,13 @@ import SwiftData
 struct DecisionsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var categoryRules: [CategoryRule]
+    @Query private var customCategories: [CustomCategory]
     @Query(sort: \ContextRule.confirmations, order: .reverse) private var contextRules: [ContextRule]
 
     private struct RuleRow: Identifiable {
         let id: UUID
         let keyword: String
-        let category: TransactionCategory
+        let ref: CategoryRef
         let accuracy: Double
         let count: Int
         let trusted: Bool
@@ -36,10 +37,10 @@ struct DecisionsView: View {
     private var overallSection: some View {
         Section {
             let counts = DecisionLedger.counts(in: modelContext)
-            statRow("Asked", counts.asked)
-            statRow("Confirmed", counts.confirmed)
-            statRow("Corrected", counts.corrected)
-            statRow("Discarded", counts.discarded)
+            statRow(String(localized: "decisions.asked"), counts.asked)
+            statRow(String(localized: "decisions.confirmed"), counts.confirmed)
+            statRow(String(localized: "decisions.corrected"), counts.corrected)
+            statRow(String(localized: "decisions.discarded"), counts.discarded)
         } header: {
             Text("Overall").foregroundStyle(Color("BaniSecondaryInk"))
         } footer: {
@@ -68,17 +69,19 @@ struct DecisionsView: View {
                     .foregroundStyle(Color("BaniSecondaryInk"))
                     .listRowBackground(Color("BaniSurface"))
             } else {
+                let customs = customCategories.lookup
                 ForEach(rows) { row in
+                    let style = categoryStyle(row.ref, customs: customs)
                     HStack(spacing: 10) {
-                        Image(systemName: row.category.systemImage)
+                        Image(systemName: style.systemImage)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color("BaniAccent"))
+                            .foregroundStyle(style.color)
                             .frame(width: 26)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.keyword)
                                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                                 .foregroundStyle(Color("BaniInk"))
-                            Text("\(row.category.label) · \(row.count) decision\(row.count == 1 ? "" : "s")")
+                            Text("\(style.label) · \(CountLabels.decisions(row.count))")
                                 .font(.caption2)
                                 .foregroundStyle(Color("BaniSecondaryInk"))
                         }
@@ -87,7 +90,7 @@ struct DecisionsView: View {
                             Text("\(Int((row.accuracy * 100).rounded()))%")
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(Color("BaniInk"))
-                            Text(row.trusted ? "Trusted" : "Asking")
+                            Text(row.trusted ? String(localized: "decisions.trusted") : String(localized: "decisions.asking"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(row.trusted ? Color("BaniAccent") : Color("BaniSecondaryInk"))
                         }
@@ -116,7 +119,7 @@ struct DecisionsView: View {
             return RuleRow(
                 id: rule.id,
                 keyword: rule.keyword,
-                category: rule.category,
+                ref: rule.ref,
                 accuracy: accuracy,
                 count: count,
                 trusted: TrustEngine.isTrusted(samples)

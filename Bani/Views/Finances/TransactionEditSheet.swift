@@ -8,24 +8,27 @@ import SwiftData
 struct TransactionEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query private var customCategories: [CustomCategory]
 
     let transaction: Transaction
 
     @State private var amount: Decimal
     @State private var currency: Currency
     @State private var context: TransactionContext
-    @State private var category: TransactionCategory?
+    /// The unified category (preset OR custom, C3).
+    @State private var categoryRef: CategoryRef?
     @State private var descriptionText: String
     @State private var merchant: String
     /// C3: the transaction's date+time, pre-filled (never blank) and editable.
     @State private var date: Date
+    @State private var isCreatingCategory = false
 
     init(transaction: Transaction) {
         self.transaction = transaction
         _amount = State(initialValue: transaction.amount)
         _currency = State(initialValue: transaction.currency)
         _context = State(initialValue: transaction.context)
-        _category = State(initialValue: transaction.category)
+        _categoryRef = State(initialValue: transaction.categoryRef)
         _descriptionText = State(initialValue: transaction.descriptionText)
         _merchant = State(initialValue: transaction.merchant ?? "")
         _date = State(initialValue: transaction.date)
@@ -72,13 +75,12 @@ struct TransactionEditSheet: View {
                 }
 
                 Section("Category") {
-                    Picker("Category", selection: $category) {
-                        Text("None").tag(TransactionCategory?.none)
-                        ForEach(TransactionCategory.allCases, id: \.self) { category in
-                            Label(category.label, systemImage: category.systemImage)
-                                .tag(TransactionCategory?.some(category))
-                        }
-                    }
+                    CategoryChipPicker(
+                        selection: $categoryRef,
+                        customCategories: customCategories,
+                        includeNone: true,
+                        onCreateNew: { isCreatingCategory = true }
+                    )
                     .accessibilityIdentifier("editCategoryPicker")
                 }
             }
@@ -94,27 +96,32 @@ struct TransactionEditSheet: View {
                         .accessibilityIdentifier("editSaveButton")
                 }
             }
+            .sheet(isPresented: $isCreatingCategory) {
+                NewCategorySheet { created in
+                    categoryRef = .custom(created.id)
+                }
+            }
         }
     }
 
     private func save() {
-        let categoryChanged = category != transaction.category
+        let categoryChanged = categoryRef != transaction.categoryRef
         let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         transaction.amount = amount
         transaction.currency = currency
         transaction.context = context
-        transaction.category = category
+        transaction.categoryRef = categoryRef
         transaction.descriptionText = cleanDescription
         transaction.merchant = merchant.isEmpty ? nil : merchant
         transaction.date = date
         try? modelContext.save()
 
         // D2: a category correction here feeds the SAME learning path as the
-        // confirmation card (C4) — one learning seam, not two.
-        if categoryChanged, let category {
+        // confirmation card (C3) — one seam, presets and custom categories alike.
+        if categoryChanged, let categoryRef {
             CategoryRuleStore.learn(
-                correctedCategory: category,
+                correctedRef: categoryRef,
                 description: cleanDescription,
                 merchant: merchant.isEmpty ? nil : merchant,
                 in: modelContext

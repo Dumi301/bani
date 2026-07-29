@@ -11,9 +11,9 @@ enum TransactionGrouping: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .category: "Category"
-        case .month: "Month"
-        case .merchant: "Merchant"
+        case .category: String(localized: "grouping.category")
+        case .month: String(localized: "grouping.month")
+        case .merchant: String(localized: "grouping.merchant")
         }
     }
 }

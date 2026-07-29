@@ -23,6 +23,13 @@ final class CategoryRule {
     /// transaction's description.
     var keyword: String
     var category: TransactionCategory
+    /// C3 — when a keyword is learned onto a user-defined `CustomCategory`, this
+    /// holds its id and takes precedence over `category` (see `CategoryRule.ref`).
+    /// Additive + optional: a lightweight migration, existing rules migrate to
+    /// `nil` and keep mapping to their preset `category`. `category` stays
+    /// populated (with `.other`) for a custom rule so the non-optional column is
+    /// never empty and legacy readers degrade gracefully.
+    var customCategoryID: UUID?
     var origin: CategoryRuleOrigin
     /// How many times this rule has fired on an unedited save — the learned-vs-learned
     /// tie-breaker after keyword length.
@@ -33,6 +40,7 @@ final class CategoryRule {
         id: UUID = UUID(),
         keyword: String,
         category: TransactionCategory,
+        customCategoryID: UUID? = nil,
         origin: CategoryRuleOrigin,
         hitCount: Int = 0,
         updatedAt: Date = .now
@@ -40,6 +48,7 @@ final class CategoryRule {
         self.id = id
         self.keyword = keyword
         self.category = category
+        self.customCategoryID = customCategoryID
         self.origin = origin
         self.hitCount = hitCount
         self.updatedAt = updatedAt

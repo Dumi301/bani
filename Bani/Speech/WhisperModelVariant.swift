@@ -24,8 +24,8 @@ enum WhisperModelVariant: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .small: "Small"
-        case .medium: "Medium"
+        case .small: String(localized: "model.small")
+        case .medium: String(localized: "model.medium")
         }
     }
 
@@ -47,8 +47,8 @@ enum WhisperModelVariant: String, CaseIterable, Identifiable, Sendable {
     /// One-line trade-off shown under the picker.
     var blurb: String {
         switch self {
-        case .small: "Faster · smaller download"
-        case .medium: "Better Romanian · larger, slower"
+        case .small: String(localized: "model.small.blurb")
+        case .medium: String(localized: "model.medium.blurb")
         }
     }
 

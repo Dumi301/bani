@@ -27,3 +27,41 @@ extension TransactionCategory {
 func categoryColor(_ category: TransactionCategory?) -> Color {
     category?.color ?? Color("BaniSecondaryInk")
 }
+
+// MARK: - CategoryRef resolution (presets + custom categories)
+
+/// The resolved display attributes for a `CategoryRef?` — the single place a
+/// preset or a custom category (or uncategorized) turns into a label, an SF
+/// Symbol, and a semantic color. Custom refs resolve through the `customs`
+/// lookup; an orphaned custom id (never expected — deletes always reassign)
+/// degrades to the neutral uncategorized style rather than crashing.
+struct CategoryStyle: Equatable {
+    var label: String
+    var systemImage: String
+    var color: Color
+}
+
+func categoryStyle(_ ref: CategoryRef?, customs: CustomCategoryLookup) -> CategoryStyle {
+    let uncategorized = CategoryStyle(
+        label: String(localized: "category.uncategorized"),
+        systemImage: "square.grid.2x2.fill",
+        color: Color("BaniSecondaryInk")
+    )
+    guard let ref else { return uncategorized }
+    switch ref {
+    case .preset(let category):
+        return CategoryStyle(label: category.label, systemImage: category.systemImage, color: category.color)
+    case .custom(let id):
+        guard let snap = customs[id] else { return uncategorized }
+        return CategoryStyle(
+            label: snap.name,
+            systemImage: snap.symbolName,
+            color: CustomCategoryPalette.color(snap.colorIndex)
+        )
+    }
+}
+
+/// Convenience color-only resolver for a `CategoryRef?`.
+func categoryColor(_ ref: CategoryRef?, customs: CustomCategoryLookup) -> Color {
+    categoryStyle(ref, customs: customs).color
+}

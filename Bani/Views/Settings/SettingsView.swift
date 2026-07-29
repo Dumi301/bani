@@ -9,6 +9,8 @@ struct SettingsView: View {
     @Environment(WhisperService.self) private var whisper
 
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+    /// In-app language override (B2).
+    @AppStorage("appLanguage") private var appLanguageRaw: String = AppLanguage.system.rawValue
     /// Auto-save countdown length for the confirmation card, in seconds (2–8).
     /// `ConfirmationCard` reads the same key; default 4 s.
     @AppStorage("confirmationDuration") private var confirmationDuration: Double = ConfirmationCard.defaultAutoSaveDelay
@@ -28,6 +30,19 @@ struct SettingsView: View {
         Binding(
             get: { AppearanceMode(rawValue: appearanceRaw) ?? .system },
             set: { appearanceRaw = $0.rawValue }
+        )
+    }
+
+    /// The in-app language (B2). Setting it persists the choice and applies it to
+    /// `AppleLanguages`; the root `.environment(\.locale,…)` switches the app's own
+    /// strings live off the same `@AppStorage` key.
+    private var appLanguage: Binding<AppLanguage> {
+        Binding(
+            get: { AppLanguage.from(appLanguageRaw) },
+            set: { newValue in
+                appLanguageRaw = newValue.rawValue
+                LanguageController.apply(newValue)
+            }
         )
     }
 
@@ -54,6 +69,36 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.appearancePicker")
                 } header: {
                     Text("Appearance")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    Picker("settings.language", selection: appLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.label).tag(lang)
+                        }
+                    }
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityIdentifier("settings.languagePicker")
+                } header: {
+                    Text("settings.language")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                } footer: {
+                    Text("settings.language.footer")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    NavigationLink {
+                        CategoriesView()
+                    } label: {
+                        Label("categories.title", systemImage: "square.grid.2x2")
+                            .foregroundStyle(Color("BaniInk"))
+                    }
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityIdentifier("settings.categoriesRow")
+                } header: {
+                    Text("categories.title")
                         .foregroundStyle(Color("BaniSecondaryInk"))
                 }
 
@@ -115,7 +160,7 @@ struct SettingsView: View {
                         Text("Last voice session")
                             .font(.system(.body, design: .rounded).weight(.medium))
                             .foregroundStyle(Color("BaniInk"))
-                        Text(lastVoiceSession.isEmpty ? "No voice entries yet" : lastVoiceSession)
+                        Text(lastVoiceSession.isEmpty ? String(localized: "settings.noVoiceEntries") : lastVoiceSession)
                             .font(.subheadline)
                             .foregroundStyle(Color("BaniSecondaryInk"))
                             .fixedSize(horizontal: false, vertical: true)
@@ -203,7 +248,7 @@ struct SettingsView: View {
             Button {
                 Task { await whisper.redownloadModel() }
             } label: {
-                Text(whisper.isModelDownloaded ? "Re-download Model" : "Download Model")
+                Text(whisper.isModelDownloaded ? String(localized: "model.redownload") : String(localized: "model.download"))
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
             }
             .buttonStyle(.borderless)
@@ -222,13 +267,13 @@ struct SettingsView: View {
     private var statusDescription: String {
         switch whisper.modelState {
         case .notReady:
-            "Not downloaded"
+            String(localized: "model.status.notReady")
         case .downloading(let progress):
-            "Downloading… \(Int(progress * 100))%"
+            "\(String(localized: "model.status.downloading")) \(Int(progress * 100))%"
         case .ready:
-            "Downloaded"
+            String(localized: "model.status.ready")
         case .failed(let message):
-            "Failed — \(message)"
+            String(localized: "model.status.failed \(message)")
         }
     }
 

@@ -16,6 +16,9 @@ import SwiftData
 @main
 struct BaniApp: App {
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+    /// In-app language override (B2). Drives the root `.environment(\.locale,…)`
+    /// so a change applies live, without a reinstall.
+    @AppStorage("appLanguage") private var appLanguageRaw: String = AppLanguage.system.rawValue
     @AppStorage("hasCompletedFirstLaunch") private var hasCompletedFirstLaunch: Bool = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -35,12 +38,14 @@ struct BaniApp: App {
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
             // CategoryRule + the feedback-ledger entities (DecisionRecord,
-            // ContextRule, CorrectionMemory) join the schema as separate, additive
-            // entities — `Transaction` is unchanged, so this stays a lightweight
-            // migration; existing rows are untouched.
+            // ContextRule, CorrectionMemory) + CustomCategory join the schema as
+            // separate, additive entities. `Transaction` gains only the optional
+            // `customCategoryID` field (C1), so this stays a lightweight migration;
+            // existing rows migrate that field to `nil` and are untouched.
             container = try ModelContainer(
                 for: Transaction.self, CategoryRule.self,
                 DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
+                CustomCategory.self,
                 configurations: config
             )
         } catch {
@@ -49,6 +54,20 @@ struct BaniApp: App {
 
         if let idx = args.firstIndex(of: "-appearance"), idx + 1 < args.count {
             UserDefaults.standard.set(args[idx + 1], forKey: "appearanceMode")
+        }
+        // -appLanguage <ro|en|system> (test seam for the B5 Romanian screenshots).
+        if let idx = args.firstIndex(of: "-appLanguage"), idx + 1 < args.count {
+            let language = AppLanguage.fromCode(args[idx + 1])
+            UserDefaults.standard.set(language.rawValue, forKey: LanguageController.storageKey)
+        }
+        // Apply the persisted (or just-overridden) language to AppleLanguages so a
+        // cold launch resolves the right .lproj before the first frame; the live
+        // switch is handled by the root `.environment(\.locale,…)` below.
+        LanguageController.apply(AppLanguage.from(UserDefaults.standard.string(forKey: LanguageController.storageKey)))
+        // Screenshot seam: open the Finances chart on the bars view so the A4
+        // bar-interaction matrix (selected bar + annotation) can be captured.
+        if args.contains("-uiTestBars") {
+            UserDefaults.standard.set(ChartKind.bars.rawValue, forKey: "financesChartType")
         }
         if args.contains("-seedSampleData") {
             SampleData.seed(into: container)
@@ -69,6 +88,13 @@ struct BaniApp: App {
         AppearanceMode(rawValue: appearanceRaw) ?? .system
     }
 
+    /// The locale pushed into the whole view tree for the chosen in-app language
+    /// (B2/B3) — switches SwiftUI string lookup AND every date/number/currency
+    /// FormatStyle to the selected language, live, with no reinstall.
+    private var appLocale: Locale {
+        LanguageController.resolvedLocale(AppLanguage.from(appLanguageRaw))
+    }
+
     /// First launch shows the model-download screen once (never in UI tests /
     /// `-modelAbsent`, so screenshots capture the real tabs).
     private var showFirstLaunchDownload: Binding<Bool> {
@@ -84,6 +110,7 @@ struct BaniApp: App {
                 .tint(Color("BaniAccent"))
                 .environment(whisper)
                 .environment(rates)
+                .environment(\.locale, appLocale)
                 .preferredColorScheme(appearance.colorScheme)
                 .fullScreenCover(isPresented: showFirstLaunchDownload) {
                     ModelDownloadView(onContinue: { hasCompletedFirstLaunch = true })

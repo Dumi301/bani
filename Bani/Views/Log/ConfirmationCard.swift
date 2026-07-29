@@ -21,6 +21,8 @@ import UIKit
 struct ConfirmationCard: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    /// Custom categories (C2/C3) — resolve the guess chip and feed the picker.
+    @Query private var customCategories: [CustomCategory]
 
     let transcript: String
     let context: TransactionContext
@@ -45,7 +47,7 @@ struct ConfirmationCard: View {
     private let baselineAmount: Decimal?
     private let baselineCurrency: Currency
     private let baselineDescription: String
-    private let baselineCategory: TransactionCategory
+    private let baselineRef: CategoryRef
     private let baselineContext: TransactionContext
     private let baselineDate: Date
     private let openedInEditMode: Bool
@@ -61,13 +63,15 @@ struct ConfirmationCard: View {
 
     /// The category guess (Q2) — ALWAYS a real category, never nil, so the chip
     /// is never a placeholder. Pre-filled from the categorizer (falls back to
-    /// `.other`).
-    @State private var category: TransactionCategory
+    /// `.preset(.other)`); may be a preset OR a custom category (C3).
+    @State private var categoryRef: CategoryRef
     /// Set once the user picks a category by hand — flips the save from
     /// "reinforce the rule that fired" to "learn this correction".
     @State private var categoryUserEdited: Bool = false
-    /// The inline preset picker (opened by tapping the chip in summary mode).
+    /// The inline category picker (opened by tapping the chip in summary mode).
     @State private var isPickingCategory = false
+    /// The "+ New category" creation sheet (C2).
+    @State private var isCreatingCategory = false
 
     @State private var countdownProgress: Double = 1.0
     @State private var remaining: Double = ConfirmationCard.defaultAutoSaveDelay
@@ -129,7 +133,7 @@ struct ConfirmationCard: View {
         transcript: String,
         errorMessage: String? = nil,
         context: TransactionContext,
-        category: TransactionCategory = .other,
+        categoryRef: CategoryRef = .preset(.other),
         autoContextApplied: Bool = false,
         firedRuleID: UUID? = nil,
         trusted: Bool = false,
@@ -149,7 +153,7 @@ struct ConfirmationCard: View {
         self.baselineAmount = parsed.amount
         self.baselineCurrency = parsed.currency
         self.baselineDescription = parsed.descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.baselineCategory = category
+        self.baselineRef = categoryRef
         self.baselineContext = context
         self.baselineDate = now
         self.openedInEditMode = VoicePipelineResult.shouldOpenInEditMode(
@@ -161,7 +165,7 @@ struct ConfirmationCard: View {
         _currency = State(initialValue: parsed.currency)
         _descriptionText = State(initialValue: parsed.descriptionText)
         _editingContext = State(initialValue: context)
-        _category = State(initialValue: category)
+        _categoryRef = State(initialValue: categoryRef)
         _date = State(initialValue: now)
         // Never invent a number, never hide a failure: no parsed amount OR a
         // transcription error → open directly in edit mode. Shared derivation
@@ -175,6 +179,26 @@ struct ConfirmationCard: View {
     private var canSave: Bool {
         guard let amount = Decimal(string: amountText.replacingOccurrences(of: ",", with: ".")) else { return false }
         return amount > 0
+    }
+
+    // MARK: - Category helpers (preset + custom, C3)
+
+    private var customLookup: CustomCategoryLookup { customCategories.lookup }
+    private var categoryStyleValue: CategoryStyle { categoryStyle(categoryRef, customs: customLookup) }
+    private var categoryLabel: String { categoryStyleValue.label }
+    private var noDescriptionText: String { String(localized: "confirm.noDescription") }
+
+    /// The binding the chip picker drives — any hand pick flags the save to learn.
+    private var refBinding: Binding<CategoryRef?> {
+        Binding(
+            get: { categoryRef },
+            set: { newValue in
+                if let newValue {
+                    categoryRef = newValue
+                    categoryUserEdited = true
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -220,7 +244,14 @@ struct ConfirmationCard: View {
             // Keep the guessed chip truthful as the description is edited — but
             // only until the user has taken over the category themselves.
             if !categoryUserEdited {
-                category = CategoryRuleStore.guess(description: descriptionText, in: modelContext)
+                categoryRef = CategoryRuleStore.guessRef(description: descriptionText, in: modelContext)
+            }
+        }
+        .sheet(isPresented: $isCreatingCategory) {
+            NewCategorySheet { created in
+                categoryRef = .custom(created.id)
+                categoryUserEdited = true
+                isPickingCategory = false
             }
         }
         .accessibilityElement(children: isEditing ? .contain : .combine)
@@ -228,10 +259,12 @@ struct ConfirmationCard: View {
     }
 
     private var accessibilitySummary: String {
+        let desc = descriptionText.isEmpty ? noDescriptionText : descriptionText
         if isEditing {
-            return "Editing transaction. Amount \(amountText.isEmpty ? "not set" : amountText) \(currency.displayCode), \(descriptionText.isEmpty ? "no description" : descriptionText), \(category.label), \(editingContext.label)."
+            let amount = amountText.isEmpty ? String(localized: "confirm.a11y.amountNotSet") : amountText
+            return String(localized: "confirm.a11y.editing \(amount) \(currency.displayCode) \(desc) \(categoryLabel) \(editingContext.label)")
         } else {
-            return "Confirm transaction: \(amountText) \(currency.displayCode), \(descriptionText.isEmpty ? "no description" : descriptionText), \(category.label), \(editingContext.label). Auto-saving shortly. Tap to edit, swipe down to discard."
+            return String(localized: "confirm.a11y.summary \(amountText) \(currency.displayCode) \(desc) \(categoryLabel) \(editingContext.label)")
         }
     }
 
@@ -259,7 +292,7 @@ struct ConfirmationCard: View {
                 Spacer()
             }
 
-            Text(descriptionText.isEmpty ? "No description" : descriptionText)
+            Text(descriptionText.isEmpty ? noDescriptionText : descriptionText)
                 .font(.system(.body, design: .rounded))
                 .foregroundStyle(Color("BaniSecondaryInk"))
 
@@ -333,12 +366,13 @@ struct ConfirmationCard: View {
     /// Q2 — the category guess as a tappable chip (icon + label). Tapping it opens
     /// the inline preset picker (and pauses the countdown).
     private var categoryChip: some View {
-        Button {
+        let style = categoryStyleValue
+        return Button {
             isPickingCategory.toggle()
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: category.systemImage)
-                Text(category.label)
+                Image(systemName: style.systemImage)
+                Text(style.label)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .bold))
                     .opacity(0.6)
@@ -346,12 +380,12 @@ struct ConfirmationCard: View {
             .font(.system(.caption, design: .rounded).weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Color("BaniAccent").opacity(0.14), in: Capsule())
-            .foregroundStyle(Color("BaniAccent"))
+            .background(style.color.opacity(0.16), in: Capsule())
+            .foregroundStyle(style.color)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("confirmationCard.categoryChip")
-        .accessibilityLabel("Category \(category.label). Tap to change.")
+        .accessibilityLabel("Category \(style.label). Tap to change.")
     }
 
     /// Small "auto: <context>" note (B3) shown when the context was pre-selected
@@ -363,39 +397,15 @@ struct ConfirmationCard: View {
             .accessibilityIdentifier("confirmationCard.autoContextNote")
     }
 
-    /// Horizontally scrollable preset chips — the inline category picker.
+    /// The inline category picker — presets + custom categories + "+ New" (C2).
+    /// Shares `CategoryChipPicker` with the edit sheet so both learn identically.
     private var categoryPresetPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(TransactionCategory.allCases, id: \.self) { preset in
-                    Button {
-                        selectCategory(preset)
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: preset.systemImage)
-                            Text(preset.label)
-                        }
-                        .font(.system(.caption, design: .rounded).weight(.medium))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            preset == category ? Color("BaniAccent").opacity(0.22) : Color("BaniCanvas"),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(preset == category ? Color("BaniAccent") : Color("BaniInk"))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, 2)
-        }
+        CategoryChipPicker(
+            selection: refBinding,
+            customCategories: customCategories,
+            onCreateNew: { isCreatingCategory = true }
+        )
         .accessibilityIdentifier("confirmationCard.categoryPicker")
-    }
-
-    private func selectCategory(_ preset: TransactionCategory) {
-        category = preset
-        categoryUserEdited = true
-        isPickingCategory = false
     }
 
     private var contextTag: some View {
@@ -431,7 +441,7 @@ struct ConfirmationCard: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(Color("BaniInk"))
-                Text("\(descriptionText.isEmpty ? "No description" : descriptionText) · \(category.label)")
+                Text("\(descriptionText.isEmpty ? noDescriptionText : descriptionText) · \(categoryLabel)")
                     .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(Color("BaniSecondaryInk"))
                     .lineLimit(1)
@@ -440,7 +450,7 @@ struct ConfirmationCard: View {
             countdownRing
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Trusted — auto-saving \(amountText) \(currency.displayCode), \(descriptionText.isEmpty ? "no description" : descriptionText), \(category.label). Tap to edit.")
+        .accessibilityLabel("Trusted — auto-saving \(amountText) \(currency.displayCode), \(descriptionText.isEmpty ? noDescriptionText : descriptionText), \(categoryLabel). Tap to edit.")
         .accessibilityIdentifier("confirmationCard.trustedConfirming")
     }
 
@@ -450,7 +460,7 @@ struct ConfirmationCard: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title3)
                 .foregroundStyle(Color("BaniAccent"))
-            Text("Saved — \(descriptionText.isEmpty ? category.label : descriptionText), \(category.label) ✓")
+            Text("Saved — \(descriptionText.isEmpty ? categoryLabel : descriptionText), \(categoryLabel) ✓")
                 .font(.system(.subheadline, design: .rounded).weight(.medium))
                 .foregroundStyle(Color("BaniInk"))
                 .lineLimit(2)
@@ -515,12 +525,18 @@ struct ConfirmationCard: View {
                 .accessibilityLabel("Description")
                 .accessibilityIdentifier("confirmationCard.descriptionField")
 
-            // Category is editable here too — same learning seam as the chip.
-            Picker("Category", selection: categoryBinding) {
-                ForEach(TransactionCategory.allCases, id: \.self) { preset in
-                    Label(preset.label, systemImage: preset.systemImage).tag(preset)
-                }
+            // Category is editable here too — same learning seam as the chip (C2).
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Category")
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .foregroundStyle(Color("BaniSecondaryInk"))
+                CategoryChipPicker(
+                    selection: refBinding,
+                    customCategories: customCategories,
+                    onCreateNew: { isCreatingCategory = true }
+                )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("confirmationCard.categoryEditPicker")
 
             Picker("Context", selection: $editingContext) {
@@ -551,19 +567,6 @@ struct ConfirmationCard: View {
                     .accessibilityIdentifier("confirmationCard.saveButton")
             }
         }
-    }
-
-    /// Category binding that records a hand edit (so the save learns it) whenever
-    /// the picker changes the value — programmatic guess updates set `category`
-    /// directly and are NOT flagged as edits.
-    private var categoryBinding: Binding<TransactionCategory> {
-        Binding(
-            get: { category },
-            set: { newValue in
-                category = newValue
-                categoryUserEdited = true
-            }
-        )
     }
 
     // MARK: - Gestures
@@ -630,7 +633,7 @@ struct ConfirmationCard: View {
         DecisionLedger.record(
             outcome: .discarded,
             transactionID: nil,
-            guessedCategory: baselineCategory,
+            guessedCategory: baselineRef.presetValue,
             guessedContext: baselineContext,
             firedRuleID: firedRuleID,
             refinedText: refinedText,
@@ -654,7 +657,7 @@ struct ConfirmationCard: View {
         let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fields = computeCorrectedFields(finalAmount: amount, finalDescription: cleanDescription)
         let outcome = resolveOutcome(reason: reason, fields: fields)
-        let finalCategory = resolveCategoryForSave(description: cleanDescription)
+        let finalRef = resolveCategoryRefForSave(description: cleanDescription)
 
         let finalParsed = ParsedTransaction(
             amount: amount,
@@ -666,7 +669,7 @@ struct ConfirmationCard: View {
             parsed: finalParsed,
             transcript: transcript,
             context: editingContext,
-            category: finalCategory,
+            categoryRef: finalRef,
             date: date,
             into: modelContext
         )
@@ -683,7 +686,7 @@ struct ConfirmationCard: View {
         let record = DecisionLedger.record(
             outcome: outcome,
             transactionID: saved?.id,
-            guessedCategory: baselineCategory,
+            guessedCategory: baselineRef.presetValue,
             guessedContext: baselineContext,
             firedRuleID: firedRuleID,
             refinedText: refinedText,
@@ -748,7 +751,7 @@ struct ConfirmationCard: View {
         if amountChanged { fields.insert(.amount) }
         if baselineCurrency != currency { fields.insert(.currency) }
         if baselineDescription != finalDescription { fields.insert(.description) }
-        if baselineCategory != category { fields.insert(.category) }
+        if baselineRef != categoryRef { fields.insert(.category) }
         if baselineContext != editingContext { fields.insert(.context) }
         if !Calendar.current.isDate(date, equalTo: baselineDate, toGranularity: .minute) { fields.insert(.date) }
         return fields
@@ -770,16 +773,16 @@ struct ConfirmationCard: View {
     /// a hand-edited category is learned; an unedited one re-runs the categorizer
     /// at save time and reinforces the rule that fired.
     @MainActor
-    private func resolveCategoryForSave(description: String) -> TransactionCategory {
+    private func resolveCategoryRefForSave(description: String) -> CategoryRef {
         if categoryUserEdited {
-            CategoryRuleStore.learn(correctedCategory: category, description: description, in: modelContext)
-            return category
+            CategoryRuleStore.learn(correctedRef: categoryRef, description: description, in: modelContext)
+            return categoryRef
         }
         if let match = CategoryRuleStore.bestMatch(description: description, in: modelContext) {
             CategoryRuleStore.reinforce(keyword: match.keyword, origin: match.origin, in: modelContext)
-            return match.category
+            return match.ref
         }
-        return .other
+        return .preset(.other)
     }
 }
 
@@ -796,6 +799,7 @@ func saveVoiceTransaction(
     transcript: String,
     context: TransactionContext,
     category: TransactionCategory? = nil,
+    categoryRef: CategoryRef? = nil,
     date: Date = .now,
     into modelContext: ModelContext
 ) -> Transaction? {
@@ -811,6 +815,10 @@ func saveVoiceTransaction(
         rawTranscript: transcript,
         source: .voice
     )
+    // A custom-aware ref (C3) overrides the preset `category` param when given.
+    if let categoryRef {
+        transaction.categoryRef = categoryRef
+    }
     modelContext.insert(transaction)
     try? modelContext.save()
     return transaction
