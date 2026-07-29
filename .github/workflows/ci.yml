@@ -56,7 +56,9 @@ jobs:
           fi
           echo "XcodeGen $VER supports syncedFolder"
 
-      # gate carries the richest cache: SPM checkouts (SourcePackages) AND build
+      # Cache-warm verification run: this comment-only change keeps project.yml (the
+  # cache key input) identical, so the second run must restore the cache saved above.
+  # gate carries the richest cache: SPM checkouts (SourcePackages) AND build
       # products under a fixed DerivedData path, so a warm gate reuses the compiled
       # WhisperKit dependency + prior build products instead of re-resolving and
       # recompiling from scratch. Keyed on project.yml (Package.resolved is not
