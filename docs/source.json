@@ -23,11 +23,11 @@
       "versions": [
         {
           "version": "1.0",
-          "buildVersion": "16",
-          "date": "2026-07-29T15:13:13Z",
-          "localizedDescription": "Build 16 — voice pipeline fix: recorded entries are never silently dropped; failed transcriptions stay editable.",
-          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v1.0.16/Bani.ipa",
-          "size": 987735,
+          "buildVersion": "17",
+          "date": "2026-07-29T18:01:00Z",
+          "localizedDescription": "Build 17 — voice pipeline fix: recorded entries are never silently dropped; failed transcriptions stay editable.",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v1.0.17/Bani.ipa",
+          "size": 1066649,
           "minOSVersion": "26.0"
         }
       ]
