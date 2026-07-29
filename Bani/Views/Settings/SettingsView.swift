@@ -9,6 +9,9 @@ struct SettingsView: View {
     @Environment(WhisperService.self) private var whisper
 
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+    /// Last voice-pipeline outcome (transcript+parse, or the thrown error),
+    /// written by `VoiceSessionLog.record` on every voice attempt (A3).
+    @AppStorage(VoiceSessionLog.appStorageKey) private var lastVoiceSession: String = ""
 
     private var appearance: Binding<AppearanceMode> {
         Binding(
@@ -39,6 +42,26 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings.modelStatusRow")
                 } header: {
                     Text("Speech Model")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Last voice session")
+                            .font(.system(.body, design: .rounded).weight(.medium))
+                            .foregroundStyle(Color("BaniInk"))
+                        Text(lastVoiceSession.isEmpty ? "No voice entries yet" : lastVoiceSession)
+                            .font(.subheadline)
+                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("settings.lastVoiceSessionRow")
+                } header: {
+                    Text("Diagnostics")
                         .foregroundStyle(Color("BaniSecondaryInk"))
                 }
 

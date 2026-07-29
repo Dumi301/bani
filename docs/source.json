@@ -1,0 +1,37 @@
+{
+  "name": "Bani",
+  "identifier": "com.dumi.bani.source",
+  "subtitle": "Log expenses by voice.",
+  "iconURL": "https://raw.githubusercontent.com/Dumi301/bani/main/docs/icon.png",
+  "tintColor": "D67A3F",
+  "apps": [
+    {
+      "name": "Bani",
+      "bundleIdentifier": "com.dumi.bani.Bani",
+      "developerName": "Dumi",
+      "subtitle": "Log expenses by voice.",
+      "localizedDescription": "Bani logs your Personal and Work expenses by voice — tap, speak the amount, confirm. On-device Whisper transcription, Romanian + English, no account.",
+      "iconURL": "https://raw.githubusercontent.com/Dumi301/bani/main/docs/icon.png",
+      "tintColor": "D67A3F",
+      "category": "utilities",
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSMicrophoneUsageDescription": "Bani uses the microphone to record your voice so you can log expenses by speaking."
+        }
+      },
+      "versions": [
+        {
+          "version": "1.0",
+          "buildVersion": "0",
+          "date": "2026-07-29T00:00:00Z",
+          "localizedDescription": "Initial source. The first published release overwrites this entry.",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/latest/download/Bani.ipa",
+          "size": 0,
+          "minOSVersion": "26.0"
+        }
+      ]
+    }
+  ],
+  "news": []
+}

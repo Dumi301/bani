@@ -37,7 +37,7 @@ struct LogView: View {
         case recording
         case processing
         case micDenied
-        case confirming(parsed: ParsedTransaction, transcript: String)
+        case confirming(VoicePipelineResult)
     }
 
     var body: some View {
@@ -62,10 +62,11 @@ struct LogView: View {
             ManualEntrySheet()
         }
         .overlay(alignment: .bottom) {
-            if case .confirming(let parsed, let transcript) = stage {
+            if case .confirming(let result) = stage {
                 ConfirmationCard(
-                    parsed: parsed,
-                    transcript: transcript,
+                    parsed: result.parsed,
+                    transcript: result.transcript,
+                    errorMessage: result.errorMessage,
                     context: activeContext,
                     onComplete: { stage = .idle }
                 )
@@ -143,7 +144,18 @@ struct LogView: View {
             get: { stage == .recording || stage == .processing },
             set: { presented in
                 if !presented {
-                    stage = .idle
+                    // The cover is presented ONLY during .recording/.processing.
+                    // When the pipeline advances the stage (→ .confirming, or
+                    // → .micDenied), the cover's derived isPresented flips to
+                    // false and SwiftUI writes back through THIS setter during
+                    // its programmatic dismissal. Resetting stage here would
+                    // clobber the just-presented ConfirmationCard (and the
+                    // mic-denied alert) back to .idle — the exact bug that was
+                    // silently dropping every voice entry. Only tear down when
+                    // we are still inside the recording flow.
+                    if stage == .recording || stage == .processing {
+                        stage = .idle
+                    }
                     recorder = nil
                 }
             }
@@ -183,26 +195,19 @@ struct LogView: View {
     }
 
     /// The integration seam: stop → transcribe (Unit B) → parse (Unit A/F,
-    /// via the frozen protocol) → confirmation card. Transcribe error or
-    /// empty transcript opens the card directly in edit mode with whatever
-    /// transcript text exists — never invents an amount.
+    /// via the frozen protocol) → confirmation card. A transcribe error, an
+    /// empty transcript, or a nil-amount parse all open the card in edit mode
+    /// (with the raw error and/or transcript visible) — never inventing an
+    /// amount and never dropping the flow. See `runVoicePipeline`.
     private func transcribeAndParse(url: URL) async {
-        var transcript = ""
-        do {
-            transcript = try await whisper.transcribe(audioFileURL: url)
-        } catch {
-            transcript = ""
-        }
-
-        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            stage = .confirming(parsed: ParsedTransaction(amount: nil, descriptionText: ""), transcript: transcript)
-            recorder = nil
-            return
-        }
-
-        let parsed = await parser.parse(transcript)
-        stage = .confirming(parsed: parsed, transcript: transcript)
+        let result = await runVoicePipeline(
+            audioFileURL: url,
+            transcribe: { try await whisper.transcribe(audioFileURL: $0) },
+            parse: { await parser.parse($0) }
+        )
+        // A3: surface the outcome for on-device debugging (Settings row).
+        VoiceSessionLog.record(result)
+        stage = .confirming(result)
         recorder = nil
     }
 }

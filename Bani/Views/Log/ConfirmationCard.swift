@@ -18,6 +18,10 @@ struct ConfirmationCard: View {
     let transcript: String
     let context: TransactionContext
     let onComplete: () -> Void
+    /// Non-nil when transcription failed or produced nothing usable. Forces
+    /// edit mode and shows the error line; the card still never dismisses on
+    /// its own (spec: "never silently drop").
+    let errorMessage: String?
 
     @State private var amountText: String
     @State private var currency: Currency
@@ -35,16 +39,28 @@ struct ConfirmationCard: View {
     private static let tickInterval: Double = 0.05
     private static let discardDragThreshold: CGFloat = 100
 
-    init(parsed: ParsedTransaction, transcript: String, context: TransactionContext, onComplete: @escaping () -> Void) {
+    init(
+        parsed: ParsedTransaction,
+        transcript: String,
+        errorMessage: String? = nil,
+        context: TransactionContext,
+        onComplete: @escaping () -> Void
+    ) {
         self.transcript = transcript
         self.context = context
         self.onComplete = onComplete
+        self.errorMessage = errorMessage
         _amountText = State(initialValue: parsed.amount.map { "\($0)" } ?? "")
         _currency = State(initialValue: parsed.currency)
         _descriptionText = State(initialValue: parsed.descriptionText)
         _editingContext = State(initialValue: context)
-        // Never invent a number: no parsed amount → open directly in edit mode.
-        _isEditing = State(initialValue: parsed.amount == nil)
+        // Never invent a number, never hide a failure: no parsed amount OR a
+        // transcription error → open directly in edit mode. Shared derivation
+        // so the view and the A2 unit tests can never drift.
+        _isEditing = State(initialValue: VoicePipelineResult.shouldOpenInEditMode(
+            parsedAmount: parsed.amount,
+            errorMessage: errorMessage
+        ))
     }
 
     private var canSave: Bool {
@@ -146,6 +162,22 @@ struct ConfirmationCard: View {
 
     private var editingForm: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if let errorMessage {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(VoicePipelineResult.errorHeadline)
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(Color("BaniTagWork"))
+                    // Raw underlying message, kept accessible for device debugging.
+                    Text(errorMessage)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(VoicePipelineResult.errorHeadline) \(errorMessage)")
+                .accessibilityIdentifier("confirmationCard.errorLabel")
+            }
+
             if !transcript.isEmpty {
                 Text("“\(transcript)”")
                     .font(.system(.footnote, design: .rounded))

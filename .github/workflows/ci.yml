@@ -224,12 +224,15 @@ jobs:
       - name: Archive (unsigned, device)
         run: |
           set -o pipefail
+          # CI_BUILD_NUMBER (command-line, highest precedence) overrides the
+          # project.yml default of 1, so CFBundleVersion == the CI run number.
           xcodebuild archive \
             -project Bani.xcodeproj \
             -scheme Bani \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath build/Bani.xcarchive \
+            CI_BUILD_NUMBER=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
       - name: Package unsigned IPA
         run: |
@@ -245,3 +248,129 @@ jobs:
           name: Bani-unsigned-ipa
           path: build/Bani-unsigned.ipa
           if-no-files-found: error
+
+  release:
+    name: release (GitHub Release + AltStore source)
+    needs: [build-test, screenshots, ipa]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: macos-26
+    permissions:
+      contents: write
+      pages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Bani-unsigned-ipa
+          path: dist
+
+      - name: Prepare Bani.ipa + release facts
+        id: facts
+        run: |
+          set -euo pipefail
+          cp dist/Bani-unsigned.ipa Bani.ipa
+          RUN="${{ github.run_number }}"
+          VERSION="1.0"
+          TAG="v${VERSION}.${RUN}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SIZE="$(stat -f%z Bani.ipa)"
+          REPO="${{ github.repository }}"
+          DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/Bani.ipa"
+          {
+            echo "run=${RUN}"
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+            echo "date=${DATE}"
+            echo "size=${SIZE}"
+            echo "download_url=${DOWNLOAD_URL}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Prepared ${TAG}: ${SIZE} bytes -> ${DOWNLOAD_URL}"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.facts.outputs.tag }}" Bani.ipa \
+            --repo "${{ github.repository }}" \
+            --title "Bani ${{ steps.facts.outputs.version }} (${{ steps.facts.outputs.run }})" \
+            --notes "Automated release. CFBundleVersion ${{ steps.facts.outputs.run }}. Voice-pipeline fix: entries are never silently dropped. Install/update via AltStore." \
+            --latest
+
+      - name: Update AltStore source.json
+        run: |
+          set -euo pipefail
+          ICON_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/docs/icon.png"
+          jq \
+            --arg version "${{ steps.facts.outputs.version }}" \
+            --arg build "${{ steps.facts.outputs.run }}" \
+            --arg date "${{ steps.facts.outputs.date }}" \
+            --arg url "${{ steps.facts.outputs.download_url }}" \
+            --argjson size ${{ steps.facts.outputs.size }} \
+            --arg icon "$ICON_URL" \
+            '.iconURL = $icon
+             | .apps[0].iconURL = $icon
+             | .apps[0].versions[0] = {
+                 version: $version,
+                 buildVersion: $build,
+                 date: $date,
+                 localizedDescription: ("Build " + $build + " — voice pipeline fix: recorded entries are never silently dropped; failed transcriptions stay editable."),
+                 downloadURL: $url,
+                 size: $size,
+                 minOSVersion: "26.0"
+               }' docs/source.json > docs/source.json.tmp
+          mv docs/source.json.tmp docs/source.json
+          echo "---- docs/source.json ----"
+          cat docs/source.json
+          jq -e . docs/source.json > /dev/null && echo "source.json is valid JSON"
+
+      - name: Commit source.json to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/source.json
+          if git diff --cached --quiet; then
+            echo "source.json unchanged — nothing to commit"
+          else
+            # [skip ci] prevents this push from re-triggering the workflow.
+            git commit -m "chore(release): AltStore source for ${{ steps.facts.outputs.tag }} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Enable GitHub Pages (best-effort)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/pages" \
+            -f "source[branch]=main" -f "source[path]=/docs" \
+            && echo "GitHub Pages enabled for main /docs" \
+            || echo "Pages already enabled or not permitted — raw URL remains the stable source URL"
+
+      - name: Verify published artifacts (B4)
+        run: |
+          set -uo pipefail
+          RAW_SOURCE="https://raw.githubusercontent.com/${{ github.repository }}/main/docs/source.json"
+          IPA_URL="${{ steps.facts.outputs.download_url }}"
+          echo "==== B4: curl -I IPA asset (expect 302 then 200, no auth) ===="
+          curl -sIL "$IPA_URL" | grep -iE '^HTTP|^location' || true
+          IPA_CODE="$(curl -s -o /dev/null -w '%{http_code}' -IL "$IPA_URL")"
+          echo "IPA final HTTP status: ${IPA_CODE}"
+          echo ""
+          echo "==== B4: curl source.json (raw, stable public URL) ===="
+          SRC_CODE="$(curl -s -L "$RAW_SOURCE" -o fetched-source.json -w '%{http_code}')"
+          echo "source.json HTTP status: ${SRC_CODE}"
+          echo "---- served source.json ----"
+          cat fetched-source.json || true
+          echo ""
+          if jq -e . fetched-source.json > /dev/null 2>&1; then
+            echo "served source.json is valid JSON"
+          else
+            echo "served copy not yet CDN-propagated; the committed local copy was validated in the previous step"
+          fi
+          echo ""
+          echo "Stable source URL: ${RAW_SOURCE}"

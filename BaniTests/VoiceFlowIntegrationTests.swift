@@ -85,6 +85,40 @@ final class VoiceFlowIntegrationTests: XCTestCase {
         XCTAssertTrue(fetched.isEmpty)
     }
 
+    /// A4 / A2 contract 1 end to end: when the transcriber throws, the flow
+    /// must (a) signal edit-mode-with-error and (b) persist NOTHING — the save
+    /// routine is the last line of defense and refuses a nil amount.
+    func testThrowingTranscriberPersistsNothingAndSignalsEditModeError() async throws {
+        struct ThrowingTranscribeError: LocalizedError {
+            var errorDescription: String? { "device transcription failed" }
+        }
+        let context = try makeContext()
+
+        let result = await runVoicePipeline(
+            audioFileURL: URL(fileURLWithPath: "/tmp/none.wav"),
+            transcribe: { _ in throw ThrowingTranscribeError() },
+            parse: { await RuleBasedParser().parse($0) }
+        )
+
+        // (a) flow signals edit-mode-with-error, no invented amount.
+        XCTAssertTrue(result.opensInEditMode)
+        XCTAssertTrue(result.signalsError)
+        XCTAssertEqual(result.errorMessage, "device transcription failed")
+        XCTAssertNil(result.parsed.amount)
+
+        // (b) nothing persists.
+        let saved = saveVoiceTransaction(
+            parsed: result.parsed,
+            transcript: result.transcript,
+            context: .personal,
+            into: context
+        )
+        XCTAssertNil(saved, "a thrown transcribe must persist no Transaction")
+
+        let fetched = try context.fetch(FetchDescriptor<Transaction>())
+        XCTAssertTrue(fetched.isEmpty, "no Transaction may be written when transcription fails")
+    }
+
     func testManualEntryNeverSetsRawTranscript() throws {
         // Guards the `source`/`rawTranscript` contract from the other side:
         // manual entries (Unit C's `ManualEntrySheet`) must never populate
