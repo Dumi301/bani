@@ -95,7 +95,7 @@ struct FinancesView: View {
                     timeframeControl
                     if isSearching { searchSummary }
                     hero
-                    if displayRate == nil { currencyToggle }
+                    if displayRate == nil { currencyToggleControl }
                     chartCard
                     if !categoryTotals.isEmpty { breakdown }
                     listControls
@@ -171,7 +171,7 @@ struct FinancesView: View {
         }
     }
 
-    private var currencyToggle: some View {
+    private var currencyToggleControl: some View {
         Picker("Currency", selection: currencyToggleBinding) {
             ForEach(Currency.allCases, id: \.self) { currency in
                 Text(currency.displayCode).tag(currency)
