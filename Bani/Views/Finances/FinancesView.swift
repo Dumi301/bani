@@ -20,7 +20,6 @@ struct FinancesView: View {
     @AppStorage("financesGrouping") private var groupingRaw: String = TransactionGrouping.category.rawValue
 
     @State private var selectedFilter: FinancesFilter
-    @State private var selectedTransaction: Transaction?
     @State private var recentlyDeleted: DeletedTransactionSnapshot?
 
     init() {
@@ -54,9 +53,6 @@ struct FinancesView: View {
                 }
             }
             .navigationTitle("Finances")
-            .navigationDestination(item: $selectedTransaction) { transaction in
-                TransactionDetailView(transaction: transaction)
-            }
             .overlay(alignment: .bottom) {
                 if let recentlyDeleted {
                     undoToast(for: recentlyDeleted)
@@ -165,19 +161,19 @@ struct FinancesView: View {
             ForEach(groups) { group in
                 Section(group.title) {
                     ForEach(group.transactions, id: \.id) { transaction in
-                        TransactionRow(transaction: transaction)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedTransaction = transaction
+                        NavigationLink {
+                            TransactionDetailView(transaction: transaction)
+                        } label: {
+                            TransactionRow(transaction: transaction)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                delete(transaction)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    delete(transaction)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            .listRowBackground(Color("BaniSurface"))
+                        }
+                        .listRowBackground(Color("BaniSurface"))
                     }
                 }
             }

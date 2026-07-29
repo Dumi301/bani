@@ -54,9 +54,6 @@ struct BaniApp: App {
             UserDefaults.standard.set("2026-07-29", forKey: "bnr.date")
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "bnr.fetchedAt")
         }
-        // Seed the categorizer's keyword table on first launch (idempotent —
-        // a no-op once rules exist). Uses a fresh context, like SampleData.
-        CategoryRuleStore.seedIfNeeded(ModelContext(container))
 
         _whisper = State(initialValue: WhisperService(modelAbsent: absent))
         _rates = State(initialValue: RateService())
@@ -87,6 +84,9 @@ struct BaniApp: App {
                         .environment(whisper)
                 }
                 .task {
+                    // Seed the categorizer's keyword table off the launch
+                    // critical path (idempotent — a no-op once rules exist).
+                    CategoryRuleStore.seedIfNeeded(container.mainContext)
                     if !modelAbsent {
                         await whisper.prepareModelIfNeeded()
                     }

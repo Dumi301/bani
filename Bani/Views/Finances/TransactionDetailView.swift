@@ -55,14 +55,15 @@ struct TransactionDetailView: View {
     // MARK: - Amount + conversion
 
     private var amountHero: some View {
-        (
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
                 .font(.system(size: 52, design: .rounded).weight(.bold))
-            + Text(" \(transaction.currency.symbol)")
+            Text(transaction.currency.symbol)
                 .font(.system(.title, design: .rounded).weight(.semibold))
-        )
+        }
         .monospacedDigit()
         .foregroundStyle(Color("BaniAccent"))
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("detail.amount")
     }
 
@@ -82,14 +83,10 @@ struct TransactionDetailView: View {
 
     private func conversionLine(_ other: (value: Decimal, code: String)) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            (
-                Text("≈ ")
-                + Text(other.value, format: .number.precision(.fractionLength(2)))
-                + Text(" \(other.code)")
-            )
-            .font(.system(.title3, design: .rounded).weight(.semibold))
-            .monospacedDigit()
-            .foregroundStyle(Color("BaniInk"))
+            Text("≈ \(other.value.formatted(.number.precision(.fractionLength(2)))) \(other.code)")
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(Color("BaniInk"))
 
             if let rate = rates.rate {
                 Text(bnrCaption(rate: rate))

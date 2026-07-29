@@ -32,22 +32,25 @@ final class TransactionDetailUITests: XCTestCase {
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
         tabBar.buttons["Finances"].tap()
 
-        // Tap the first seeded transaction row.
+        // Tap the first seeded transaction row (a NavigationLink → detail push).
         let firstRow = app.cells.firstMatch
         XCTAssertTrue(firstRow.waitForExistence(timeout: 10), "a seeded transaction row should be visible")
         firstRow.tap()
 
-        // Detail view: amount, context, category, and the conversion line
+        // The Edit button is the reliable "we navigated to the detail view" signal.
+        let editButton = app.buttons["detail.editButton"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 10), "tapping a row should open the transaction detail view")
+
+        // Detail content: amount, context, category, and the conversion line
         // (present because -seedRate cached a BNR rate).
-        let amount = app.descendants(matching: .any)["detail.amount"]
-        XCTAssertTrue(amount.waitForExistence(timeout: 10), "detail view should show the amount hero")
+        XCTAssertTrue(app.descendants(matching: .any)["detail.amount"].exists, "detail should show the amount hero")
         XCTAssertTrue(app.descendants(matching: .any)["detail.contextTag"].exists, "detail should show the context tag")
         XCTAssertTrue(app.descendants(matching: .any)["detail.categoryChip"].exists, "detail should show the category chip")
-        XCTAssertTrue(app.descendants(matching: .any)["detail.conversion"].waitForExistence(timeout: 5),
+        XCTAssertTrue(app.descendants(matching: .any)["detail.conversion"].exists,
                       "detail should show the other-currency conversion line at the cached BNR rate")
 
         // Edit opens the sheet, pre-filled — the amount field is never blank.
-        app.buttons["detail.editButton"].tap()
+        editButton.tap()
 
         let amountField = app.textFields["editAmountField"]
         XCTAssertTrue(amountField.waitForExistence(timeout: 10), "Edit should open the edit sheet")
