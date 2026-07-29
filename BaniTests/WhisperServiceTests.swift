@@ -10,6 +10,7 @@ import XCTest
 /// Any missing fixture, or any failure to fetch/load the model, SKIPS via
 /// `XCTSkip` rather than failing — a skip is reported explicitly in CI logs,
 /// never silently swallowed.
+@MainActor
 final class WhisperServiceTests: XCTestCase {
 
     func testTranscribesShortRoEnFixture() async throws {

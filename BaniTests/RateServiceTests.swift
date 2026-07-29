@@ -26,7 +26,9 @@ final class RateServiceTests: XCTestCase {
     /// under the test host app's domain, which can persist across CI runs on
     /// the same simulator. Clear it so "no cached rate" tests are
     /// deterministic regardless of prior state.
-    private func clearPersistedRate() {
+    // `nonisolated` so the nonisolated setUp()/tearDown() overrides can call it
+    // (it only touches the Sendable UserDefaults.standard).
+    nonisolated private func clearPersistedRate() {
         UserDefaults.standard.removeObject(forKey: Self.bnrRateKey)
         UserDefaults.standard.removeObject(forKey: Self.bnrDateKey)
         UserDefaults.standard.removeObject(forKey: Self.bnrFetchedAtKey)
