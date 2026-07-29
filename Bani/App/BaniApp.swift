@@ -90,7 +90,12 @@ struct BaniApp: App {
                     if !modelAbsent {
                         await whisper.prepareModelIfNeeded()
                     }
-                    await rates.refreshIfNeeded()
+                    // Skip the BNR network refresh under UI tests: CI simulators
+                    // have no egress, so a hung request keeps the app from going
+                    // idle and flakes the UI tests. Tests needing a rate use -seedRate.
+                    if !ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+                        await rates.refreshIfNeeded()
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {

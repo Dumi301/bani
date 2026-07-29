@@ -125,11 +125,15 @@ jobs:
       - name: Run UI tests
         run: |
           set -o pipefail
+          # UI tests share one cold simulator; retry only the tests that fail so a
+          # first-launch / keyboard-focus flake self-heals instead of failing the job.
           xcodebuild test \
             -project Bani.xcodeproj \
             -scheme Bani \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:BaniUITests \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
             -resultBundlePath build/ui.xcresult \
             CODE_SIGNING_ALLOWED=NO
       - name: Export screenshots

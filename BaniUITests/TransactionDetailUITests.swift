@@ -37,20 +37,23 @@ final class TransactionDetailUITests: XCTestCase {
         XCTAssertTrue(firstRow.waitForExistence(timeout: 10), "a seeded transaction row should be visible")
         firstRow.tap()
 
-        // The Edit button is the reliable "we navigated to the detail view" signal.
-        let editButton = app.buttons["detail.editButton"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 10), "tapping a row should open the transaction detail view")
+        // Navigation signal: the detail view's nav-bar title (always queryable,
+        // unlike a toolbar button's accessibilityIdentifier).
+        let detailNav = app.navigationBars["Transaction"]
+        XCTAssertTrue(detailNav.waitForExistence(timeout: 15), "tapping a row should push the transaction detail view")
 
         // Detail content: amount, context, category, and the conversion line
         // (present because -seedRate cached a BNR rate).
-        XCTAssertTrue(app.descendants(matching: .any)["detail.amount"].exists, "detail should show the amount hero")
+        XCTAssertTrue(app.descendants(matching: .any)["detail.amount"].waitForExistence(timeout: 5),
+                      "detail should show the amount hero")
         XCTAssertTrue(app.descendants(matching: .any)["detail.contextTag"].exists, "detail should show the context tag")
         XCTAssertTrue(app.descendants(matching: .any)["detail.categoryChip"].exists, "detail should show the category chip")
         XCTAssertTrue(app.descendants(matching: .any)["detail.conversion"].exists,
                       "detail should show the other-currency conversion line at the cached BNR rate")
 
-        // Edit opens the sheet, pre-filled — the amount field is never blank.
-        editButton.tap()
+        // Edit opens the sheet, pre-filled — query the toolbar button by label
+        // (toolbar accessibilityIdentifiers do not reliably surface to XCUITest).
+        detailNav.buttons["Edit"].tap()
 
         let amountField = app.textFields["editAmountField"]
         XCTAssertTrue(amountField.waitForExistence(timeout: 10), "Edit should open the edit sheet")
