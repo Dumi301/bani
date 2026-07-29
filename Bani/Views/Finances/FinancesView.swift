@@ -53,6 +53,9 @@ struct FinancesView: View {
                 }
             }
             .navigationTitle("Finances")
+            .navigationDestination(for: Transaction.self) { transaction in
+                TransactionDetailView(transaction: transaction)
+            }
             .overlay(alignment: .bottom) {
                 if let recentlyDeleted {
                     undoToast(for: recentlyDeleted)
@@ -161,9 +164,7 @@ struct FinancesView: View {
             ForEach(groups) { group in
                 Section(group.title) {
                     ForEach(group.transactions, id: \.id) { transaction in
-                        NavigationLink {
-                            TransactionDetailView(transaction: transaction)
-                        } label: {
+                        NavigationLink(value: transaction) {
                             TransactionRow(transaction: transaction)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {

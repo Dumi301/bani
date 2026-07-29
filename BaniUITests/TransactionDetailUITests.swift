@@ -32,15 +32,20 @@ final class TransactionDetailUITests: XCTestCase {
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
         tabBar.buttons["Finances"].tap()
 
-        // Tap the first seeded transaction row (a NavigationLink → detail push).
-        let firstRow = app.cells.firstMatch
-        XCTAssertTrue(firstRow.waitForExistence(timeout: 10), "a seeded transaction row should be visible")
-        firstRow.tap()
+        // Tap the first seeded transaction by its description text — robust against
+        // `cells.firstMatch` matching a category section-header cell.
+        let row = app.staticTexts["benzină"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "a seeded transaction row should be visible")
+        row.tap()
 
         // Navigation signal: the detail view's nav-bar title (always queryable,
         // unlike a toolbar button's accessibilityIdentifier).
         let detailNav = app.navigationBars["Transaction"]
-        XCTAssertTrue(detailNav.waitForExistence(timeout: 15), "tapping a row should push the transaction detail view")
+        if !detailNav.waitForExistence(timeout: 15) {
+            // Ground truth if navigation still fails: dump the on-screen tree.
+            print("NAV-DEBUG-TREE-START\n\(app.debugDescription)\nNAV-DEBUG-TREE-END")
+        }
+        XCTAssertTrue(detailNav.exists, "tapping a row should push the transaction detail view")
 
         // Detail content: amount, context, category, and the conversion line
         // (present because -seedRate cached a BNR rate).
