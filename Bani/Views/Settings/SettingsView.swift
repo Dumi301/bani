@@ -27,6 +27,15 @@ struct SettingsView: View {
         )
     }
 
+    /// Selected transcription model (B). Setting it routes through
+    /// `WhisperService.select`, which downloads the chosen variant if needed.
+    private var modelVariant: Binding<WhisperModelVariant> {
+        Binding(
+            get: { whisper.activeVariant },
+            set: { newValue in Task { await whisper.select(newValue) } }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -72,10 +81,28 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("Transcription model", selection: modelVariant) {
+                        ForEach(WhisperModelVariant.allCases) { variant in
+                            Text(variant.label).tag(variant)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityIdentifier("settings.modelVariantPicker")
+
+                    Text(whisper.activeVariant.blurb)
+                        .font(.footnote)
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .listRowBackground(Color("BaniSurface"))
+
                     modelStatusRow
                         .accessibilityIdentifier("settings.modelStatusRow")
                 } header: {
                     Text("Speech Model")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                } footer: {
+                    Text("Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout.")
                         .foregroundStyle(Color("BaniSecondaryInk"))
                 }
 
@@ -131,7 +158,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Whisper Model")
+                    Text("\(whisper.activeVariant.label) model")
                         .font(.system(.body, design: .rounded).weight(.medium))
                         .foregroundStyle(Color("BaniInk"))
 
@@ -142,7 +169,7 @@ struct SettingsView: View {
 
                 Spacer()
 
-                Text("~\(whisper.modelSizeMB) MB")
+                Text(whisper.activeVariant.sizeLabel)
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(Color("BaniSecondaryInk"))
             }

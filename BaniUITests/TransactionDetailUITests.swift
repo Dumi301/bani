@@ -33,9 +33,15 @@ final class TransactionDetailUITests: XCTestCase {
         tabBar.buttons["Finances"].tap()
 
         // Tap the first seeded transaction by its description text — robust against
-        // `cells.firstMatch` matching a category section-header cell.
+        // `cells.firstMatch` matching a category section-header cell. The list now
+        // sits below the analytics header, so scroll it into view first.
         let row = app.staticTexts["benzină"]
-        XCTAssertTrue(row.waitForExistence(timeout: 10), "a seeded transaction row should be visible")
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "a seeded transaction row should exist")
+        var scrolls = 0
+        while !row.isHittable && scrolls < 6 {
+            app.swipeUp()
+            scrolls += 1
+        }
         row.tap()
 
         // Navigation signal: the detail view's nav-bar title (always queryable,

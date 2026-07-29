@@ -24,6 +24,7 @@ final class ScreenshotTests: XCTestCase {
         app.launchArguments = [
             "-uiTesting",
             "-seedSampleData",
+            "-seedRate",
             "-forceRuleParser",
             "-modelAbsent",
             "-appearance", appearance,

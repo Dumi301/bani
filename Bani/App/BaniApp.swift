@@ -84,6 +84,10 @@ struct BaniApp: App {
                         .environment(whisper)
                 }
                 .task {
+                    // One-shot cleanup (A2): strip leaked Whisper tokens from
+                    // stored transactions and delete token-artifact learned
+                    // rules. Guarded internally — runs once per install.
+                    TokenCleanupMigration.runIfNeeded(container.mainContext)
                     // Seed the categorizer's keyword table off the launch
                     // critical path (idempotent — a no-op once rules exist).
                     CategoryRuleStore.seedIfNeeded(container.mainContext)
