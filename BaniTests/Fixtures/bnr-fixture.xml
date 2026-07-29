@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Deterministic test fixture — mirrors the real shape of BNR's daily reference
+  rate feed (https://www.bnr.ro/nbrfxrates.xml). Values are fixed so
+  RateServiceTests can assert an exact EUR rate/date. Not fetched over the
+  network; used only as `RateService.parseEURRate(fromBNRXML:)` input.
+-->
+<DataSet xmlns="http://www.bnr.ro/xsd">
+  <Header>
+    <Publisher>National Bank of Romania</Publisher>
+    <PublishingDate>2024-05-31</PublishingDate>
+    <MessageType>DR</MessageType>
+  </Header>
+  <Body>
+    <Subject>Reference exchange rate</Subject>
+    <OrigCurrency>RON</OrigCurrency>
+    <Cube date="2024-05-31">
+      <Rate currency="AUD">3.2967</Rate>
+      <Rate currency="BRL">0.9159</Rate>
+      <Rate currency="CAD">3.3805</Rate>
+      <Rate currency="CHF">5.0763</Rate>
+      <Rate currency="EUR">4.9761</Rate>
+      <Rate currency="GBP">5.8264</Rate>
+      <Rate currency="HUF" multiplier="100">1.2790</Rate>
+      <Rate currency="JPY" multiplier="100">2.9235</Rate>
+      <Rate currency="USD">4.5928</Rate>
+      <Rate currency="XDR">6.1274</Rate>
+    </Cube>
+  </Body>
+</DataSet>

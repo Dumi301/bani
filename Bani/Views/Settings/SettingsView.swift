@@ -1,13 +1,147 @@
 import SwiftUI
 
-// PHASE-0 STUB — replaced by worker unit E (Settings + appearance). Keeps the shell green.
+/// Settings tab: appearance override, Whisper model status, app version.
+/// Reads `WhisperService` from the environment (owned by Unit B); the
+/// appearance picker writes the same `"appearanceMode"` `@AppStorage` key
+/// the frozen `BaniApp` root already reads via `.preferredColorScheme` —
+/// this view never touches `Bani/App/`.
 struct SettingsView: View {
+    @Environment(WhisperService.self) private var whisper
+
+    @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+
+    private var appearance: Binding<AppearanceMode> {
+        Binding(
+            get: { AppearanceMode(rawValue: appearanceRaw) ?? .system },
+            set: { appearanceRaw = $0.rawValue }
+        )
+    }
+
     var body: some View {
-        ZStack {
-            Color("BaniCanvas").ignoresSafeArea()
-            Text("Settings")
-                .font(.system(.largeTitle, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color("BaniInk"))
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Appearance", selection: appearance) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color("BaniSurface"))
+                    .accessibilityIdentifier("settings.appearancePicker")
+                } header: {
+                    Text("Appearance")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    modelStatusRow
+                        .accessibilityIdentifier("settings.modelStatusRow")
+                } header: {
+                    Text("Speech Model")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+
+                Section {
+                    LabeledContent("Version") {
+                        Text(appVersionString)
+                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .monospacedDigit()
+                    }
+                    .listRowBackground(Color("BaniSurface"))
+                } header: {
+                    Text("About")
+                        .foregroundStyle(Color("BaniSecondaryInk"))
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Color("BaniCanvas").ignoresSafeArea())
+            .navigationTitle("Settings")
         }
     }
+
+    // MARK: - Model status row
+
+    @ViewBuilder
+    private var modelStatusRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Whisper Model")
+                        .font(.system(.body, design: .rounded).weight(.medium))
+                        .foregroundStyle(Color("BaniInk"))
+
+                    Text(statusDescription)
+                        .font(.subheadline)
+                        .foregroundStyle(statusColor)
+                }
+
+                Spacer()
+
+                Text("~\(whisper.modelSizeMB) MB")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(Color("BaniSecondaryInk"))
+            }
+
+            if case .downloading(let progress) = whisper.modelState {
+                ProgressView(value: progress)
+                    .tint(Color("BaniAccent"))
+            }
+
+            Button {
+                Task { await whisper.redownloadModel() }
+            } label: {
+                Text(whisper.isModelDownloaded ? "Re-download Model" : "Download Model")
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            }
+            .buttonStyle(.borderless)
+            .tint(Color("BaniAccent"))
+            .disabled(isDownloading)
+        }
+        .padding(.vertical, 8)
+        .listRowBackground(Color("BaniSurface"))
+    }
+
+    private var isDownloading: Bool {
+        if case .downloading = whisper.modelState { return true }
+        return false
+    }
+
+    private var statusDescription: String {
+        switch whisper.modelState {
+        case .notReady:
+            "Not downloaded"
+        case .downloading(let progress):
+            "Downloading… \(Int(progress * 100))%"
+        case .ready:
+            "Downloaded"
+        case .failed(let message):
+            "Failed — \(message)"
+        }
+    }
+
+    private var statusColor: Color {
+        switch whisper.modelState {
+        case .ready:
+            Color("BaniAccent")
+        case .failed:
+            Color("BaniSecondaryInk")
+        default:
+            Color("BaniSecondaryInk")
+        }
+    }
+
+    // MARK: - App version
+
+    private var appVersionString: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
+}
+
+#Preview {
+    SettingsView()
+        .environment(WhisperService(modelAbsent: true))
 }
