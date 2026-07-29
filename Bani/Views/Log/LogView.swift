@@ -205,8 +205,10 @@ struct LogView: View {
             transcribe: { try await whisper.transcribe(audioFileURL: $0) },
             parse: { await parser.parse($0) }
         )
-        // A3: surface the outcome for on-device debugging (Settings row).
-        VoiceSessionLog.record(result)
+        // A3: surface the outcome + recording forensics for on-device
+        // debugging (Settings row). The file is closed by `finish()` before
+        // `.finished(url)` is published, so it is fully readable here.
+        VoiceSessionLog.record(result, audioFileURL: url)
         stage = .confirming(result)
         recorder = nil
     }

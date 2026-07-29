@@ -12,6 +12,10 @@ struct SettingsView: View {
     /// Last voice-pipeline outcome (transcript+parse, or the thrown error),
     /// written by `VoiceSessionLog.record` on every voice attempt (A3).
     @AppStorage(VoiceSessionLog.appStorageKey) private var lastVoiceSession: String = ""
+    /// Recording forensics for that same attempt (duration, bytes, sample rate,
+    /// avg/peak RMS) — discriminates an empty/mis-formatted/clipped file from a
+    /// genuinely silent one if the "No speech detected" bug ever recurs.
+    @AppStorage(VoiceSessionLog.forensicsKey) private var lastVoiceForensics: String = ""
 
     private var appearance: Binding<AppearanceMode> {
         Binding(
@@ -54,6 +58,13 @@ struct SettingsView: View {
                             .font(.subheadline)
                             .foregroundStyle(Color("BaniSecondaryInk"))
                             .fixedSize(horizontal: false, vertical: true)
+                        if !lastVoiceForensics.isEmpty {
+                            Text(lastVoiceForensics)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.75))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("settings.lastVoiceForensics")
+                        }
                     }
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity, alignment: .leading)

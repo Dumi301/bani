@@ -73,7 +73,11 @@ final class Recorder {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("wav")
-        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        // Record in the input node's NATIVE format (typically 48 kHz float32
+        // mono) and hand WhisperKit the file untouched — its AudioProcessor
+        // resamples to 16 kHz mono on load. No AVAudioConverter, no second
+        // conversion that could decode as silence.
+        let file = try Self.makeFile(at: url, format: format)
         tapState.reset(audioFile: file, url: url)
 
         // The tap block MUST be `@Sendable` (i.e. nonisolated). Without it,
@@ -96,11 +100,23 @@ final class Recorder {
         try engine.start()
     }
 
+    /// Opens the capture file in the input node's native format. Shared by the
+    /// live recording path and the buffer-level test seam so both exercise the
+    /// exact same file settings.
+    nonisolated static func makeFile(at url: URL, format: AVAudioFormat) throws -> AVAudioFile {
+        try AVAudioFile(forWriting: url, settings: format.settings)
+    }
+
     /// Runs on the audio engine's real-time render thread. Touches only
     /// `tapState` (deliberately non-isolated) and hops to `@MainActor` just
     /// to publish the level / trigger auto-stop.
     private nonisolated func processTap(buffer: AVAudioPCMBuffer) {
-        try? tapState.audioFile?.write(from: buffer)
+        // Commit the buffer to disk synchronously, on this render thread — the
+        // write is deliberately NOT hopped to another executor. Only `level`
+        // and auto-stop touch `@MainActor` state (below); a hop for the write
+        // would let stop()/finish() tear the file down before queued buffers
+        // land, producing a near-empty recording.
+        tapState.write(buffer)
 
         let rms = Self.rms(of: buffer)
         let bufferDuration = Double(buffer.frameLength) / buffer.format.sampleRate
@@ -146,13 +162,57 @@ final class Recorder {
         engine.stop()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         level = 0
-        if let url = tapState.recordingURL {
+        // Close/flush the capture file BEFORE publishing its URL. `removeTap`
+        // above guarantees no tap callback is mid-write, so finalizing here is
+        // race-free. Releasing the AVAudioFile flushes its buffered packets and
+        // writes the final RIFF/data chunk sizes into the WAV header — without
+        // this the file stayed open until the whole Recorder was deallocated
+        // (after transcription had already read it), so WhisperKit saw a
+        // ~0-frame header and reported "No speech was detected". Finalize →
+        // publish is the fix for that regression.
+        if let url = tapState.finalizeFile() {
             state = .finished(url)
         } else {
             state = .idle
         }
     }
 }
+
+#if DEBUG
+extension Recorder {
+    /// Outcome of `recordSynthetic`, consumed by the buffer-level write-path tests.
+    struct SyntheticRecordingResult {
+        let url: URL
+        /// `true` iff the capture file was released (flushed + closed) BEFORE
+        /// this result — and therefore the URL — was produced, mirroring
+        /// `finish()`'s finalize-then-publish ordering.
+        let fileClosedBeforeFinish: Bool
+    }
+
+    /// Test seam (CI has no microphone): drives the EXACT production write path
+    /// — open via `makeFile`, per-buffer `TapState.write`, then
+    /// `TapState.finalizeFile` — over caller-supplied buffers with no
+    /// `AVAudioEngine`. Lets tests assert the written file's duration / RMS /
+    /// format and the close-before-finish ordering without a live tap.
+    nonisolated static func recordSynthetic(
+        buffers: [AVAudioPCMBuffer],
+        format: AVAudioFormat,
+        to url: URL
+    ) throws -> SyntheticRecordingResult {
+        let file = try makeFile(at: url, format: format)
+        let tap = TapState()
+        tap.reset(audioFile: file, url: url)
+        for buffer in buffers {
+            tap.write(buffer)
+        }
+        let finishedURL = tap.finalizeFile()
+        return SyntheticRecordingResult(
+            url: finishedURL ?? url,
+            fileClosedBeforeFinish: tap.audioFile == nil
+        )
+    }
+}
+#endif
 
 /// Mutable recording state touched only from the audio engine's real-time
 /// render thread; kept outside `Recorder`'s `@MainActor` isolation on
@@ -168,5 +228,20 @@ private final class TapState: @unchecked Sendable {
         self.recordingURL = url
         self.silenceAccumulated = 0
         self.hasDetectedSound = false
+    }
+
+    /// Commits one buffer to disk. Called synchronously from the audio render
+    /// thread — never hopped to another executor (see `processTap`).
+    func write(_ buffer: AVAudioPCMBuffer) {
+        try? audioFile?.write(from: buffer)
+    }
+
+    /// Releases the `AVAudioFile`, which flushes buffered packets and writes the
+    /// final WAV header. MUST run before the URL is handed to the transcriber:
+    /// a file still held open reports a ~0-frame header, so any reader decodes
+    /// silence. Returns the finished file URL.
+    func finalizeFile() -> URL? {
+        audioFile = nil
+        return recordingURL
     }
 }

@@ -85,8 +85,13 @@ func runVoicePipeline(
 /// permanent-cheap, updated on every voice attempt.
 enum VoiceSessionLog {
     static let appStorageKey = "lastVoiceSession"
+    /// Companion key holding the recording-forensics line (duration, bytes,
+    /// sample rate, avg/peak RMS) surfaced under the same Settings row. Kept
+    /// separate from `appStorageKey` so the transcript summary and the file
+    /// diagnostics render as two independent lines.
+    static let forensicsKey = "lastVoiceForensics"
 
-    static func record(_ result: VoicePipelineResult) {
+    static func record(_ result: VoicePipelineResult, audioFileURL: URL?) {
         let transcript = result.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         let summary: String
         if let error = result.errorMessage {
@@ -98,5 +103,14 @@ enum VoiceSessionLog {
             summary = "“\(transcript)” → no amount found"
         }
         UserDefaults.standard.set(summary, forKey: appStorageKey)
+
+        // A3 forensics: re-measure the written file so the row alone can tell an
+        // empty / mis-formatted / clipped recording apart from a genuine "user
+        // said nothing". `analyze` returns nil when the file is missing or
+        // unreadable — itself a diagnostic (a wrong or never-written URL).
+        let forensicsLine = audioFileURL
+            .flatMap(RecordingForensics.analyze(url:))?
+            .summaryLine ?? "no readable recording file"
+        UserDefaults.standard.set(forensicsLine, forKey: forensicsKey)
     }
 }
