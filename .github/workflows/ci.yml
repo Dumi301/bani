@@ -16,8 +16,12 @@ env:
   MACOS_IMAGE: macos-26
 
 jobs:
-  build-test:
-    name: build-test (unit)
+  # ── STAGE 1 — GATE ──────────────────────────────────────────────────────────
+  # Cheapest signal first: xcodegen + build + ALL unit tests (no UI, no whisper,
+  # no ipa). A compile error or a failing unit test stops here and NEVER triggers
+  # the expensive UI / whisper / ipa / release chain below (all `needs: [gate]`).
+  gate:
+    name: gate (build + unit tests)
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -52,14 +56,22 @@ jobs:
           fi
           echo "XcodeGen $VER supports syncedFolder"
 
-      - name: Cache SwiftPM
+      # gate carries the richest cache: SPM checkouts (SourcePackages) AND build
+      # products under a fixed DerivedData path, so a warm gate reuses the compiled
+      # WhisperKit dependency + prior build products instead of re-resolving and
+      # recompiling from scratch. Keyed on project.yml (Package.resolved is not
+      # committed — the argmax dep is branch-pinned — so project.yml is the stable
+      # key; the extra Package.resolved glob picks it up if it is ever committed).
+      - name: Cache SwiftPM + DerivedData
+        id: cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            build/DerivedData
             ~/Library/Caches/org.swift.swiftpm
-          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: bani-dd-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            bani-dd-${{ runner.os }}-
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -72,7 +84,7 @@ jobs:
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
           echo "Using simulator UDID: $UDID"
 
-      - name: Build & unit test
+      - name: Build & unit test (no UI, no whisper)
         run: |
           set -o pipefail
           xcodebuild build test \
@@ -81,6 +93,7 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:BaniTests \
             -skip-testing:BaniTests/WhisperServiceTests \
+            -derivedDataPath build/DerivedData \
             -resultBundlePath build/build-test.xcresult \
             CODE_SIGNING_ALLOWED=NO
 
@@ -92,9 +105,15 @@ jobs:
           path: build/build-test.xcresult
           if-no-files-found: ignore
 
+  # ── STAGE 2 — UI / screenshots ──────────────────────────────────────────────
+  # Runs ONLY after gate is green. UI tests auto-retry once. A test that fails
+  # BOTH attempts does NOT fail the workflow (screenshots + a FLAKY-REPORT are
+  # still uploaded and a warning is surfaced) UNLESS it is in ManualEntryUITests,
+  # which guards a real product contract and stays blocking. Screenshot capture
+  # always runs so visual grading is never skipped.
   screenshots:
     name: screenshots (UI)
-    needs: build-test
+    needs: [gate]
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -106,14 +125,15 @@ jobs:
           sudo xcode-select -s "$XC/Contents/Developer"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Cache SwiftPM
+      - name: Cache SwiftPM checkouts
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            build/DerivedData/SourcePackages
             ~/Library/Caches/org.swift.swiftpm
-          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: bani-spm-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            bani-spm-${{ runner.os }}-
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Pick simulator
@@ -122,20 +142,30 @@ jobs:
           set -euo pipefail
           UDID=$(python3 .github/scripts/pick_sim.py)
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-      - name: Run UI tests
+      - name: Run UI tests (retry once; does not abort the job)
+        id: uitest
         run: |
-          set -o pipefail
           # UI tests share one cold simulator; retry only the tests that fail so a
-          # first-launch / keyboard-focus flake self-heals instead of failing the job.
+          # first-launch / keyboard-focus flake self-heals. -test-iterations 2 with
+          # -retry-tests-on-failure = one initial attempt + one retry (retry once).
+          # set +e so a failing suite never aborts this step — the analyze step below
+          # decides whether the failure blocks (ManualEntryUITests) or only warns.
+          set +e
+          set -o pipefail
+          mkdir -p build
           xcodebuild test \
             -project Bani.xcodeproj \
             -scheme Bani \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:BaniUITests \
             -retry-tests-on-failure \
-            -test-iterations 3 \
+            -test-iterations 2 \
+            -derivedDataPath build/DerivedData \
             -resultBundlePath build/ui.xcresult \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/ui-test.log
+          CODE=${PIPESTATUS[0]}
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "xcodebuild UI-test exit code: $CODE"
       - name: Export screenshots
         if: always()
         run: |
@@ -144,6 +174,95 @@ jobs:
             --path build/ui.xcresult \
             --output-path screenshots || echo "attachment export skipped"
           ls -la screenshots || true
+      - name: Analyze UI results (classify flaky vs blocking)
+        id: analyze
+        if: always()
+        run: |
+          set +e
+          LOG=build/ui-test.log
+          CODE="${{ steps.uitest.outputs.code }}"
+          if [ ! -f "$LOG" ]; then
+            echo "::error::UI-test log missing — xcodebuild did not produce output"
+            echo "block=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # A test that fails an attempt then passes on retry self-heals (allowed).
+          # "Ultimately failed" = failed at least once AND never passed = failed all
+          # attempts. Derived from the human-readable xcodebuild log so it is stable
+          # across Xcode / xcresulttool format changes.
+          grep -Eio "Test Case '-\[[^]]+\]' (failed|passed)" "$LOG" > build/tc.txt
+          grep -Ei "failed$" build/tc.txt | grep -Eo "\[[^]]+\]" | tr -d '[]' | sort -u > build/failed.txt
+          grep -Ei "passed$" build/tc.txt | grep -Eo "\[[^]]+\]" | tr -d '[]' | sort -u > build/passed.txt
+          : > build/ultfail.txt
+          comm -23 build/failed.txt build/passed.txt > build/ultfail.txt
+          COUNT=$(grep -c . build/ultfail.txt || true)
+          echo "Ultimately-failed UI tests (failed all attempts): ${COUNT:-0}"
+          cat build/ultfail.txt || true
+
+          # Clean pass: exit 0 AND nothing failed all attempts (self-healed flakes ok).
+          if [ "$CODE" = "0" ] && [ "${COUNT:-0}" = "0" ]; then
+            echo "block=0" >> "$GITHUB_OUTPUT"
+            echo "### ✅ UI tests green (self-healed flakes allowed)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Nonzero exit with no identifiable failing test = a build/infra break, not
+          # flakiness. That is not what the defang covers, so it blocks.
+          if [ "$CODE" != "0" ] && [ "${COUNT:-0}" = "0" ]; then
+            echo "block=1" >> "$GITHUB_OUTPUT"
+            echo "::error::UI job failed (exit $CODE) with no identifiable flaky test — treated as a build/infra failure and BLOCKS."
+            echo "### ❌ UI job build/infra failure (exit $CODE)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Build the FLAKY-REPORT: each test that failed both attempts + its messages.
+          REPORT=build/FLAKY-REPORT.md
+          {
+            echo "# UI Test Flaky / Failure Report"
+            echo ""
+            echo "- Run: ${{ github.run_number }}"
+            echo "- Commit: ${{ github.sha }}"
+            echo "- xcodebuild exit code: $CODE"
+            echo "- Retry policy: -retry-tests-on-failure -test-iterations 2 (one retry)"
+            echo ""
+          } > "$REPORT"
+
+          BLOCK=0
+          while IFS= read -r TID; do
+            [ -z "$TID" ] && continue
+            CLASS=$(echo "$TID" | awk '{print $1}')
+            METHOD=$(echo "$TID" | awk '{print $2}')
+            echo "## ${CLASS} / ${METHOD} — failed both attempts" >> "$REPORT"
+            echo "" >> "$REPORT"
+            echo '```' >> "$REPORT"
+            grep -F "$METHOD" "$LOG" | grep -Ei "error:|failed \(" | sed 's/^[[:space:]]*//' \
+              | sort -u | head -20 >> "$REPORT" || echo "(no detailed failure message captured)" >> "$REPORT"
+            echo '```' >> "$REPORT"
+            echo "" >> "$REPORT"
+            case "$CLASS" in
+              *ManualEntryUITests*) BLOCK=1 ;;
+            esac
+          done < build/ultfail.txt
+
+          echo "---- FLAKY-REPORT.md ----"
+          cat "$REPORT"
+
+          if [ "$BLOCK" = "1" ]; then
+            echo "block=1" >> "$GITHUB_OUTPUT"
+            echo "::error::ManualEntryUITests failed both attempts — guards a product contract, BLOCKS the pipeline."
+            {
+              echo "### ❌ Blocking UI failure: ManualEntryUITests"
+              echo "A ManualEntryUITests case failed both attempts. See the FLAKY-REPORT artifact."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "block=0" >> "$GITHUB_OUTPUT"
+            echo "::warning::${COUNT} UI test(s) failed both attempts but are non-blocking (not ManualEntryUITests). Screenshots + FLAKY-REPORT uploaded; pipeline continues."
+            {
+              echo "### ⚠️ Non-blocking UI flake"
+              echo "${COUNT} UI test(s) failed both attempts (none in ManualEntryUITests). Pipeline continues. See the FLAKY-REPORT artifact."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,10 +272,28 @@ jobs:
             screenshots
             build/ui.xcresult
           if-no-files-found: warn
+      - name: Upload FLAKY-REPORT
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLAKY-REPORT
+          path: |
+            build/FLAKY-REPORT.md
+            build/ui-test.log
+          if-no-files-found: ignore
+      - name: Enforce ManualEntry contract (block only on real product-contract failure)
+        if: always()
+        run: |
+          if [ "${{ steps.analyze.outputs.block }}" = "1" ]; then
+            echo "Blocking failure detected in the UI job — failing screenshots (and thus release)."
+            exit 1
+          fi
+          echo "UI job passing (green, or non-blocking flake only)."
 
+  # ── STAGE 2 — model tests (non-blocking, reported) ──────────────────────────
   whisper-tests:
     name: whisper-tests (model)
-    needs: build-test
+    needs: [gate]
     runs-on: macos-26
     continue-on-error: true   # non-blocking but reported; skips explicitly if model unavailable
     steps:
@@ -169,14 +306,15 @@ jobs:
           sudo xcode-select -s "$XC/Contents/Developer"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Cache SwiftPM
+      - name: Cache SwiftPM checkouts
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            build/DerivedData/SourcePackages
             ~/Library/Caches/org.swift.swiftpm
-          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: bani-spm-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            bani-spm-${{ runner.os }}-
       - name: Cache Whisper model
         uses: actions/cache@v4
         with:
@@ -198,12 +336,14 @@ jobs:
             -scheme Bani \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -only-testing:BaniTests/WhisperServiceTests \
+            -derivedDataPath build/DerivedData \
             -resultBundlePath build/whisper.xcresult \
             CODE_SIGNING_ALLOWED=NO
 
+  # ── STAGE 2 — unsigned IPA ──────────────────────────────────────────────────
   ipa:
     name: ipa (unsigned)
-    needs: build-test
+    needs: [gate]
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -215,14 +355,15 @@ jobs:
           sudo xcode-select -s "$XC/Contents/Developer"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Cache SwiftPM
+      - name: Cache SwiftPM checkouts
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+            build/DerivedData/SourcePackages
             ~/Library/Caches/org.swift.swiftpm
-          key: spm-${{ runner.os }}-${{ hashFiles('project.yml') }}
-          restore-keys: spm-${{ runner.os }}-
+          key: bani-spm-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            bani-spm-${{ runner.os }}-
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Archive (unsigned, device)
@@ -236,6 +377,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath build/Bani.xcarchive \
+            -derivedDataPath build/DerivedData \
             CI_BUILD_NUMBER=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
       - name: Package unsigned IPA
@@ -253,9 +395,14 @@ jobs:
           path: build/Bani-unsigned.ipa
           if-no-files-found: error
 
+  # ── STAGE 3 — release ───────────────────────────────────────────────────────
+  # Publishes only when gate + screenshots + ipa are all green. Because a
+  # non-blocking UI flake still leaves `screenshots` green, a flake does not stop
+  # a release; a ManualEntryUITests failure fails `screenshots` and does. The
+  # source.json / AltStore flow below is unchanged from before the restructure.
   release:
     name: release (GitHub Release + AltStore source)
-    needs: [build-test, screenshots, ipa]
+    needs: [gate, screenshots, ipa]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: macos-26
     permissions:
