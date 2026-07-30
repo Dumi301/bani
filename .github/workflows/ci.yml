@@ -406,6 +406,8 @@ jobs:
   # needs, so it can never gate a release. The Appetize publicKey is persisted in
   # a committed `.appetize` file; if that file is ever lost the same app is
   # re-found by its note (bani-ci-preview) so a duplicate URL is never minted.
+  # The permanent preview URL is https://appetize.io/app/<publicKey> (publicKey
+  # stored in `.appetize`); every push to main re-uploads to that same app.
   preview:
     name: preview (Appetize browser preview)
     needs: [gate]
