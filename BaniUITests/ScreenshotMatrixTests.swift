@@ -59,4 +59,47 @@ final class ScreenshotMatrixTests: XCTestCase {
         selectFinancesTab(app)
         snapshot(app, name: "ro-finances")
     }
+
+    // MARK: - Detail view (read-first transaction detail), light + dark
+
+    func testDetail_Light() { captureDetail(appearance: "light") }
+    func testDetail_Dark() { captureDetail(appearance: "dark") }
+
+    private func captureDetail(appearance: String) {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser",
+            "-modelAbsent", "-appearance", appearance,
+        ]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+        selectFinancesTab(app)
+        // Tap the seeded `benzină` row; scroll it up from under the analytics header.
+        let row = app.staticTexts["benzină"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "a seeded transaction row should exist")
+        var scrolls = 0
+        while !row.isHittable && scrolls < 6 { app.swipeUp(); scrolls += 1 }
+        row.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["detail.amount"].waitForExistence(timeout: 15),
+                      "the detail hero amount should appear")
+        snapshot(app, name: "\(appearance)-detail")
+    }
+
+    // MARK: - B1 density (Log + Finances donut at Airy and Dense, light)
+
+    func testDensity_Airy() { captureDensity("airy") }
+    func testDensity_Dense() { captureDensity("dense") }
+
+    private func captureDensity(_ scale: String) {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser",
+            "-modelAbsent", "-appearance", "light", "-designScale", scale,
+        ]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+        snapshot(app, name: "light-log-\(scale)")
+        selectFinancesTab(app)
+        snapshot(app, name: "light-finances-\(scale)")
+    }
 }

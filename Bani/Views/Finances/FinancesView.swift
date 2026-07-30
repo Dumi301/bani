@@ -18,6 +18,8 @@ struct FinancesView: View {
     /// The in-app language locale (B3) — applied to every String-producing
     /// FormatStyle below so dates/numbers follow the chosen language.
     @Environment(\.locale) private var locale
+    /// Active density (B1) — drives every spacing/padding token below.
+    @Environment(\.metrics) private var metrics
 
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
     /// Learned rules feed the search's category-keyword resolution ("fuel" and
@@ -65,7 +67,7 @@ struct FinancesView: View {
                     analyticsList
                 }
             }
-            .background(Color("BaniCanvas").ignoresSafeArea())
+            .background(Palette.canvas.ignoresSafeArea())
             .navigationTitle("Finances")
             .navigationDestination(for: Transaction.self) { transaction in
                 TransactionDetailView(transaction: transaction)
@@ -91,9 +93,9 @@ struct FinancesView: View {
                     }
                 )
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: recentlyDeleted?.id)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: selectedRef)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: selectedBucket?.start)
+            .animation(Motion.card, value: recentlyDeleted?.id)
+            .animation(Motion.spring, value: selectedRef)
+            .animation(Motion.spring, value: selectedBucket?.start)
             // A stale bucket filter can't survive a change of window / segment /
             // search — its date range would no longer line up with any bar.
             .onChange(of: timeframeRaw) { _, _ in selectedBucket = nil }
@@ -135,7 +137,7 @@ struct FinancesView: View {
     private var analyticsList: some View {
         List {
             Section {
-                VStack(spacing: 16) {
+                VStack(spacing: metrics.sectionSpacing) {
                     segmentControl
                     timeframeControl
                     if isSearching { searchSummary }
@@ -145,7 +147,8 @@ struct FinancesView: View {
                     if !categoryTotals.isEmpty { breakdown }
                     listControls
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                .listRowInsets(EdgeInsets(top: metrics.elementSpacing, leading: metrics.screenPadding,
+                                          bottom: metrics.elementSpacing, trailing: metrics.screenPadding))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
@@ -170,7 +173,7 @@ struct FinancesView: View {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
-                            .listRowBackground(Color("BaniSurface"))
+                            .listRowBackground(Palette.surface)
                         }
                     }
                 }
@@ -196,6 +199,7 @@ struct FinancesView: View {
             }
         }
         .pickerStyle(.segmented)
+        .tint(Palette.accent)
         .accessibilityIdentifier("financesSegmentControl")
         .onChange(of: selectedFilter) { _, newValue in
             switch newValue {
@@ -214,11 +218,12 @@ struct FinancesView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .tint(Palette.accent)
             .accessibilityIdentifier("finances.timeframePicker")
 
             Text(timeframeCaption)
                 .font(.caption2)
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
     }
@@ -230,13 +235,14 @@ struct FinancesView: View {
             }
         }
         .pickerStyle(.segmented)
+        .tint(Palette.accent)
         .accessibilityIdentifier("finances.currencyToggle")
     }
 
     private var listControls: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: metrics.elementSpacing) {
             if selectedRef != nil || selectedBucket != nil {
-                HStack(spacing: 8) {
+                HStack(spacing: metrics.elementSpacing) {
                     if let selectedRef {
                         let style = categoryStyle(selectedRef, customs: customLookup)
                         filterChip(label: style.label, systemImage: style.systemImage, color: style.color) {
@@ -245,7 +251,7 @@ struct FinancesView: View {
                         .accessibilityIdentifier("finances.categoryFilterChip")
                     }
                     if let selectedBucket {
-                        filterChip(label: bucketChipLabel(selectedBucket), systemImage: "calendar", color: Color("BaniAccent")) {
+                        filterChip(label: bucketChipLabel(selectedBucket), systemImage: "calendar", color: Palette.accent) {
                             withAnimation { self.selectedBucket = nil }
                         }
                         .accessibilityIdentifier("finances.bucketFilterChip")
@@ -257,7 +263,8 @@ struct FinancesView: View {
         }
     }
 
-    /// A dismissible active-filter chip (A3): icon + label + an ✕ that clears it.
+    /// A dismissible active-filter chip (A3): a brushed-metal chip whose accent /
+    /// category-colored border + text signal the live (selected) filter; the ✕ clears it.
     private func filterChip(label: String, systemImage: String, color: Color, clear: @escaping () -> Void) -> some View {
         Button(action: clear) {
             HStack(spacing: 5) {
@@ -266,10 +273,14 @@ struct FinancesView: View {
                 Image(systemName: "xmark.circle.fill").opacity(0.7)
             }
             .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(color.opacity(0.14), in: Capsule())
             .foregroundStyle(color)
+            .padding(.horizontal, metrics.elementSpacing)
+            .padding(.vertical, 5)
+            .metalSurface(cornerRadius: Radius.chip)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                    .strokeBorder(color.opacity(0.55), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -288,24 +299,26 @@ struct FinancesView: View {
     @ViewBuilder
     private var hero: some View {
         if let rate = displayRate {
-            VStack(spacing: 6) {
+            VStack(spacing: metrics.elementSpacing) {
                 heroCombined
                     .accessibilityIdentifier("financesHeroTotal")
                 Text(perCurrencyBreakdown(analyticsTransactions))
                     .font(.subheadline)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                 if let date = rates.bnrPublishingDate {
                     Text("1 EUR = \(rate.formatted(.number.precision(.fractionLength(2)))) RON · BNR \(date)")
                         .font(.caption2)
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .foregroundStyle(Palette.secondaryInk)
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(metrics.cardPadding)
+            .metalSurface(cornerRadius: Radius.card, elevated: true)
         } else {
-            VStack(spacing: 4) {
+            VStack(spacing: metrics.elementSpacing) {
                 Text(spentThisPeriodText)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                 HStack(spacing: 32) {
                     perCurrencyStat(currency: .ron)
                         .accessibilityIdentifier("financesRonTotal")
@@ -314,6 +327,8 @@ struct FinancesView: View {
                 }
             }
             .frame(maxWidth: .infinity)
+            .padding(metrics.cardPadding)
+            .metalSurface(cornerRadius: Radius.card, elevated: true)
         }
     }
 
@@ -321,15 +336,14 @@ struct FinancesView: View {
         VStack(spacing: 2) {
             Text(spentThisPeriodText)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
             (
                 Text(periodTotal, format: .number.precision(.fractionLength(0...2)))
-                    .font(.system(size: 42, design: .rounded).weight(.bold))
+                    .font(Typography.heroAmount)
                 + Text(" RON")
-                    .font(.system(.title3, design: .rounded).weight(.semibold))
+                    .font(Typography.amount(.title3, weight: .semibold))
             )
-            .monospacedDigit()
-            .foregroundStyle(Color("BaniAccent"))
+            .foregroundStyle(Palette.accent)
         }
     }
 
@@ -339,12 +353,11 @@ struct FinancesView: View {
             .reduce(Decimal(0)) { $0 + $1.amount }
         return VStack(spacing: 4) {
             Text(total, format: .number.precision(.fractionLength(0...2)))
-                .font(.system(size: 32, design: .rounded).weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniAccent"))
+                .font(Typography.amount(.largeTitle, weight: .bold))
+                .foregroundStyle(Palette.accent)
             Text(currency.displayCode)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
     }
 
@@ -362,13 +375,15 @@ struct FinancesView: View {
         HStack {
             Text(CountLabels.results(searchedTransactions.count))
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(Color("BaniInk"))
+                .foregroundStyle(Palette.ink)
             Spacer()
             Text(perCurrencyBreakdown(searchedTransactions))
-                .font(.footnote)
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .font(Typography.mono(.footnote))
+                .foregroundStyle(Palette.accent)
         }
+        .padding(.horizontal, metrics.cardPadding)
+        .padding(.vertical, metrics.rowVInset)
+        .metalSurface(cornerRadius: Radius.card)
         .accessibilityIdentifier("finances.searchSummary")
     }
 
@@ -408,12 +423,14 @@ struct FinancesView: View {
                 .buttonStyle(.plain)
             }
         }
+        .padding(metrics.elementSpacing)
+        .metalSurface(cornerRadius: Radius.card)
         .accessibilityIdentifier("finances.categoryBreakdown")
     }
 
     private func toggleRef(_ ref: CategoryRef?) {
         guard let ref else { return }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+        withAnimation(Motion.spring) {
             selectedRef = (selectedRef == ref) ? nil : ref
         }
     }
@@ -429,13 +446,13 @@ struct FinancesView: View {
             VStack(spacing: 12) {
                 Image(systemName: emptyStateIcon)
                     .font(.system(size: 40))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                 Text(emptyStateTitle)
-                    .font(.system(.headline, design: .rounded))
-                    .foregroundStyle(Color("BaniInk"))
+                    .font(.headline)
+                    .foregroundStyle(Palette.ink)
                 Text("Log a purchase from the Log tab and it will show up here, with a spending breakdown.")
                     .font(.subheadline)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }
@@ -449,12 +466,12 @@ struct FinancesView: View {
         VStack(spacing: 8) {
             Image(systemName: isSearching ? "magnifyingglass" : "calendar.badge.exclamationmark")
                 .font(.system(size: 28))
-                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.6))
+                .foregroundStyle(Palette.secondaryInk.opacity(0.6))
             Text(isSearching
                  ? String(localized: "finances.noMatches \(trimmedQuery)")
                  : noSpendingText)
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .font(.subheadline)
+                .foregroundStyle(Palette.secondaryInk)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -484,13 +501,13 @@ struct FinancesView: View {
         let snapshot = DeletedTransactionSnapshot(transaction)
         modelContext.delete(transaction)
         try? modelContext.save()
-        withAnimation { recentlyDeleted = snapshot }
+        withAnimation(Motion.card) { recentlyDeleted = snapshot }
 
         let snapshotID = snapshot.id
         Task {
             try? await Task.sleep(for: .seconds(4))
             if recentlyDeleted?.id == snapshotID {
-                withAnimation { recentlyDeleted = nil }
+                withAnimation(Motion.card) { recentlyDeleted = nil }
             }
         }
     }
@@ -511,7 +528,7 @@ struct FinancesView: View {
         )
         modelContext.insert(restored)
         try? modelContext.save()
-        withAnimation { recentlyDeleted = nil }
+        withAnimation(Motion.card) { recentlyDeleted = nil }
     }
 
     @ViewBuilder
@@ -519,19 +536,15 @@ struct FinancesView: View {
         HStack {
             Text("Transaction deleted")
                 .font(.subheadline)
-                .foregroundStyle(Color("BaniInk"))
+                .foregroundStyle(Palette.ink)
             Spacer()
             Button("Undo") { undoDelete() }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color("BaniAccent"))
+                .foregroundStyle(Palette.accent)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color("BaniSurface"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color("BaniHairline"))
-        )
+        .padding(.horizontal, metrics.cardPadding)
+        .padding(.vertical, metrics.rowVInset)
+        .metalSurface(cornerRadius: Radius.card, elevated: true)
         .padding(.horizontal)
         .padding(.bottom, 8)
         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -779,6 +792,7 @@ struct FinancesView: View {
 /// One tappable category breakdown row (D1): color dot + icon, label, total,
 /// share of period, and count. Tapping filters the list to that category.
 private struct CategoryBreakdownRow: View {
+    @Environment(\.metrics) private var metrics
     let item: FinancesAnalytics.CategoryTotal
     let style: CategoryStyle
     let fraction: Double
@@ -786,36 +800,35 @@ private struct CategoryBreakdownRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: metrics.elementSpacing) {
             Image(systemName: style.systemImage)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(style.color)
                 .frame(width: 30, height: 30)
-                .background(style.color.opacity(0.15), in: Circle())
+                .background(Palette.canvas, in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(style.label)
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color("BaniInk"))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Palette.ink)
                 Text("\(CountLabels.items(item.count)) · \(Int((fraction * 100).rounded()))%")
                     .font(.caption2)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
             }
 
             Spacer(minLength: 8)
 
             Text(item.total, format: .number.precision(.fractionLength(0...2)))
-                .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniInk"))
+                .font(Typography.amount(.subheadline, weight: .semibold))
+                .foregroundStyle(Palette.accent)
             Text(currencyCode)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
-        .padding(.vertical, 7)
-        .padding(.horizontal, 10)
+        .padding(.vertical, metrics.rowVInset)
+        .padding(.horizontal, metrics.elementSpacing)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                 .fill(isSelected ? style.color.opacity(0.12) : Color.clear)
         )
         .contentShape(Rectangle())

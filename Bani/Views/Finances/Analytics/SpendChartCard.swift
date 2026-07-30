@@ -41,6 +41,8 @@ enum ChartKind: String, CaseIterable, Identifiable, Sendable {
 /// Custom categories (C3) render with their own color/symbol via `customs`.
 struct SpendChartCard: View {
     @Environment(\.locale) private var locale
+    /// Active density (B1) — the chart-card height and internal spacing follow it.
+    @Environment(\.metrics) private var metrics
 
     @Binding var kind: ChartKind
     @Binding var selectedRef: CategoryRef?
@@ -75,7 +77,7 @@ struct SpendChartCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: metrics.sectionSpacing) {
             Picker("chart.type.picker", selection: $kind) {
                 ForEach(ChartKind.allCases) { kind in
                     Image(systemName: kind.symbol)
@@ -84,17 +86,20 @@ struct SpendChartCard: View {
                 }
             }
             .pickerStyle(.segmented)
+            .tint(Palette.accent)
             .accessibilityIdentifier("finances.chartTypePicker")
 
             chart
-                .frame(height: 236)
-                .animation(.spring(response: 0.45, dampingFraction: 0.86), value: reactKey)
+                .frame(height: metrics.chartCardHeight)
+                .animation(Motion.chart, value: reactKey)
 
             if kind == .line && hasData {
                 trendLegend
             }
         }
-        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: kind)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card, elevated: true)
+        .animation(Motion.chart, value: kind)
         .onChange(of: kind) { _, _ in
             // Leaving a chart clears its transient touch state.
             touchedBucket = nil
@@ -160,14 +165,13 @@ struct SpendChartCard: View {
         return VStack(spacing: 1) {
             Text(style?.label ?? String(localized: "chart.total"))
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
             Text(centerTotal, format: .number.precision(.fractionLength(0)))
-                .font(.system(.title2, design: .rounded).weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniInk"))
+                .font(Typography.amount(.title2, weight: .bold))
+                .foregroundStyle(Palette.ink)
             Text(currencyCode)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
     }
 
@@ -199,18 +203,18 @@ struct SpendChartCard: View {
                     y: .value("Spent", bucket.total.chartDouble)
                 )
                 .cornerRadius(3)
-                .foregroundStyle(Color("BaniAccent").gradient)
+                .foregroundStyle(Palette.accent.gradient)
                 .opacity(barOpacity(for: bucket))
             }
             if average > 0 {
                 RuleMark(y: .value("Average", average.chartDouble))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                     .annotation(position: .top, alignment: .trailing) {
                         Text("\(String(localized: "chart.avg")) \(average.formatted(.number.precision(.fractionLength(0)).locale(locale)))")
                             .font(.caption2.weight(.medium))
                             .monospacedDigit()
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                     }
             }
         }
@@ -240,7 +244,7 @@ struct SpendChartCard: View {
                        let x = proxy.position(forX: bucket.start).map({ $0 + plot.minX }) {
                         annotationCapsule(
                             title: bucketLabel(bucket.start),
-                            lines: [AnnotationLine(label: nil, value: money(bucket.total), color: Color("BaniAccent"))]
+                            lines: [AnnotationLine(label: nil, value: money(bucket.total), color: Palette.accent)]
                         )
                         .position(x: clampX(x, plot: plot), y: plot.minY + 14)
                         .transition(.opacity)
@@ -263,11 +267,11 @@ struct SpendChartCard: View {
                 // A tap (little movement) toggles the persistent list filter (A3).
                 let moved = abs(value.translation.width) + abs(value.translation.height)
                 if moved < 12, let bucket = touchedBucket {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    withAnimation(Motion.chart) {
                         selectedBucket = (selectedBucket?.start == bucket.start) ? nil : bucket
                     }
                 }
-                withAnimation(.easeOut(duration: 0.2)) { touchedBucket = nil }
+                withAnimation(Motion.chart) { touchedBucket = nil }
             }
     }
 
@@ -287,7 +291,7 @@ struct SpendChartCard: View {
                     y: .value("Cumulative", point.cumulative.chartDouble),
                     series: .value("Series", "Previous")
                 )
-                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.45))
+                .foregroundStyle(Palette.secondaryInk.opacity(0.45))
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
                 .interpolationMethod(.monotone)
             }
@@ -297,21 +301,21 @@ struct SpendChartCard: View {
                     y: .value("Cumulative", point.cumulative.chartDouble),
                     series: .value("Series", "This period")
                 )
-                .foregroundStyle(Color("BaniAccent"))
+                .foregroundStyle(Palette.accent)
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
                 .interpolationMethod(.monotone)
             }
             if let touchedDate, let current = cumulativeValue(at: touchedDate, in: currentTrend) {
                 RuleMark(x: .value("Selected", touchedDate))
                     .lineStyle(StrokeStyle(lineWidth: 1))
-                    .foregroundStyle(Color("BaniSecondaryInk").opacity(0.5))
+                    .foregroundStyle(Palette.secondaryInk.opacity(0.5))
                 PointMark(x: .value("Selected", touchedDate), y: .value("Cumulative", current.chartDouble))
                     .symbolSize(100)
-                    .foregroundStyle(Color("BaniAccent"))
+                    .foregroundStyle(Palette.accent)
                 if hasComparison, let previous = cumulativeValue(at: touchedDate, in: previousTrend) {
                     PointMark(x: .value("Selected", touchedDate), y: .value("Cumulative", previous.chartDouble))
                         .symbolSize(70)
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .foregroundStyle(Palette.secondaryInk)
                 }
             }
         }
@@ -351,7 +355,7 @@ struct SpendChartCard: View {
                 }
             }
             .onEnded { _ in
-                withAnimation(.easeOut(duration: 0.2)) { touchedDate = nil }
+                withAnimation(Motion.chart) { touchedDate = nil }
             }
     }
 
@@ -362,21 +366,21 @@ struct SpendChartCard: View {
             lines.append(AnnotationLine(
                 label: hasComparison ? String(localized: "chart.thisPeriod") : nil,
                 value: money(current),
-                color: Color("BaniAccent")
+                color: Palette.accent
             ))
         }
         if hasComparison, let previous = cumulativeValue(at: date, in: previousTrend) {
             lines.append(AnnotationLine(
                 label: String(localized: "chart.previous"),
                 value: money(previous),
-                color: Color("BaniSecondaryInk")
+                color: Palette.secondaryInk
             ))
             if let current {
                 let delta = current - previous
                 lines.append(AnnotationLine(
                     label: "Δ",
                     value: signedMoney(delta),
-                    color: delta > 0 ? Color("BaniTagWork") : Color("BaniAccent")
+                    color: delta > 0 ? Color("BaniTagWork") : Palette.accent
                 ))
             }
         }
@@ -411,13 +415,13 @@ struct SpendChartCard: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
             ForEach(lines) { line in
                 HStack(spacing: 6) {
                     if let label = line.label {
                         Text(label)
                             .font(.caption2)
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                     }
                     Text(line.value)
                         .font(.caption.weight(.semibold))
@@ -428,15 +432,7 @@ struct SpendChartCard: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color("BaniSurface"))
-                .shadow(color: Color("BaniInk").opacity(0.12), radius: 6, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color("BaniHairline"))
-        )
+        .metalSurface(cornerRadius: Radius.control, elevated: true)
         .fixedSize()
         .allowsHitTesting(false)
     }
@@ -473,12 +469,12 @@ struct SpendChartCard: View {
 
     private var trendLegend: some View {
         HStack(spacing: 16) {
-            legendSwatch(color: Color("BaniAccent"), label: String(localized: "chart.thisPeriod"), dashed: false)
-            legendSwatch(color: Color("BaniSecondaryInk").opacity(0.6), label: String(localized: "chart.previous"), dashed: true)
+            legendSwatch(color: Palette.accent, label: String(localized: "chart.thisPeriod"), dashed: false)
+            legendSwatch(color: Palette.secondaryInk.opacity(0.6), label: String(localized: "chart.previous"), dashed: true)
             Spacer()
         }
         .font(.caption2)
-        .foregroundStyle(Color("BaniSecondaryInk"))
+        .foregroundStyle(Palette.secondaryInk)
     }
 
     private func legendSwatch(color: Color, label: String, dashed: Bool) -> some View {
@@ -493,7 +489,7 @@ struct SpendChartCard: View {
 
     private var axisMarksY: some AxisContent {
         AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-            AxisGridLine().foregroundStyle(Color("BaniHairline").opacity(0.6))
+            AxisGridLine().foregroundStyle(Palette.hairline.opacity(0.6))
             AxisValueLabel {
                 if let number = value.as(Double.self) {
                     Text(number, format: .number.precision(.fractionLength(0)))
@@ -509,10 +505,10 @@ struct SpendChartCard: View {
         VStack(spacing: 8) {
             Image(systemName: "chart.pie")
                 .font(.system(size: 32))
-                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.5))
+                .foregroundStyle(Palette.secondaryInk.opacity(0.5))
             Text("chart.empty")
-                .font(.system(.subheadline, design: .rounded))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .font(.subheadline)
+                .foregroundStyle(Palette.secondaryInk)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("finances.chartEmpty")

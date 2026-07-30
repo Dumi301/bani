@@ -8,27 +8,28 @@ import SwiftUI
 /// carousel — this is the entire first-launch experience before the tab shell.
 struct ModelDownloadView: View {
     @Environment(WhisperService.self) private var whisper
+    @Environment(\.metrics) private var metrics
     var onContinue: () -> Void
 
     var body: some View {
         ZStack {
             Color("BaniCanvas").ignoresSafeArea()
 
-            VStack(spacing: 32) {
+            VStack(spacing: metrics.sectionSpacing) {
                 Spacer()
 
-                VStack(spacing: 12) {
+                VStack(spacing: metrics.elementSpacing) {
                     Image(systemName: "waveform")
                         .font(.system(size: 40, weight: .medium))
                         .foregroundStyle(Color("BaniAccent"))
 
                     Text("Setting up voice logging")
-                        .font(.system(.title2, design: .rounded).weight(.semibold))
+                        .font(.system(.title2).weight(.semibold))
                         .foregroundStyle(Color("BaniInk"))
                         .multilineTextAlignment(.center)
 
                     Text(subtitle)
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.system(.subheadline))
                         .foregroundStyle(Color("BaniSecondaryInk"))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
@@ -40,23 +41,24 @@ struct ModelDownloadView: View {
 
                 Spacer()
 
-                VStack(spacing: 16) {
+                VStack(spacing: metrics.elementSpacing) {
                     if case .failed = whisper.modelState {
                         Button {
                             Task { await whisper.redownloadModel() }
                         } label: {
                             Text("Try Again")
-                                .font(.system(.body, design: .rounded).weight(.semibold))
+                                .font(.system(.body).weight(.semibold))
+                                .foregroundStyle(Palette.ink)
                                 .frame(maxWidth: .infinity)
+                                .frame(minHeight: DesignMetrics.minTapTarget)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color("BaniAccent"))
+                        .buttonStyle(MetalPlateButtonStyle(cornerRadius: Radius.button, accentWash: true))
                         .padding(.horizontal, 40)
                     }
 
                     Button(action: onContinue) {
                         Text("Skip — enter manually")
-                            .font(.system(.callout, design: .rounded).weight(.medium))
+                            .font(.system(.callout).weight(.medium))
                             .foregroundStyle(Color("BaniSecondaryInk"))
                     }
                     .accessibilityHint("Continues to the app; transactions can be typed instead of spoken.")
@@ -72,7 +74,7 @@ struct ModelDownloadView: View {
                 onContinue()
             }
         }
-        .animation(.spring(duration: 0.4), value: whisper.modelState)
+        .animation(Motion.spring, value: whisper.modelState)
     }
 
     @ViewBuilder
@@ -83,27 +85,27 @@ struct ModelDownloadView: View {
                 .tint(Color("BaniAccent"))
 
         case .downloading(let progress):
-            VStack(spacing: 8) {
+            VStack(spacing: metrics.elementSpacing) {
                 ProgressView(value: progress)
                     .tint(Color("BaniAccent"))
                 Text("\(Int(progress * 100))% of ~\(whisper.modelSizeMB) MB")
-                    .font(.system(.footnote, design: .rounded).weight(.medium))
+                    .font(.system(.footnote).weight(.medium))
                     .monospacedDigit()
                     .foregroundStyle(Color("BaniSecondaryInk"))
             }
 
         case .ready:
             Label("Ready", systemImage: "checkmark.circle.fill")
-                .font(.system(.subheadline, design: .rounded).weight(.medium))
+                .font(.system(.subheadline).weight(.medium))
                 .foregroundStyle(Color("BaniAccent"))
 
         case .failed(let message):
-            VStack(spacing: 8) {
+            VStack(spacing: metrics.elementSpacing) {
                 Label("Couldn't download the voice model", systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(.subheadline, design: .rounded).weight(.medium))
+                    .font(.system(.subheadline).weight(.medium))
                     .foregroundStyle(Color("BaniInk"))
                 Text(message)
-                    .font(.system(.footnote, design: .rounded))
+                    .font(.system(.footnote))
                     .foregroundStyle(Color("BaniSecondaryInk"))
                     .multilineTextAlignment(.center)
             }

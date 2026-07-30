@@ -7,6 +7,7 @@ import SwiftData
 /// ledger, it never edits it.
 struct DecisionsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.metrics) private var metrics
     @Query private var categoryRules: [CategoryRule]
     @Query private var customCategories: [CustomCategory]
     @Query(sort: \ContextRule.confirmations, order: .reverse) private var contextRules: [ContextRule]
@@ -27,7 +28,7 @@ struct DecisionsView: View {
             contextRuleSection
         }
         .scrollContentBackground(.hidden)
-        .background(Color("BaniCanvas").ignoresSafeArea())
+        .background(Palette.canvas.ignoresSafeArea())
         .navigationTitle("Decisions")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -42,10 +43,10 @@ struct DecisionsView: View {
             statRow(String(localized: "decisions.corrected"), counts.corrected)
             statRow(String(localized: "decisions.discarded"), counts.discarded)
         } header: {
-            Text("Overall").foregroundStyle(Color("BaniSecondaryInk"))
+            Text("Overall").foregroundStyle(Palette.secondaryInk)
         } footer: {
             Text("Every confirmation card writes one decision here. Accumulated decisions decide which guesses the app stops asking about.")
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
     }
 
@@ -53,9 +54,9 @@ struct DecisionsView: View {
         LabeledContent(label) {
             Text("\(value)")
                 .font(.subheadline.monospacedDigit())
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
-        .listRowBackground(Color("BaniSurface"))
+        .listRowBackground(Palette.surface)
     }
 
     // MARK: - Category-rule trust
@@ -66,43 +67,43 @@ struct DecisionsView: View {
             if rows.isEmpty {
                 Text("No category decisions yet")
                     .font(.subheadline)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
-                    .listRowBackground(Color("BaniSurface"))
+                    .foregroundStyle(Palette.secondaryInk)
+                    .listRowBackground(Palette.surface)
             } else {
                 let customs = customCategories.lookup
                 ForEach(rows) { row in
                     let style = categoryStyle(row.ref, customs: customs)
-                    HStack(spacing: 10) {
+                    HStack(spacing: metrics.elementSpacing) {
                         Image(systemName: style.systemImage)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(style.color)
                             .frame(width: 26)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.keyword)
-                                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                                .foregroundStyle(Color("BaniInk"))
+                                .font(.system(.subheadline).weight(.medium))
+                                .foregroundStyle(Palette.ink)
                             Text("\(style.label) · \(CountLabels.decisions(row.count))")
                                 .font(.caption2)
-                                .foregroundStyle(Color("BaniSecondaryInk"))
+                                .foregroundStyle(Palette.secondaryInk)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("\(Int((row.accuracy * 100).rounded()))%")
                                 .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(Color("BaniInk"))
+                                .foregroundStyle(Palette.ink)
                             Text(row.trusted ? String(localized: "decisions.trusted") : String(localized: "decisions.asking"))
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(row.trusted ? Color("BaniAccent") : Color("BaniSecondaryInk"))
+                                .foregroundStyle(row.trusted ? Palette.accent : Palette.secondaryInk)
                         }
                     }
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                 }
             }
         } header: {
-            Text("Category rules").foregroundStyle(Color("BaniSecondaryInk"))
+            Text("Category rules").foregroundStyle(Palette.secondaryInk)
         } footer: {
             Text("Trailing accuracy over each rule's last 20 decisions. A rule becomes Trusted at ≥95% with ≥10 decisions and auto-saves; it drops back to Asking below 90%.")
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
     }
 
@@ -135,30 +136,30 @@ struct DecisionsView: View {
             if contextRules.isEmpty {
                 Text("No context rules learned yet")
                     .font(.subheadline)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
-                    .listRowBackground(Color("BaniSurface"))
+                    .foregroundStyle(Palette.secondaryInk)
+                    .listRowBackground(Palette.surface)
             } else {
                 ForEach(contextRules, id: \.id) { rule in
-                    HStack {
+                    HStack(spacing: metrics.elementSpacing) {
                         Text(rule.keyword)
-                            .font(.system(.subheadline, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color("BaniInk"))
+                            .font(.system(.subheadline).weight(.medium))
+                            .foregroundStyle(Palette.ink)
                         Spacer()
                         Text(rule.context.label)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(Color(rule.context.tagColorName))
                         Text("×\(rule.confirmations)")
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                     }
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                 }
             }
         } header: {
-            Text("Context rules").foregroundStyle(Color("BaniSecondaryInk"))
+            Text("Context rules").foregroundStyle(Palette.secondaryInk)
         } footer: {
             Text("A keyword pre-selects its context once it has ≥3 confirmations and ≥80% of that keyword's saves.")
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
     }
 }

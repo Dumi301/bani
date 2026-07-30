@@ -21,6 +21,8 @@ import UIKit
 struct ConfirmationCard: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    /// Active layout density (B1) — drives paddings/spacings on the metal card.
+    @Environment(\.metrics) private var metrics
     /// Custom categories (C2/C3) — resolve the guess chip and feed the picker.
     @Query private var customCategories: [CustomCategory]
 
@@ -202,9 +204,9 @@ struct ConfirmationCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: metrics.sectionSpacing) {
             Capsule()
-                .fill(Color("BaniHairline"))
+                .fill(Palette.hairline)
                 .frame(width: 40, height: 5)
                 .padding(.top, 8)
 
@@ -218,14 +220,10 @@ struct ConfirmationCard: View {
                 summary
             }
         }
-        .padding(24)
+        .padding(metrics.cardPadding)
         .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color("BaniSurface"))
-                .shadow(color: Color("BaniInk").opacity(0.15), radius: 20, y: -4)
-        )
-        .padding(.horizontal, 12)
+        .metalSurface(cornerRadius: Radius.plate, elevated: true)
+        .padding(.horizontal, metrics.screenPadding)
         .offset(y: max(0, dragOffset))
         .simultaneousGesture(cardGesture)
         .onTapGesture {
@@ -271,7 +269,7 @@ struct ConfirmationCard: View {
     // MARK: - Display (auto-save countdown state)
 
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
             HStack {
                 Spacer()
                 countdownRing
@@ -279,13 +277,12 @@ struct ConfirmationCard: View {
 
             // B3 order: amount hero → chip + context → description → transcript.
             Text(heroAmountText)
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniInk"))
+                .font(Typography.amount(.largeTitle))
+                .foregroundStyle(Palette.accent)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("confirmationCard.amountLabel")
 
-            HStack(spacing: 8) {
+            HStack(spacing: metrics.elementSpacing) {
                 categoryChip
                 contextTag
                 if autoContextApplied { autoContextNote }
@@ -293,8 +290,8 @@ struct ConfirmationCard: View {
             }
 
             Text(descriptionText.isEmpty ? noDescriptionText : descriptionText)
-                .font(.system(.body, design: .rounded))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .font(.system(.body))
+                .foregroundStyle(Palette.secondaryInk)
 
             dateLine
 
@@ -302,11 +299,11 @@ struct ConfirmationCard: View {
                 // Raw transcript, one line, truncated — so a mishear is spottable
                 // at a glance without cluttering the card (Q1).
                 Text("“\(transcript)”")
-                    .font(.system(.footnote, design: .rounded))
+                    .font(.system(.footnote))
                     .italic()
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundStyle(Color("BaniSecondaryInk").opacity(0.8))
+                    .foregroundStyle(Palette.secondaryInk.opacity(0.8))
                     .accessibilityIdentifier("confirmationCard.transcriptLabel")
             }
 
@@ -325,23 +322,23 @@ struct ConfirmationCard: View {
     /// Compact date+time line (C1) — locale-aware, so an RO device reads RO order.
     private var dateLine: some View {
         Label(date.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
-            .font(.system(.caption, design: .rounded))
-            .foregroundStyle(Color("BaniSecondaryInk"))
+            .font(.system(.caption))
+            .foregroundStyle(Palette.secondaryInk)
             .accessibilityIdentifier("confirmationCard.dateLabel")
     }
 
     /// The 👍/👎 row (B2): big tap targets, accent for 👍. 👍 saves immediately;
     /// 👎 stops the countdown and opens edit mode to correct.
     private var feedbackRow: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: metrics.rowSpacing) {
             Button {
                 Task { await performSave(reason: .explicitThumbsUp) }
             } label: {
                 Image(systemName: "hand.thumbsup.fill")
                     .font(.system(size: 26))
-                    .foregroundStyle(Color("BaniAccent"))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .background(Color("BaniAccent").opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .foregroundStyle(Palette.accent)
+                    .frame(width: 44, height: 44)
+                    .metalSurface(cornerRadius: 22)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("confirmationCard.thumbsUp")
@@ -352,9 +349,9 @@ struct ConfirmationCard: View {
             } label: {
                 Image(systemName: "hand.thumbsdown")
                     .font(.system(size: 26))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .background(Color("BaniCanvas"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .foregroundStyle(Palette.secondaryInk)
+                    .frame(width: 44, height: 44)
+                    .metalSurface(cornerRadius: 22)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("confirmationCard.thumbsDown")
@@ -377,10 +374,14 @@ struct ConfirmationCard: View {
                     .font(.system(size: 9, weight: .bold))
                     .opacity(0.6)
             }
-            .font(.system(.caption, design: .rounded).weight(.semibold))
+            .font(.system(.caption).weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(style.color.opacity(0.16), in: Capsule())
+            .background {
+                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                    .fill(style.color.opacity(0.14))
+            }
+            .metalSurface(cornerRadius: Radius.chip)
             .foregroundStyle(style.color)
         }
         .buttonStyle(.plain)
@@ -392,7 +393,7 @@ struct ConfirmationCard: View {
     /// by a learned rule.
     private var autoContextNote: some View {
         Text("auto: \(editingContext.label)")
-            .font(.system(.caption2, design: .rounded).weight(.semibold))
+            .font(.system(.caption2).weight(.semibold))
             .foregroundStyle(Color(editingContext.tagColorName))
             .accessibilityIdentifier("confirmationCard.autoContextNote")
     }
@@ -410,20 +411,23 @@ struct ConfirmationCard: View {
 
     private var contextTag: some View {
         Text(editingContext.label)
-            .font(.system(.caption, design: .rounded).weight(.semibold))
+            .font(.system(.caption).weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(Color(editingContext.tagColorName).opacity(0.22))
+            .background {
+                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                    .fill(Color(editingContext.tagColorName).opacity(0.18))
+            }
+            .metalSurface(cornerRadius: Radius.chip)
             .foregroundStyle(Color(editingContext.tagColorName))
-            .clipShape(Capsule())
     }
 
     private var countdownRing: some View {
         ZStack {
-            Circle().stroke(Color("BaniHairline"), lineWidth: 3)
+            Circle().stroke(Palette.hairline, lineWidth: 3)
             Circle()
                 .trim(from: 0, to: countdownProgress)
-                .stroke(Color("BaniAccent"), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(Palette.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: 28, height: 28)
@@ -438,12 +442,12 @@ struct ConfirmationCard: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(heroAmountText)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .font(.system(size: 30, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(Color("BaniInk"))
+                    .foregroundStyle(Palette.accent)
                 Text("\(descriptionText.isEmpty ? noDescriptionText : descriptionText) · \(categoryLabel)")
-                    .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .font(.system(.footnote))
+                    .foregroundStyle(Palette.secondaryInk)
                     .lineLimit(1)
             }
             Spacer()
@@ -459,15 +463,15 @@ struct ConfirmationCard: View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title3)
-                .foregroundStyle(Color("BaniAccent"))
+                .foregroundStyle(Palette.accent)
             Text("Saved — \(descriptionText.isEmpty ? categoryLabel : descriptionText), \(categoryLabel) ✓")
-                .font(.system(.subheadline, design: .rounded).weight(.medium))
-                .foregroundStyle(Color("BaniInk"))
+                .font(.system(.subheadline).weight(.medium))
+                .foregroundStyle(Palette.ink)
                 .lineLimit(2)
             Spacer(minLength: 8)
             Button("Undo") { undoTrustedSave() }
-                .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color("BaniAccent"))
+                .font(.system(.subheadline).weight(.semibold))
+                .foregroundStyle(Palette.accent)
                 .accessibilityIdentifier("confirmationCard.trustedUndo")
         }
         .accessibilityElement(children: .combine)
@@ -477,16 +481,16 @@ struct ConfirmationCard: View {
     // MARK: - Editing state (every field)
 
     private var editingForm: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: metrics.sectionSpacing) {
             if let errorMessage {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(VoicePipelineResult.errorHeadline)
-                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .font(.system(.subheadline).weight(.semibold))
                         .foregroundStyle(Color("BaniTagWork"))
                     // Raw underlying message, kept accessible for device debugging.
                     Text(errorMessage)
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .font(.system(.caption))
+                        .foregroundStyle(Palette.secondaryInk)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityElement(children: .combine)
@@ -496,17 +500,16 @@ struct ConfirmationCard: View {
 
             if !transcript.isEmpty {
                 Text("“\(transcript)”")
-                    .font(.system(.footnote, design: .rounded))
+                    .font(.system(.footnote))
                     .italic()
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
                     .accessibilityIdentifier("confirmationCard.transcriptLabel")
             }
 
             HStack {
                 TextField("0", text: $amountText)
                     .keyboardType(.decimalPad)
-                    .font(.system(.title, design: .rounded).weight(.bold))
-                    .monospacedDigit()
+                    .font(Typography.amount(.title, weight: .bold))
                     .accessibilityLabel("Amount")
                     .accessibilityIdentifier("confirmationCard.amountField")
 
@@ -521,15 +524,17 @@ struct ConfirmationCard: View {
             }
 
             TextField("Description", text: $descriptionText)
-                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .metalSurface(cornerRadius: Radius.control)
                 .accessibilityLabel("Description")
                 .accessibilityIdentifier("confirmationCard.descriptionField")
 
             // Category is editable here too — same learning seam as the chip (C2).
             VStack(alignment: .leading, spacing: 6) {
                 Text("Category")
-                    .font(.system(.caption, design: .rounded).weight(.semibold))
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .font(.system(.caption).weight(.semibold))
+                    .foregroundStyle(Palette.secondaryInk)
                 CategoryChipPicker(
                     selection: refBinding,
                     customCategories: customCategories,
@@ -553,18 +558,31 @@ struct ConfirmationCard: View {
                 selection: $date,
                 displayedComponents: [.date, .hourAndMinute]
             )
-            .font(.system(.subheadline, design: .rounded))
+            .font(.system(.subheadline))
             .accessibilityIdentifier("confirmationCard.datePicker")
 
             HStack(spacing: 12) {
-                Button("Discard", role: .destructive) { discard() }
-                    .accessibilityIdentifier("confirmationCard.discardButton")
-                Spacer()
-                Button("Save") { Task { await performSave(reason: .editedSave) } }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color("BaniAccent"))
-                    .disabled(!canSave)
-                    .accessibilityIdentifier("confirmationCard.saveButton")
+                Button(role: .destructive) { discard() } label: {
+                    Text("Discard")
+                        .font(.system(.body).weight(.semibold))
+                        .foregroundStyle(Palette.secondaryInk)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: DesignMetrics.minTapTarget)
+                }
+                .buttonStyle(MetalPlateButtonStyle(cornerRadius: Radius.button))
+                .accessibilityIdentifier("confirmationCard.discardButton")
+
+                Button { Task { await performSave(reason: .editedSave) } } label: {
+                    Text("Save")
+                        .font(.system(.body).weight(.semibold))
+                        .foregroundStyle(Palette.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: DesignMetrics.minTapTarget)
+                        .opacity(canSave ? 1 : 0.4)
+                }
+                .buttonStyle(MetalPlateButtonStyle(cornerRadius: Radius.button, accentWash: true))
+                .disabled(!canSave)
+                .accessibilityIdentifier("confirmationCard.saveButton")
             }
         }
     }
@@ -588,7 +606,7 @@ struct ConfirmationCard: View {
                     discard()
                 } else {
                     isTouching = false
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    withAnimation(Motion.card) {
                         dragOffset = 0
                     }
                 }
@@ -705,7 +723,7 @@ struct ConfirmationCard: View {
         if reason == .trustedImplicit, let saved {
             savedRecord = record
             savedTransactionID = saved.id
-            withAnimation { showTrustedToast = true }
+            withAnimation(Motion.spring) { showTrustedToast = true }
             return
         }
 

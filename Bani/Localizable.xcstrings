@@ -1,1029 +1,2925 @@
 {
-  "sourceLanguage" : "en",
-  "version" : "1.0",
-  "strings" : {
-    "%@ model" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Model %@" } }
-      }
-    },
-    "%lld decisions" : {
-      "localizations" : {
-        "en" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld decision" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld decisions" } }
-        } } },
-        "ro" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld decizie" } },
-          "few" : { "stringUnit" : { "state" : "translated", "value" : "%lld decizii" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld de decizii" } }
-        } } }
-      }
-    },
-    "%lld items" : {
-      "localizations" : {
-        "en" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld item" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld items" } }
-        } } },
-        "ro" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld element" } },
-          "few" : { "stringUnit" : { "state" : "translated", "value" : "%lld elemente" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld de elemente" } }
-        } } }
-      }
-    },
-    "%lld results" : {
-      "localizations" : {
-        "en" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld result" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld results" } }
-        } } },
-        "ro" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld rezultat" } },
-          "few" : { "stringUnit" : { "state" : "translated", "value" : "%lld rezultate" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld de rezultate" } }
-        } } }
-      }
-    },
-    "%lld transactions" : {
-      "localizations" : {
-        "en" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld transaction" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld transactions" } }
-        } } },
-        "ro" : { "variations" : { "plural" : {
-          "one" : { "stringUnit" : { "state" : "translated", "value" : "%lld tranzacție" } },
-          "few" : { "stringUnit" : { "state" : "translated", "value" : "%lld tranzacții" } },
-          "other" : { "stringUnit" : { "state" : "translated", "value" : "%lld de tranzacții" } }
-        } } }
-      }
-    },
-    "About" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "About" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Despre" } }
-      }
-    },
-    "appearance.dark" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dark" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Întunecat" } }
-      }
-    },
-    "appearance.light" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Light" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Luminos" } }
-      }
-    },
-    "appearance.system" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sistem" } }
-      }
-    },
-    "From" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "From" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "De la" } }
-      }
-    },
-    "To" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "To" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Până la" } }
-      }
-    },
-    "Understanding…" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Understanding…" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se procesează…" } }
-      }
-    },
-    "Add Transaction" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add Transaction" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Adaugă tranzacție" } }
-      }
-    },
-    "Add transaction manually" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add transaction manually" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Adaugă tranzacție manual" } }
-      }
-    },
-    "Amount" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Amount" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sumă" } }
-      }
-    },
-    "Appearance" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Appearance" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Aspect" } }
-      }
-    },
-    "Apply" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Aplică" } }
-      }
-    },
-    "auto: %@" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "auto: %@" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "auto: %@" } }
-      }
-    },
-    "A keyword pre-selects its context once it has ≥3 confirmations and ≥80% of that keyword's saves." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A keyword pre-selects its context once it has ≥3 confirmations and ≥80% of that keyword's saves." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Un cuvânt-cheie preselectează contextul odată ce are ≥3 confirmări și ≥80% din salvările acelui cuvânt." } }
-      }
-    },
-    "Bani" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bani" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Bani" } }
-      }
-    },
-    "Bani needs microphone access to record voice entries. You can still add transactions manually using the keyboard icon." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bani needs microphone access to record voice entries. You can still add transactions manually using the keyboard icon." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Bani are nevoie de acces la microfon pentru înregistrări vocale. Poți adăuga tranzacții manual cu pictograma tastaturii." } }
-      }
-    },
-    "Cancel" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Anulează" } }
-      }
-    },
-    "categories.delete.footer" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose where to move this category's transactions and rules. Nothing is deleted without a new home." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Alege unde se mută tranzacțiile și regulile acestei categorii. Nimic nu se șterge fără o nouă destinație." } }
-      }
-    },
-    "categories.delete.title" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Șterge categoria" } }
-      }
-    },
-    "categories.empty" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No custom categories yet. Create one from any category picker, or with the button below." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio categorie personalizată încă. Creează una din orice selector de categorie sau cu butonul de mai jos." } }
-      }
-    },
-    "categories.footer" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tap a category to rename or restyle it. Deleting one moves its transactions to a category you choose." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Atinge o categorie pentru a o redenumi sau re-stiliza. Ștergerea mută tranzacțiile într-o categorie aleasă de tine." } }
-      }
-    },
-    "categories.moveTo" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Move to" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Mută în" } }
-      }
-    },
-    "categories.title" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Categories" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorii" } }
-      }
-    },
-    "category.color" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Color" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Culoare" } }
-      }
-    },
-    "category.dining" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dining" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Restaurant" } }
-      }
-    },
-    "category.duplicate" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A category with this name already exists." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "O categorie cu acest nume există deja." } }
-      }
-    },
-    "category.edit.title" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Editează categoria" } }
-      }
-    },
-    "category.entertainment" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Entertainment" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Divertisment" } }
-      }
-    },
-    "category.fuel" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fuel" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Combustibil" } }
-      }
-    },
-    "category.groceries" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Groceries" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Alimente" } }
-      }
-    },
-    "category.health" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Health" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sănătate" } }
-      }
-    },
-    "category.name" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Name" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nume" } }
-      }
-    },
-    "category.name.placeholder" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category name" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nume categorie" } }
-      }
-    },
-    "category.new" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie nouă" } }
-      }
-    },
-    "category.new.title" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie nouă" } }
-      }
-    },
-    "category.none" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "None" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Fără" } }
-      }
-    },
-    "category.other" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Other" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Altele" } }
-      }
-    },
-    "category.shopping" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shopping" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cumpărături" } }
-      }
-    },
-    "category.symbol" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Symbol" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Simbol" } }
-      }
-    },
-    "category.transport" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transport" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Transport" } }
-      }
-    },
-    "category.uncategorized" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Uncategorized" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Necategorisit" } }
-      }
-    },
-    "category.utilities" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Utilities" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Utilități" } }
-      }
-    },
-    "Category" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie" } }
-      }
-    },
-    "Category %@. Tap to change." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category %@. Tap to change." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie %@. Atinge pentru a schimba." } }
-      }
-    },
-    "Category rules" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category rules" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Reguli de categorie" } }
-      }
-    },
-    "chart.avg" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "avg" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "med." } }
-      }
-    },
-    "chart.empty" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending in this period" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială în această perioadă" } }
-      }
-    },
-    "chart.kind.category" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie" } }
-      }
-    },
-    "chart.kind.overTime" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Over time" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "În timp" } }
-      }
-    },
-    "chart.kind.trend" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Trend" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Tendință" } }
-      }
-    },
-    "chart.previous" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Previous" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Anterior" } }
-      }
-    },
-    "chart.thisPeriod" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This period" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Perioada curentă" } }
-      }
-    },
-    "chart.total" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Total" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Total" } }
-      }
-    },
-    "chart.type.picker" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chart type" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Tip grafic" } }
-      }
-    },
-    "confirm.a11y.amountNotSet" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "not set" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "nesetat" } }
-      }
-    },
-    "confirm.a11y.editing %@ %@ %@ %@ %@" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Editing transaction. Amount %1$@ %2$@, %3$@, %4$@, %5$@." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se editează tranzacția. Suma %1$@ %2$@, %3$@, %4$@, %5$@." } }
-      }
-    },
-    "confirm.a11y.summary %@ %@ %@ %@ %@" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirm transaction: %1$@ %2$@, %3$@, %4$@, %5$@. Auto-saving shortly. Tap to edit, swipe down to discard." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Confirmă tranzacția: %1$@ %2$@, %3$@, %4$@, %5$@. Se salvează automat în scurt timp. Atinge pentru editare, glisează în jos pentru a renunța." } }
-      }
-    },
-    "confirm.noDescription" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No description" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Fără descriere" } }
-      }
-    },
-    "Confirmation time" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirmation time" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Timp de confirmare" } }
-      }
-    },
-    "Context" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Context" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Context" } }
-      }
-    },
-    "Context rules" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Context rules" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Reguli de context" } }
-      }
-    },
-    "context.personal" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Personal" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Personal" } }
-      }
-    },
-    "context.work" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Work" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Muncă" } }
-      }
-    },
-    "Continues to the app; transactions can be typed instead of spoken." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Continues to the app; transactions can be typed instead of spoken." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Continuă în aplicație; tranzacțiile pot fi tastate în loc de dictate." } }
-      }
-    },
-    "Couldn't download the voice model" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't download the voice model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nu s-a putut descărca modelul vocal" } }
-      }
-    },
-    "Currency" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Currency" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Monedă" } }
-      }
-    },
-    "Custom range" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Custom range" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Interval personalizat" } }
-      }
-    },
-    "Date & time" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Date & time" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Dată și oră" } }
-      }
-    },
-    "decisions.asked" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asked" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Întrebate" } }
-      }
-    },
-    "decisions.asking" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asking" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Întreabă" } }
-      }
-    },
-    "decisions.confirmed" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Confirmed" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Confirmate" } }
-      }
-    },
-    "decisions.corrected" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Corrected" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Corectate" } }
-      }
-    },
-    "decisions.discarded" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Discarded" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Respinse" } }
-      }
-    },
-    "decisions.trusted" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Trusted" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "De încredere" } }
-      }
-    },
-    "Decisions" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Decisions" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Decizii" } }
-      }
-    },
-    "Delete" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Șterge" } }
-      }
-    },
-    "Description" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Description" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Descriere" } }
-      }
-    },
-    "Details" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Details" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Detalii" } }
-      }
-    },
-    "Diagnostics" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Diagnostics" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Diagnosticare" } }
-      }
-    },
-    "Discard" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Discard" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Renunță" } }
-      }
-    },
-    "download.subtitle" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bani is downloading its on-device speech model so you can log expenses by voice, in Romanian or English. This only happens once — skip it and enter transactions manually any time." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Bani descarcă modelul vocal de pe dispozitiv ca să poți adăuga cheltuieli vocal, în română sau engleză. Se întâmplă o singură dată — sari peste și introdu tranzacțiile manual oricând." } }
-      }
-    },
-    "Edit" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Editează" } }
-      }
-    },
-    "Edit Transaction" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit Transaction" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Editează tranzacția" } }
-      }
-    },
-    "Every confirmation card writes one decision here. Accumulated decisions decide which guesses the app stops asking about." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Every confirmation card writes one decision here. Accumulated decisions decide which guesses the app stops asking about." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Fiecare card de confirmare scrie o decizie aici. Deciziile acumulate decid despre ce presupuneri nu mai întreabă aplicația." } }
-      }
-    },
-    "Finances" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Finances" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Finanțe" } }
-      }
-    },
-    "finances.empty.all" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No transactions yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio tranzacție încă" } }
-      }
-    },
-    "finances.empty.personal" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No personal transactions yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio tranzacție personală încă" } }
-      }
-    },
-    "finances.empty.work" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No work transactions yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio tranzacție de muncă încă" } }
-      }
-    },
-    "finances.noMatches %@" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No matches for “%@”" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Niciun rezultat pentru „%@”" } }
-      }
-    },
-    "finances.noMerchant" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No merchant" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Fără comerciant" } }
-      }
-    },
-    "finances.noSpending.custom" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending in range" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială în interval" } }
-      }
-    },
-    "finances.noSpending.month" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending this month" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială luna aceasta" } }
-      }
-    },
-    "finances.noSpending.sixMonths" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending in 6 months" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială în 6 luni" } }
-      }
-    },
-    "finances.noSpending.week" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending this week" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială săptămâna aceasta" } }
-      }
-    },
-    "finances.noSpending.year" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No spending this year" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio cheltuială anul acesta" } }
-      }
-    },
-    "finances.searchPrompt" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search description, category, name" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Caută descriere, categorie, nume" } }
-      }
-    },
-    "finances.segment.all" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "All" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Toate" } }
-      }
-    },
-    "finances.spent.custom" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Spent in range" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cheltuit în interval" } }
-      }
-    },
-    "finances.spent.month" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Spent this month" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cheltuit luna aceasta" } }
-      }
-    },
-    "finances.spent.sixMonths" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Spent in 6 months" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cheltuit în 6 luni" } }
-      }
-    },
-    "finances.spent.week" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Spent this week" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cheltuit săptămâna aceasta" } }
-      }
-    },
-    "finances.spent.year" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Spent this year" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cheltuit anul acesta" } }
-      }
-    },
-    "grouping.category" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Categorie" } }
-      }
-    },
-    "grouping.merchant" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Merchant" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Comerciant" } }
-      }
-    },
-    "grouping.month" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Month" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Lună" } }
-      }
-    },
-    "Group by" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Group by" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Grupează după" } }
-      }
-    },
-    "Heard" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Heard" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Auzit" } }
-      }
-    },
-    "How long the confirmation card waits before auto-saving. Tap the card to pause and edit." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "How long the confirmation card waits before auto-saving. Tap the card to pause and edit." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Cât așteaptă cardul de confirmare înainte de salvarea automată. Atinge cardul pentru pauză și editare." } }
-      }
-    },
-    "language.system" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sistem" } }
-      }
-    },
-    "Last voice session" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Last voice session" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Ultima sesiune vocală" } }
-      }
-    },
-    "Listening…" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Listening…" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Ascult…" } }
-      }
-    },
-    "Log" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Log" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Adaugă" } }
-      }
-    },
-    "Log a purchase from the Log tab and it will show up here, with a spending breakdown." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Log a purchase from the Log tab and it will show up here, with a spending breakdown." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Adaugă o cheltuială din fila Adaugă și va apărea aici, cu o defalcare a cheltuielilor." } }
-      }
-    },
-    "Logging" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Logging" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Jurnalizare" } }
-      }
-    },
-    "Looks right — save now" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Looks right — save now" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Corect — salvează acum" } }
-      }
-    },
-    "Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Mediu aude româna mai exact, dar are o descărcare mai mare. Schimbarea modelului îl descarcă pe cel ales dacă nu îl ai deja — introducerea manuală funcționează oricând." } }
-      }
-    },
-    "Merchant (optional)" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Merchant (optional)" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Comerciant (opțional)" } }
-      }
-    },
-    "Microphone Access Needed" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Microphone Access Needed" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Acces la microfon necesar" } }
-      }
-    },
-    "model.download" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Download Model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Descarcă modelul" } }
-      }
-    },
-    "model.medium" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Medium" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Mediu" } }
-      }
-    },
-    "model.medium.blurb" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Better Romanian · larger, slower" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Română mai bună · mai mare, mai lent" } }
-      }
-    },
-    "model.redownload" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Re-download Model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Redescarcă modelul" } }
-      }
-    },
-    "model.small" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Small" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Mic" } }
-      }
-    },
-    "model.small.blurb" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Faster · smaller download" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Mai rapid · descărcare mică" } }
-      }
-    },
-    "model.status.downloading" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Downloading…" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se descarcă…" } }
-      }
-    },
-    "model.status.failed %@" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Failed — %@" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Eșuat — %@" } }
-      }
-    },
-    "model.status.notReady" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not downloaded" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nedescărcat" } }
-      }
-    },
-    "model.status.ready" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Downloaded" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Descărcat" } }
-      }
-    },
-    "No category decisions yet" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No category decisions yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio decizie de categorie încă" } }
-      }
-    },
-    "No context rules learned yet" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No context rules learned yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio regulă de context învățată încă" } }
-      }
-    },
-    "Not right — edit before saving" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not right — edit before saving" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Greșit — editează înainte de salvare" } }
-      }
-    },
-    "Open Settings" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open Settings" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Deschide Setările" } }
-      }
-    },
-    "Overall" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Overall" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "General" } }
-      }
-    },
-    "Ready" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ready" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Gata" } }
-      }
-    },
-    "Record %@ transaction" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Record %@ transaction" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Înregistrează tranzacție %@" } }
-      }
-    },
-    "Saved — %@, %@ ✓" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Saved — %1$@, %2$@ ✓" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Salvat — %1$@, %2$@ ✓" } }
-      }
-    },
-    "Save" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Save" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Salvează" } }
-      }
-    },
-    "settings.language" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Limbă" } }
-      }
-    },
-    "settings.language.footer" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Applies immediately. Some labels finish switching after the app restarts." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se aplică imediat. Unele etichete se schimbă complet după repornirea aplicației." } }
-      }
-    },
-    "settings.noVoiceEntries" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No voice entries yet" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nicio înregistrare vocală încă" } }
-      }
-    },
-    "Settings" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Setări" } }
-      }
-    },
-    "Setting up voice logging" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Setting up voice logging" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Se pregătește jurnalul vocal" } }
-      }
-    },
-    "Skip — enter manually" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip — enter manually" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Sari peste — introdu manual" } }
-      }
-    },
-    "Speech Model" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Speech Model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Model vocal" } }
-      }
-    },
-    "Starts recording immediately" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Starts recording immediately" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Începe înregistrarea imediat" } }
-      }
-    },
-    "Tap to stop" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tap to stop" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Atinge pentru a opri" } }
-      }
-    },
-    "timeframe.custom" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Custom" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Custom" } }
-      }
-    },
-    "timeframe.month" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Month" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Lună" } }
-      }
-    },
-    "timeframe.sixMonths" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "6M" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "6L" } }
-      }
-    },
-    "timeframe.week" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Week" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Săpt." } }
-      }
-    },
-    "timeframe.year" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Year" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "An" } }
-      }
-    },
-    "Timeframe" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Timeframe" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Interval" } }
-      }
-    },
-    "Trailing accuracy over each rule's last 20 decisions. A rule becomes Trusted at ≥95% with ≥10 decisions and auto-saves; it drops back to Asking below 90%." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Trailing accuracy over each rule's last 20 decisions. A rule becomes Trusted at ≥95% with ≥10 decisions and auto-saves; it drops back to Asking below 90%." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Acuratețea recentă pe ultimele 20 de decizii ale fiecărei reguli. O regulă devine De încredere la ≥95% cu ≥10 decizii și salvează automat; revine la Întreabă sub 90%." } }
-      }
-    },
-    "Transaction" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transaction" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Tranzacție" } }
-      }
-    },
-    "Transaction deleted" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transaction deleted" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Tranzacție ștearsă" } }
-      }
-    },
-    "Transcription model" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transcription model" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Model de transcriere" } }
-      }
-    },
-    "Trusted — auto-saving %@ %@, %@, %@. Tap to edit." : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Trusted — auto-saving %1$@ %2$@, %3$@, %4$@. Tap to edit." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "De încredere — se salvează automat %1$@ %2$@, %3$@, %4$@. Atinge pentru editare." } }
-      }
-    },
-    "Try Again" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Try Again" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Încearcă din nou" } }
-      }
-    },
-    "Undo" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Undo" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Revino" } }
-      }
-    },
-    "voice.noSpeech" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No speech was detected in the recording." } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Nu s-a detectat vorbire în înregistrare." } }
-      }
-    },
-    "voice.transcriptionFailed" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Transcription failed — type it?" } },
-        "ro" : { "stringUnit" : { "state" : "translated", "value" : "Transcrierea a eșuat — o tastezi?" } }
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "%@ model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model %@"
+          }
+        }
+      }
+    },
+    "%lld decisions": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld decision"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld decisions"
+                }
+              }
+            }
+          }
+        },
+        "ro": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld decizie"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld decizii"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld de decizii"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        },
+        "ro": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld element"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld elemente"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld de elemente"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld results": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld result"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld results"
+                }
+              }
+            }
+          }
+        },
+        "ro": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld rezultat"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld rezultate"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld de rezultate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld transactions": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transaction"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld transactions"
+                }
+              }
+            }
+          }
+        },
+        "ro": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tranzacție"
+                }
+              },
+              "few": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tranzacții"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld de tranzacții"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A keyword pre-selects its context once it has ≥3 confirmations and ≥80% of that keyword's saves.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A keyword pre-selects its context once it has ≥3 confirmations and ≥80% of that keyword's saves."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un cuvânt-cheie preselectează contextul odată ce are ≥3 confirmări și ≥80% din salvările acelui cuvânt."
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despre"
+          }
+        }
+      }
+    },
+    "Add Transaction": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Transaction"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă tranzacție"
+          }
+        }
+      }
+    },
+    "Add transaction manually": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add transaction manually"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă tranzacție manual"
+          }
+        }
+      }
+    },
+    "Amount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amount"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sumă"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aspect"
+          }
+        }
+      }
+    },
+    "Apply": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplică"
+          }
+        }
+      }
+    },
+    "Bani": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani"
+          }
+        }
+      }
+    },
+    "Bani needs microphone access to record voice entries. You can still add transactions manually using the keyboard icon.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani needs microphone access to record voice entries. You can still add transactions manually using the keyboard icon."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani are nevoie de acces la microfon pentru înregistrări vocale. Poți adăuga tranzacții manual cu pictograma tastaturii."
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anulează"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie"
+          }
+        }
+      }
+    },
+    "Category %@. Tap to change.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category %@. Tap to change."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie %@. Atinge pentru a schimba."
+          }
+        }
+      }
+    },
+    "Category rules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category rules"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguli de categorie"
+          }
+        }
+      }
+    },
+    "Confirmation time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmation time"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timp de confirmare"
+          }
+        }
+      }
+    },
+    "Context": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context"
+          }
+        }
+      }
+    },
+    "Context rules": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Context rules"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reguli de context"
+          }
+        }
+      }
+    },
+    "Continues to the app; transactions can be typed instead of spoken.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continues to the app; transactions can be typed instead of spoken."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuă în aplicație; tranzacțiile pot fi tastate în loc de dictate."
+          }
+        }
+      }
+    },
+    "Couldn't download the voice model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't download the voice model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu s-a putut descărca modelul vocal"
+          }
+        }
+      }
+    },
+    "Currency": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monedă"
+          }
+        }
+      }
+    },
+    "Custom range": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom range"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval personalizat"
+          }
+        }
+      }
+    },
+    "Date & time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date & time"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dată și oră"
+          }
+        }
+      }
+    },
+    "Decisions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decisions"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decizii"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge"
+          }
+        }
+      }
+    },
+    "Description": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Description"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descriere"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detalii"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnosticare"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renunță"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editează"
+          }
+        }
+      }
+    },
+    "Edit Transaction": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Transaction"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editează tranzacția"
+          }
+        }
+      }
+    },
+    "Every confirmation card writes one decision here. Accumulated decisions decide which guesses the app stops asking about.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every confirmation card writes one decision here. Accumulated decisions decide which guesses the app stops asking about."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fiecare card de confirmare scrie o decizie aici. Deciziile acumulate decid despre ce presupuneri nu mai întreabă aplicația."
+          }
+        }
+      }
+    },
+    "Finances": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finances"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finanțe"
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De la"
+          }
+        }
+      }
+    },
+    "Group by": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group by"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grupează după"
+          }
+        }
+      }
+    },
+    "Heard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heard"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auzit"
+          }
+        }
+      }
+    },
+    "How long the confirmation card waits before auto-saving. Tap the card to pause and edit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How long the confirmation card waits before auto-saving. Tap the card to pause and edit."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cât așteaptă cardul de confirmare înainte de salvarea automată. Atinge cardul pentru pauză și editare."
+          }
+        }
+      }
+    },
+    "Last voice session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last voice session"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ultima sesiune vocală"
+          }
+        }
+      }
+    },
+    "Listening…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listening…"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ascult…"
+          }
+        }
+      }
+    },
+    "Log": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă"
+          }
+        }
+      }
+    },
+    "Log a purchase from the Log tab and it will show up here, with a spending breakdown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log a purchase from the Log tab and it will show up here, with a spending breakdown."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă o cheltuială din fila Adaugă și va apărea aici, cu o defalcare a cheltuielilor."
+          }
+        }
+      }
+    },
+    "Logging": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logging"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jurnalizare"
+          }
+        }
+      }
+    },
+    "Looks right — save now": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looks right — save now"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corect — salvează acum"
+          }
+        }
+      }
+    },
+    "Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mediu aude româna mai exact, dar are o descărcare mai mare. Schimbarea modelului îl descarcă pe cel ales dacă nu îl ai deja — introducerea manuală funcționează oricând."
+          }
+        }
+      }
+    },
+    "Merchant (optional)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merchant (optional)"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comerciant (opțional)"
+          }
+        }
+      }
+    },
+    "Microphone Access Needed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone Access Needed"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acces la microfon necesar"
+          }
+        }
+      }
+    },
+    "No category decisions yet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No category decisions yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio decizie de categorie încă"
+          }
+        }
+      }
+    },
+    "No context rules learned yet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No context rules learned yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio regulă de context învățată încă"
+          }
+        }
+      }
+    },
+    "Not right — edit before saving": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not right — edit before saving"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Greșit — editează înainte de salvare"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deschide Setările"
+          }
+        }
+      }
+    },
+    "Overall": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overall"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gata"
+          }
+        }
+      }
+    },
+    "Record %@ transaction": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record %@ transaction"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Înregistrează tranzacție %@"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvează"
+          }
+        }
+      }
+    },
+    "Saved — %@, %@ ✓": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved — %1$@, %2$@ ✓"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvat — %1$@, %2$@ ✓"
+          }
+        }
+      }
+    },
+    "Setting up voice logging": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setting up voice logging"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se pregătește jurnalul vocal"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setări"
+          }
+        }
+      }
+    },
+    "Skip — enter manually": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip — enter manually"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sari peste — introdu manual"
+          }
+        }
+      }
+    },
+    "Speech Model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech Model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model vocal"
+          }
+        }
+      }
+    },
+    "Starts recording immediately": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starts recording immediately"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Începe înregistrarea imediat"
+          }
+        }
+      }
+    },
+    "Tap to stop": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to stop"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atinge pentru a opri"
+          }
+        }
+      }
+    },
+    "Timeframe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timeframe"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval"
+          }
+        }
+      }
+    },
+    "To": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Până la"
+          }
+        }
+      }
+    },
+    "Trailing accuracy over each rule's last 20 decisions. A rule becomes Trusted at ≥95% with ≥10 decisions and auto-saves; it drops back to Asking below 90%.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trailing accuracy over each rule's last 20 decisions. A rule becomes Trusted at ≥95% with ≥10 decisions and auto-saves; it drops back to Asking below 90%."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acuratețea recentă pe ultimele 20 de decizii ale fiecărei reguli. O regulă devine De încredere la ≥95% cu ≥10 decizii și salvează automat; revine la Întreabă sub 90%."
+          }
+        }
+      }
+    },
+    "Transaction": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transaction"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tranzacție"
+          }
+        }
+      }
+    },
+    "Transaction deleted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transaction deleted"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tranzacție ștearsă"
+          }
+        }
+      }
+    },
+    "Transcription model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcription model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model de transcriere"
+          }
+        }
+      }
+    },
+    "Trusted — auto-saving %@ %@, %@, %@. Tap to edit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trusted — auto-saving %1$@ %2$@, %3$@, %4$@. Tap to edit."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De încredere — se salvează automat %1$@ %2$@, %3$@, %4$@. Atinge pentru editare."
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Again"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Încearcă din nou"
+          }
+        }
+      }
+    },
+    "Understanding…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Understanding…"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se procesează…"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revino"
+          }
+        }
+      }
+    },
+    "appearance.dark": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Întunecat"
+          }
+        }
+      }
+    },
+    "appearance.light": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luminos"
+          }
+        }
+      }
+    },
+    "appearance.system": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sistem"
+          }
+        }
+      }
+    },
+    "auto: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auto: %@"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auto: %@"
+          }
+        }
+      }
+    },
+    "categories.delete.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose where to move this category's transactions and rules. Nothing is deleted without a new home."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alege unde se mută tranzacțiile și regulile acestei categorii. Nimic nu se șterge fără o nouă destinație."
+          }
+        }
+      }
+    },
+    "categories.delete.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șterge categoria"
+          }
+        }
+      }
+    },
+    "categories.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No custom categories yet. Create one from any category picker, or with the button below."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio categorie personalizată încă. Creează una din orice selector de categorie sau cu butonul de mai jos."
+          }
+        }
+      }
+    },
+    "categories.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a category to rename or restyle it. Deleting one moves its transactions to a category you choose."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atinge o categorie pentru a o redenumi sau re-stiliza. Ștergerea mută tranzacțiile într-o categorie aleasă de tine."
+          }
+        }
+      }
+    },
+    "categories.moveTo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mută în"
+          }
+        }
+      }
+    },
+    "categories.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categories"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorii"
+          }
+        }
+      }
+    },
+    "category.color": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Culoare"
+          }
+        }
+      }
+    },
+    "category.dining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dining"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurant"
+          }
+        }
+      }
+    },
+    "category.duplicate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A category with this name already exists."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O categorie cu acest nume există deja."
+          }
+        }
+      }
+    },
+    "category.edit.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editează categoria"
+          }
+        }
+      }
+    },
+    "category.entertainment": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entertainment"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divertisment"
+          }
+        }
+      }
+    },
+    "category.fuel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuel"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combustibil"
+          }
+        }
+      }
+    },
+    "category.groceries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Groceries"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alimente"
+          }
+        }
+      }
+    },
+    "category.health": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sănătate"
+          }
+        }
+      }
+    },
+    "category.name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nume"
+          }
+        }
+      }
+    },
+    "category.name.placeholder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category name"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nume categorie"
+          }
+        }
+      }
+    },
+    "category.new": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie nouă"
+          }
+        }
+      }
+    },
+    "category.new.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie nouă"
+          }
+        }
+      }
+    },
+    "category.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fără"
+          }
+        }
+      }
+    },
+    "category.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altele"
+          }
+        }
+      }
+    },
+    "category.shopping": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shopping"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cumpărături"
+          }
+        }
+      }
+    },
+    "category.symbol": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symbol"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simbol"
+          }
+        }
+      }
+    },
+    "category.transport": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transport"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transport"
+          }
+        }
+      }
+    },
+    "category.uncategorized": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uncategorized"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necategorisit"
+          }
+        }
+      }
+    },
+    "category.utilities": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilities"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilități"
+          }
+        }
+      }
+    },
+    "chart.avg": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "avg"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "med."
+          }
+        }
+      }
+    },
+    "chart.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending in this period"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială în această perioadă"
+          }
+        }
+      }
+    },
+    "chart.kind.category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie"
+          }
+        }
+      }
+    },
+    "chart.kind.overTime": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Over time"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "În timp"
+          }
+        }
+      }
+    },
+    "chart.kind.trend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trend"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tendință"
+          }
+        }
+      }
+    },
+    "chart.previous": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anterior"
+          }
+        }
+      }
+    },
+    "chart.thisPeriod": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This period"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perioada curentă"
+          }
+        }
+      }
+    },
+    "chart.total": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        }
+      }
+    },
+    "chart.type.picker": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chart type"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tip grafic"
+          }
+        }
+      }
+    },
+    "confirm.a11y.amountNotSet": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "not set"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nesetat"
+          }
+        }
+      }
+    },
+    "confirm.a11y.editing %@ %@ %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editing transaction. Amount %1$@ %2$@, %3$@, %4$@, %5$@."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se editează tranzacția. Suma %1$@ %2$@, %3$@, %4$@, %5$@."
+          }
+        }
+      }
+    },
+    "confirm.a11y.summary %@ %@ %@ %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm transaction: %1$@ %2$@, %3$@, %4$@, %5$@. Auto-saving shortly. Tap to edit, swipe down to discard."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmă tranzacția: %1$@ %2$@, %3$@, %4$@, %5$@. Se salvează automat în scurt timp. Atinge pentru editare, glisează în jos pentru a renunța."
+          }
+        }
+      }
+    },
+    "confirm.noDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No description"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fără descriere"
+          }
+        }
+      }
+    },
+    "context.personal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal"
+          }
+        }
+      }
+    },
+    "context.work": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Work"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muncă"
+          }
+        }
+      }
+    },
+    "decisions.asked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asked"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Întrebate"
+          }
+        }
+      }
+    },
+    "decisions.asking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asking"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Întreabă"
+          }
+        }
+      }
+    },
+    "decisions.confirmed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmed"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmate"
+          }
+        }
+      }
+    },
+    "decisions.corrected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corrected"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corectate"
+          }
+        }
+      }
+    },
+    "decisions.discarded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discarded"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respinse"
+          }
+        }
+      }
+    },
+    "decisions.trusted": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trusted"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De încredere"
+          }
+        }
+      }
+    },
+    "density.airy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Airy"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aerisit"
+          }
+        }
+      }
+    },
+    "density.balanced": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balanced"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Echilibrat"
+          }
+        }
+      }
+    },
+    "density.dense": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dense"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compact"
+          }
+        }
+      }
+    },
+    "download.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani is downloading its on-device speech model so you can log expenses by voice, in Romanian or English. This only happens once — skip it and enter transactions manually any time."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani descarcă modelul vocal de pe dispozitiv ca să poți adăuga cheltuieli vocal, în română sau engleză. Se întâmplă o singură dată — sari peste și introdu tranzacțiile manual oricând."
+          }
+        }
+      }
+    },
+    "finances.empty.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transactions yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio tranzacție încă"
+          }
+        }
+      }
+    },
+    "finances.empty.personal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No personal transactions yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio tranzacție personală încă"
+          }
+        }
+      }
+    },
+    "finances.empty.work": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No work transactions yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio tranzacție de muncă încă"
+          }
+        }
+      }
+    },
+    "finances.noMatches %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matches for “%@”"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niciun rezultat pentru „%@”"
+          }
+        }
+      }
+    },
+    "finances.noMerchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No merchant"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fără comerciant"
+          }
+        }
+      }
+    },
+    "finances.noSpending.custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending in range"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială în interval"
+          }
+        }
+      }
+    },
+    "finances.noSpending.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending this month"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială luna aceasta"
+          }
+        }
+      }
+    },
+    "finances.noSpending.sixMonths": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending in 6 months"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială în 6 luni"
+          }
+        }
+      }
+    },
+    "finances.noSpending.week": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending this week"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială săptămâna aceasta"
+          }
+        }
+      }
+    },
+    "finances.noSpending.year": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No spending this year"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio cheltuială anul acesta"
+          }
+        }
+      }
+    },
+    "finances.searchPrompt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search description, category, name"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caută descriere, categorie, nume"
+          }
+        }
+      }
+    },
+    "finances.segment.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toate"
+          }
+        }
+      }
+    },
+    "finances.spent.custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent in range"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cheltuit în interval"
+          }
+        }
+      }
+    },
+    "finances.spent.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent this month"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cheltuit luna aceasta"
+          }
+        }
+      }
+    },
+    "finances.spent.sixMonths": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent in 6 months"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cheltuit în 6 luni"
+          }
+        }
+      }
+    },
+    "finances.spent.week": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent this week"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cheltuit săptămâna aceasta"
+          }
+        }
+      }
+    },
+    "finances.spent.year": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spent this year"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cheltuit anul acesta"
+          }
+        }
+      }
+    },
+    "grouping.category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie"
+          }
+        }
+      }
+    },
+    "grouping.merchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merchant"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comerciant"
+          }
+        }
+      }
+    },
+    "grouping.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lună"
+          }
+        }
+      }
+    },
+    "language.system": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sistem"
+          }
+        }
+      }
+    },
+    "model.download": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descarcă modelul"
+          }
+        }
+      }
+    },
+    "model.medium": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mediu"
+          }
+        }
+      }
+    },
+    "model.medium.blurb": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Better Romanian · larger, slower"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Română mai bună · mai mare, mai lent"
+          }
+        }
+      }
+    },
+    "model.redownload": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-download Model"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redescarcă modelul"
+          }
+        }
+      }
+    },
+    "model.small": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Small"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mic"
+          }
+        }
+      }
+    },
+    "model.small.blurb": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faster · smaller download"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mai rapid · descărcare mică"
+          }
+        }
+      }
+    },
+    "model.status.downloading": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading…"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se descarcă…"
+          }
+        }
+      }
+    },
+    "model.status.failed %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed — %@"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eșuat — %@"
+          }
+        }
+      }
+    },
+    "model.status.notReady": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not downloaded"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nedescărcat"
+          }
+        }
+      }
+    },
+    "model.status.ready": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descărcat"
+          }
+        }
+      }
+    },
+    "settings.density": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout density"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Densitate aspect"
+          }
+        }
+      }
+    },
+    "settings.density.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controls spacing and text sizing across the app. Applies instantly."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlează spațierea și dimensiunea textului în aplicație. Se aplică instant."
+          }
+        }
+      }
+    },
+    "settings.language": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limbă"
+          }
+        }
+      }
+    },
+    "settings.language.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies immediately. Some labels finish switching after the app restarts."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se aplică imediat. Unele etichete se schimbă complet după repornirea aplicației."
+          }
+        }
+      }
+    },
+    "settings.noVoiceEntries": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No voice entries yet"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicio înregistrare vocală încă"
+          }
+        }
+      }
+    },
+    "settings.section.about": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despre"
+          }
+        }
+      }
+    },
+    "settings.section.appearance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aspect"
+          }
+        }
+      }
+    },
+    "settings.section.data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data & Decisions"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date și decizii"
+          }
+        }
+      }
+    },
+    "settings.section.recording": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Înregistrare"
+          }
+        }
+      }
+    },
+    "timeframe.custom": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        }
+      }
+    },
+    "timeframe.month": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lună"
+          }
+        }
+      }
+    },
+    "timeframe.sixMonths": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6M"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6L"
+          }
+        }
+      }
+    },
+    "timeframe.week": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Week"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Săpt."
+          }
+        }
+      }
+    },
+    "timeframe.year": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An"
+          }
+        }
+      }
+    },
+    "voice.noSpeech": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No speech was detected in the recording."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu s-a detectat vorbire în înregistrare."
+          }
+        }
+      }
+    },
+    "voice.transcriptionFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcription failed — type it?"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcrierea a eșuat — o tastezi?"
+          }
+        }
       }
     }
   }

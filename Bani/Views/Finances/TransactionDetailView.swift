@@ -7,6 +7,7 @@ import SwiftData
 /// Delete stays a swipe on the list — there is deliberately no delete button here.
 struct TransactionDetailView: View {
     @Environment(RateService.self) private var rates
+    @Environment(\.metrics) private var metrics
     @Query private var customCategories: [CustomCategory]
 
     let transaction: Transaction
@@ -15,14 +16,14 @@ struct TransactionDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: metrics.sectionSpacing) {
                 amountHero
 
                 if let other = otherCurrency {
                     conversionLine(other)
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: metrics.elementSpacing) {
                     categoryChip
                     contextTag
                     Spacer()
@@ -36,15 +37,17 @@ struct TransactionDetailView: View {
                     transcriptSection(raw)
                 }
             }
-            .padding(24)
+            .padding(metrics.screenPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color("BaniCanvas").ignoresSafeArea())
+        .background(Palette.canvas.ignoresSafeArea())
         .navigationTitle("Transaction")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Edit") { isEditPresented = true }
+                    .fontWeight(.semibold)
+                    .tint(Palette.accent)
                     .accessibilityIdentifier("detail.editButton")
             }
         }
@@ -58,12 +61,11 @@ struct TransactionDetailView: View {
     private var amountHero: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
-                .font(.system(size: 52, design: .rounded).weight(.bold))
+                .font(Typography.heroAmount)
             Text(transaction.currency.symbol)
-                .font(.system(.title, design: .rounded).weight(.semibold))
+                .font(Typography.amount(.title, weight: .semibold))
         }
-        .monospacedDigit()
-        .foregroundStyle(Color("BaniAccent"))
+        .foregroundStyle(Palette.accent)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("detail.amount")
     }
@@ -85,14 +87,13 @@ struct TransactionDetailView: View {
     private func conversionLine(_ other: (value: Decimal, code: String)) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("≈ \(other.value.formatted(.number.precision(.fractionLength(2)))) \(other.code)")
-                .font(.system(.title3, design: .rounded).weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(Color("BaniInk"))
+                .font(Typography.amount(.title3, weight: .semibold))
+                .foregroundStyle(Palette.ink)
 
             if let rate = rates.rate {
                 Text(bnrCaption(rate: rate))
                     .font(.caption2)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
             }
         }
         .accessibilityElement(children: .combine)
@@ -113,7 +114,7 @@ struct TransactionDetailView: View {
             Image(systemName: style.systemImage)
             Text(style.label)
         }
-        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+        .font(.subheadline.weight(.semibold))
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(style.color.opacity(0.16), in: Capsule())
@@ -124,7 +125,7 @@ struct TransactionDetailView: View {
 
     private var contextTag: some View {
         Text(transaction.context.label)
-            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(Color(transaction.context.tagColorName).opacity(0.2), in: Capsule())
@@ -137,33 +138,37 @@ struct TransactionDetailView: View {
     private var detailsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(transaction.descriptionText.isEmpty ? String(localized: "confirm.noDescription") : transaction.descriptionText)
-                .font(.system(.title3, design: .rounded).weight(.medium))
-                .foregroundStyle(Color("BaniInk"))
+                .font(.title3.weight(.medium))
+                .foregroundStyle(Palette.ink)
 
             if let merchant = transaction.merchant, !merchant.isEmpty {
                 Text(merchant)
                     .font(.subheadline)
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
             }
 
             Text(transaction.date.formatted(date: .abbreviated, time: .shortened))
                 .font(.subheadline)
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
     }
 
     private func transcriptSection(_ raw: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Heard")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
             Text("“\(raw)”")
-                .font(.system(.body, design: .rounded))
+                .font(.body)
                 .italic()
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
         .accessibilityIdentifier("detail.transcript")
     }
 }

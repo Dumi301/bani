@@ -7,6 +7,7 @@ import SwiftUI
 /// this view never touches `Bani/App/`.
 struct SettingsView: View {
     @Environment(WhisperService.self) private var whisper
+    @Environment(\.metrics) private var metrics
 
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
     /// In-app language override (B2).
@@ -25,6 +26,9 @@ struct SettingsView: View {
     /// only when the refiner changed the transcript, so a mishear-vs-clean is
     /// spottable on-device.
     @AppStorage(VoiceSessionLog.refinementKey) private var lastVoiceRefinement: String = ""
+    /// Layout density (B2). Writes the same `"designScale"` key the app root reads,
+    /// so the choice applies live across every surface.
+    @AppStorage("designScale") private var designScaleRaw: String = DesignScale.balanced.rawValue
 
     private var appearance: Binding<AppearanceMode> {
         Binding(
@@ -46,6 +50,13 @@ struct SettingsView: View {
         )
     }
 
+    private var designScale: Binding<DesignScale> {
+        Binding(
+            get: { DesignScale(rawValue: designScaleRaw) ?? .balanced },
+            set: { designScaleRaw = $0.rawValue }
+        )
+    }
+
     /// Selected transcription model (B). Setting it routes through
     /// `WhisperService.select`, which downloads the chosen variant if needed.
     private var modelVariant: Binding<WhisperModelVariant> {
@@ -58,77 +69,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Appearance", selection: appearance) {
-                        ForEach(AppearanceMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowBackground(Color("BaniSurface"))
-                    .accessibilityIdentifier("settings.appearancePicker")
-                } header: {
-                    Text("Appearance")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                }
-
-                Section {
-                    Picker("settings.language", selection: appLanguage) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.label).tag(lang)
-                        }
-                    }
-                    .listRowBackground(Color("BaniSurface"))
-                    .accessibilityIdentifier("settings.languagePicker")
-                } header: {
-                    Text("settings.language")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                } footer: {
-                    Text("settings.language.footer")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                }
-
-                Section {
-                    NavigationLink {
-                        CategoriesView()
-                    } label: {
-                        Label("categories.title", systemImage: "square.grid.2x2")
-                            .foregroundStyle(Color("BaniInk"))
-                    }
-                    .listRowBackground(Color("BaniSurface"))
-                    .accessibilityIdentifier("settings.categoriesRow")
-                } header: {
-                    Text("categories.title")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                }
-
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Confirmation time")
-                                .font(.system(.body, design: .rounded).weight(.medium))
-                                .foregroundStyle(Color("BaniInk"))
-                            Spacer()
-                            Text("\(Int(confirmationDuration.rounded())) s")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(Color("BaniSecondaryInk"))
-                        }
-                        Slider(value: $confirmationDuration, in: ConfirmationCard.minAutoSaveDelay...ConfirmationCard.maxAutoSaveDelay, step: 1)
-                            .tint(Color("BaniAccent"))
-                            .accessibilityIdentifier("settings.confirmationTimeSlider")
-                            .accessibilityLabel("Confirmation time")
-                            .accessibilityValue("\(Int(confirmationDuration.rounded())) seconds")
-                    }
-                    .padding(.vertical, 4)
-                    .listRowBackground(Color("BaniSurface"))
-                } header: {
-                    Text("Logging")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                } footer: {
-                    Text("How long the confirmation card waits before auto-saving. Tap the card to pause and edit.")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                }
-
+                // MARK: Recording
                 Section {
                     Picker("Transcription model", selection: modelVariant) {
                         ForEach(WhisperModelVariant.allCases) { variant in
@@ -136,52 +77,128 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                     .accessibilityIdentifier("settings.modelVariantPicker")
 
                     Text(whisper.activeVariant.blurb)
                         .font(.footnote)
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .foregroundStyle(Palette.secondaryInk)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .listRowBackground(Color("BaniSurface"))
+                        .listRowBackground(Palette.surface)
 
                     modelStatusRow
                         .accessibilityIdentifier("settings.modelStatusRow")
+
+                    VStack(alignment: .leading, spacing: metrics.elementSpacing) {
+                        HStack {
+                            Text("Confirmation time")
+                                .font(.system(.body).weight(.medium))
+                                .foregroundStyle(Palette.ink)
+                            Spacer()
+                            Text("\(Int(confirmationDuration.rounded())) s")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(Palette.secondaryInk)
+                        }
+                        Slider(value: $confirmationDuration, in: ConfirmationCard.minAutoSaveDelay...ConfirmationCard.maxAutoSaveDelay, step: 1)
+                            .tint(Palette.accent)
+                            .accessibilityIdentifier("settings.confirmationTimeSlider")
+                            .accessibilityLabel("Confirmation time")
+                            .accessibilityValue("\(Int(confirmationDuration.rounded())) seconds")
+                    }
+                    .padding(.vertical, metrics.rowVInset)
+                    .listRowBackground(Palette.surface)
                 } header: {
-                    Text("Speech Model")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                    Text("settings.section.recording")
+                        .foregroundStyle(Palette.secondaryInk)
                 } footer: {
-                    Text("Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout.")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                    VStack(alignment: .leading, spacing: metrics.elementSpacing) {
+                        Text("Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout.")
+                        Text("How long the confirmation card waits before auto-saving. Tap the card to pause and edit.")
+                    }
+                    .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Appearance
                 Section {
-                    VStack(alignment: .leading, spacing: 4) {
+                    Picker("Appearance", selection: appearance) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.appearancePicker")
+
+                    Picker("settings.language", selection: appLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.label).tag(lang)
+                        }
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.languagePicker")
+
+                    Picker("settings.density", selection: designScale) {
+                        ForEach(DesignScale.allCases) { scale in
+                            Text(scale.label).tag(scale)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.densityPicker")
+                } header: {
+                    Text("settings.section.appearance")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    VStack(alignment: .leading, spacing: metrics.elementSpacing) {
+                        Text("settings.language.footer")
+                        Text("settings.density.footer")
+                    }
+                    .foregroundStyle(Palette.secondaryInk)
+                }
+
+                // MARK: Categories
+                Section {
+                    NavigationLink {
+                        CategoriesView()
+                    } label: {
+                        Label("categories.title", systemImage: "square.grid.2x2")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.categoriesRow")
+                } header: {
+                    Text("categories.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
+                // MARK: Data & Decisions
+                Section {
+                    VStack(alignment: .leading, spacing: metrics.elementSpacing) {
                         Text("Last voice session")
-                            .font(.system(.body, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color("BaniInk"))
+                            .font(.system(.body).weight(.medium))
+                            .foregroundStyle(Palette.ink)
                         Text(lastVoiceSession.isEmpty ? String(localized: "settings.noVoiceEntries") : lastVoiceSession)
                             .font(.subheadline)
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                             .fixedSize(horizontal: false, vertical: true)
                         if !lastVoiceRefinement.isEmpty {
                             Text(lastVoiceRefinement)
                                 .font(.caption)
-                                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.85))
+                                .foregroundStyle(Palette.secondaryInk.opacity(0.85))
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("settings.lastVoiceRefinement")
                         }
                         if !lastVoiceForensics.isEmpty {
                             Text(lastVoiceForensics)
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(Color("BaniSecondaryInk").opacity(0.75))
+                                .foregroundStyle(Palette.secondaryInk.opacity(0.75))
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityIdentifier("settings.lastVoiceForensics")
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, metrics.rowVInset)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("settings.lastVoiceSessionRow")
 
@@ -189,30 +206,31 @@ struct SettingsView: View {
                         DecisionsView()
                     } label: {
                         Text("Decisions")
-                            .font(.system(.body, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color("BaniInk"))
+                            .font(.system(.body).weight(.medium))
+                            .foregroundStyle(Palette.ink)
                     }
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                     .accessibilityIdentifier("settings.decisionsRow")
                 } header: {
-                    Text("Diagnostics")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                    Text("settings.section.data")
+                        .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: About
                 Section {
                     LabeledContent("Version") {
                         Text(appVersionString)
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                             .monospacedDigit()
                     }
-                    .listRowBackground(Color("BaniSurface"))
+                    .listRowBackground(Palette.surface)
                 } header: {
-                    Text("About")
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                    Text("settings.section.about")
+                        .foregroundStyle(Palette.secondaryInk)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color("BaniCanvas").ignoresSafeArea())
+            .background(Palette.canvas.ignoresSafeArea())
             .navigationTitle("Settings")
         }
     }
@@ -221,12 +239,12 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var modelStatusRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: metrics.elementSpacing) {
                     Text("\(whisper.activeVariant.label) model")
-                        .font(.system(.body, design: .rounded).weight(.medium))
-                        .foregroundStyle(Color("BaniInk"))
+                        .font(.system(.body).weight(.medium))
+                        .foregroundStyle(Palette.ink)
 
                     Text(statusDescription)
                         .font(.subheadline)
@@ -237,26 +255,26 @@ struct SettingsView: View {
 
                 Text(whisper.activeVariant.sizeLabel)
                     .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(Color("BaniSecondaryInk"))
+                    .foregroundStyle(Palette.secondaryInk)
             }
 
             if case .downloading(let progress) = whisper.modelState {
                 ProgressView(value: progress)
-                    .tint(Color("BaniAccent"))
+                    .tint(Palette.accent)
             }
 
             Button {
                 Task { await whisper.redownloadModel() }
             } label: {
                 Text(whisper.isModelDownloaded ? String(localized: "model.redownload") : String(localized: "model.download"))
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .font(.system(.subheadline).weight(.semibold))
             }
             .buttonStyle(.borderless)
-            .tint(Color("BaniAccent"))
+            .tint(Palette.accent)
             .disabled(isDownloading)
         }
-        .padding(.vertical, 8)
-        .listRowBackground(Color("BaniSurface"))
+        .padding(.vertical, metrics.rowVInset)
+        .listRowBackground(Palette.surface)
     }
 
     private var isDownloading: Bool {
@@ -280,11 +298,11 @@ struct SettingsView: View {
     private var statusColor: Color {
         switch whisper.modelState {
         case .ready:
-            Color("BaniAccent")
+            Palette.accent
         case .failed:
-            Color("BaniSecondaryInk")
+            Palette.secondaryInk
         default:
-            Color("BaniSecondaryInk")
+            Palette.secondaryInk
         }
     }
 

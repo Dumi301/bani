@@ -29,6 +29,7 @@ struct GroupingPicker: View {
             }
         }
         .pickerStyle(.segmented)
+        .tint(Palette.accent)
         .accessibilityIdentifier("financesGroupingPicker")
     }
 }

@@ -24,7 +24,7 @@ struct CategoryChipPicker: View {
                     chip(ref: nil, style: CategoryStyle(
                         label: String(localized: "category.none"),
                         systemImage: "circle.dashed",
-                        color: Color("BaniSecondaryInk")
+                        color: Palette.secondaryInk
                     ))
                 }
                 ForEach(refs, id: \.id) { ref in
@@ -46,11 +46,16 @@ struct CategoryChipPicker: View {
                 Image(systemName: style.systemImage)
                 Text(style.label)
             }
-            .font(.system(.caption, design: .rounded).weight(.medium))
+            .font(.caption.weight(.medium))
+            .foregroundStyle(isSelected ? style.color : Palette.ink)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(isSelected ? style.color.opacity(0.22) : Color("BaniCanvas"), in: Capsule())
-            .foregroundStyle(isSelected ? style.color : Color("BaniInk"))
+            .background(
+                Capsule().fill(isSelected ? style.color.opacity(0.22) : Palette.surface)
+            )
+            .overlay(
+                Capsule().strokeBorder(isSelected ? style.color.opacity(0.55) : Palette.hairline, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -61,11 +66,14 @@ struct CategoryChipPicker: View {
                 Image(systemName: "plus")
                 Text("category.new")
             }
-            .font(.system(.caption, design: .rounded).weight(.semibold))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Palette.accent)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Color("BaniAccent").opacity(0.12), in: Capsule())
-            .foregroundStyle(Color("BaniAccent"))
+            .background(Capsule().fill(Palette.surface))
+            .overlay(
+                Capsule().strokeBorder(Palette.accent.opacity(0.55), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("category.newButton")
@@ -115,7 +123,7 @@ struct NewCategorySheet: View {
                         Image(systemName: symbol)
                         Text(trimmed.isEmpty ? String(localized: "category.name.placeholder") : trimmed)
                     }
-                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(accent.opacity(0.16), in: Capsule())
@@ -138,10 +146,10 @@ struct NewCategorySheet: View {
                                     .font(.system(size: 18))
                                     .frame(width: 40, height: 40)
                                     .background(
-                                        symbol == option ? accent.opacity(0.22) : Color("BaniCanvas"),
-                                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        symbol == option ? accent.opacity(0.22) : Palette.canvas,
+                                        in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                                     )
-                                    .foregroundStyle(symbol == option ? accent : Color("BaniInk"))
+                                    .foregroundStyle(symbol == option ? accent : Palette.ink)
                             }
                             .buttonStyle(.plain)
                         }
@@ -159,7 +167,7 @@ struct NewCategorySheet: View {
                                     .fill(CustomCategoryPalette.color(index))
                                     .frame(width: 30, height: 30)
                                     .overlay(
-                                        Circle().strokeBorder(Color("BaniInk"), lineWidth: colorIndex == index ? 2.5 : 0)
+                                        Circle().strokeBorder(Palette.ink, lineWidth: colorIndex == index ? 2.5 : 0)
                                     )
                             }
                             .buttonStyle(.plain)

@@ -35,12 +35,12 @@ struct ManualEntrySheet: View {
                     HStack {
                         TextField("0", text: $amountText)
                             .keyboardType(.decimalPad)
-                            .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                            .font(Typography.amount(.largeTitle))
                             .monospacedDigit()
                             .accessibilityLabel("Amount")
                             .accessibilityIdentifier("manualEntry.amountField")
                         Text(currency.symbol)
-                            .font(.system(.title2, design: .rounded))
+                            .font(.system(.title2))
                             .foregroundStyle(Color("BaniSecondaryInk"))
                     }
 
@@ -54,6 +54,7 @@ struct ManualEntrySheet: View {
                 } header: {
                     Text("Amount")
                 }
+                .listRowBackground(Palette.surface)
 
                 Section {
                     TextField("Description", text: $descriptionText)
@@ -74,6 +75,7 @@ struct ManualEntrySheet: View {
                 } header: {
                     Text("Details")
                 }
+                .listRowBackground(Palette.surface)
             }
             .scrollContentBackground(.hidden)
             .background(Color("BaniCanvas"))

@@ -12,6 +12,7 @@ import UIKit
 struct LogView: View {
     @Environment(WhisperService.self) private var whisper
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.metrics) private var metrics
 
     /// Constructed once per view identity. `-forceRuleParser` (test seam,
     /// see interfaces.md) forces the deterministic rule-based parser + refiner;
@@ -62,14 +63,24 @@ struct LogView: View {
         ZStack {
             Color("BaniCanvas").ignoresSafeArea()
 
-            VStack(spacing: 16) {
+            VStack(spacing: metrics.sectionSpacing) {
                 header
                 Spacer(minLength: 12)
                 recordButton(for: .personal)
                 recordButton(for: .work)
                 Spacer(minLength: 12)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, metrics.screenPadding)
+
+            // C3: the confirmation card rises over a dimmed backdrop. A standard
+            // modal scrim (darkens in both light and dark), non-interactive so it
+            // never intercepts the card's tap-to-pause / drag-to-dismiss gestures.
+            if case .confirming = stage {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
         }
         .fullScreenCover(isPresented: recordingSheetBinding) {
             if let recorder {
@@ -98,7 +109,7 @@ struct LogView: View {
                 .padding(.bottom, 8)
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: stage)
+        .animation(Motion.card, value: stage)
         .alert("Microphone Access Needed", isPresented: micDeniedBinding) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -120,7 +131,7 @@ struct LogView: View {
     private var header: some View {
         HStack {
             Text("Bani")
-                .font(.system(.title2, design: .rounded).weight(.bold))
+                .font(.system(.title2).weight(.bold))
                 .foregroundStyle(Color("BaniInk"))
             Spacer()
             Button {
@@ -140,21 +151,17 @@ struct LogView: View {
         Button {
             startRecording(context: ctx)
         } label: {
-            VStack(spacing: 12) {
+            VStack(spacing: metrics.elementSpacing) {
                 Image(systemName: "mic.fill")
                     .font(.system(size: 36))
-                    .foregroundStyle(Color(ctx.tagColorName))
+                    .foregroundStyle(Palette.accent)
                 Text(ctx.label)
-                    .font(.system(.title, design: .rounded).weight(.semibold))
-                    .foregroundStyle(Color("BaniCanvas"))
+                    .font(.system(.title).weight(.semibold))
+                    .foregroundStyle(Palette.ink)
             }
             .frame(maxWidth: .infinity, minHeight: 180)
-            .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(Color("BaniAccent"))
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MetalPlateButtonStyle(cornerRadius: Radius.button))
         .accessibilityIdentifier(ctx == .personal ? "logView.personalButton" : "logView.workButton")
         .accessibilityLabel("Record \(ctx.label) transaction")
         .accessibilityHint("Starts recording immediately")

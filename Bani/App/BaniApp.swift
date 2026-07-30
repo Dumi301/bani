@@ -16,6 +16,10 @@ import SwiftData
 @main
 struct BaniApp: App {
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
+    /// Layout density (B2) — Airy / Balanced / Dense. Drives the design-scale
+    /// token system app-wide via `.environment(\.designScale,…)`; a change
+    /// applies live, no restart.
+    @AppStorage("designScale") private var designScaleRaw: String = DesignScale.balanced.rawValue
     /// In-app language override (B2). Drives the root `.environment(\.locale,…)`
     /// so a change applies live, without a reinstall.
     @AppStorage("appLanguage") private var appLanguageRaw: String = AppLanguage.system.rawValue
@@ -55,6 +59,10 @@ struct BaniApp: App {
         if let idx = args.firstIndex(of: "-appearance"), idx + 1 < args.count {
             UserDefaults.standard.set(args[idx + 1], forKey: "appearanceMode")
         }
+        // -designScale <airy|balanced|dense> (test seam for the B1 density matrix).
+        if let idx = args.firstIndex(of: "-designScale"), idx + 1 < args.count {
+            UserDefaults.standard.set(args[idx + 1], forKey: "designScale")
+        }
         // -appLanguage <ro|en|system> (test seam for the B5 Romanian screenshots).
         if let idx = args.firstIndex(of: "-appLanguage"), idx + 1 < args.count {
             let language = AppLanguage.fromCode(args[idx + 1])
@@ -88,6 +96,11 @@ struct BaniApp: App {
         AppearanceMode(rawValue: appearanceRaw) ?? .system
     }
 
+    /// The active layout density (B2), injected into the whole view tree.
+    private var designScale: DesignScale {
+        DesignScale(rawValue: designScaleRaw) ?? .balanced
+    }
+
     /// The locale pushed into the whole view tree for the chosen in-app language
     /// (B2/B3) — switches SwiftUI string lookup AND every date/number/currency
     /// FormatStyle to the selected language, live, with no reinstall.
@@ -111,6 +124,7 @@ struct BaniApp: App {
                 .environment(whisper)
                 .environment(rates)
                 .environment(\.locale, appLocale)
+                .environment(\.designScale, designScale)
                 .preferredColorScheme(appearance.colorScheme)
                 .fullScreenCover(isPresented: showFirstLaunchDownload) {
                     ModelDownloadView(onContinue: { hasCompletedFirstLaunch = true })

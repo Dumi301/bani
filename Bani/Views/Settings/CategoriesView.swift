@@ -7,6 +7,7 @@ import SwiftData
 /// pointed at it.
 struct CategoriesView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.metrics) private var metrics
     @Query(sort: \CustomCategory.createdAt, order: .forward) private var customCategories: [CustomCategory]
 
     @State private var editing: CustomCategory?
@@ -19,13 +20,13 @@ struct CategoriesView: View {
                 if customCategories.isEmpty {
                     Text("categories.empty")
                         .font(.subheadline)
-                        .foregroundStyle(Color("BaniSecondaryInk"))
-                        .listRowBackground(Color("BaniSurface"))
+                        .foregroundStyle(Palette.secondaryInk)
+                        .listRowBackground(Palette.surface)
                 } else {
                     ForEach(customCategories, id: \.id) { category in
                         Button { editing = category } label: { row(category) }
                             .buttonStyle(.plain)
-                            .listRowBackground(Color("BaniSurface"))
+                            .listRowBackground(Palette.surface)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) { deleting = category } label: {
                                     Label("Delete", systemImage: "trash")
@@ -34,20 +35,20 @@ struct CategoriesView: View {
                     }
                 }
             } footer: {
-                Text("categories.footer").foregroundStyle(Color("BaniSecondaryInk"))
+                Text("categories.footer").foregroundStyle(Palette.secondaryInk)
             }
 
             Section {
                 Button { isCreating = true } label: {
                     Label("category.new", systemImage: "plus.circle.fill")
-                        .foregroundStyle(Color("BaniAccent"))
+                        .foregroundStyle(Palette.accent)
                 }
-                .listRowBackground(Color("BaniSurface"))
+                .listRowBackground(Palette.surface)
                 .accessibilityIdentifier("categories.addButton")
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color("BaniCanvas").ignoresSafeArea())
+        .background(Palette.canvas.ignoresSafeArea())
         .navigationTitle("categories.title")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $isCreating) {
@@ -68,22 +69,22 @@ struct CategoriesView: View {
     private func row(_ category: CustomCategory) -> some View {
         let count = CustomCategoryStore.transactionCount(for: category.id, in: modelContext)
         let color = CustomCategoryPalette.color(category.colorIndex)
-        return HStack(spacing: 12) {
+        return HStack(spacing: metrics.elementSpacing) {
             Image(systemName: category.symbolName)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(color)
                 .frame(width: 30, height: 30)
                 .background(color.opacity(0.16), in: Circle())
             Text(category.name)
-                .font(.system(.body, design: .rounded).weight(.medium))
-                .foregroundStyle(Color("BaniInk"))
+                .font(.system(.body).weight(.medium))
+                .foregroundStyle(Palette.ink)
             Spacer()
             Text(CountLabels.transactions(count))
                 .font(.caption)
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
             Image(systemName: "chevron.right")
                 .font(.caption2)
-                .foregroundStyle(Color("BaniSecondaryInk"))
+                .foregroundStyle(Palette.secondaryInk)
         }
         .contentShape(Rectangle())
     }
@@ -125,13 +126,18 @@ private struct ReassignSheet: View {
                             Label(style.label, systemImage: style.systemImage).tag(ref)
                         }
                     }
+                    .listRowBackground(Palette.surface)
                     .accessibilityIdentifier("categories.reassignPicker")
                 } header: {
                     Text("\(String(localized: "categories.moveTo")) · \(CountLabels.transactions(count))")
+                        .foregroundStyle(Palette.secondaryInk)
                 } footer: {
                     Text("categories.delete.footer")
+                        .foregroundStyle(Palette.secondaryInk)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Palette.canvas.ignoresSafeArea())
             .navigationTitle("categories.delete.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

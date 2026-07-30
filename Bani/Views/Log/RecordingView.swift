@@ -20,7 +20,7 @@ struct RecordingView: View {
 
             VStack(spacing: 32) {
                 Text(context.label)
-                    .font(.system(.headline, design: .rounded).weight(.semibold))
+                    .font(.system(.headline).weight(.semibold))
                     .foregroundStyle(Color("BaniCanvas").opacity(0.7))
 
                 if isProcessing {
@@ -29,15 +29,15 @@ struct RecordingView: View {
                         .scaleEffect(1.4)
                         .frame(height: 120)
                     Text("Understanding…")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.system(.subheadline))
                         .foregroundStyle(Color("BaniCanvas").opacity(0.6))
                 } else {
                     waveform
                     Text("Listening…")
-                        .font(.system(.subheadline, design: .rounded))
+                        .font(.system(.subheadline))
                         .foregroundStyle(Color("BaniCanvas").opacity(0.6))
                     Text("Tap to stop")
-                        .font(.system(.footnote, design: .rounded))
+                        .font(.system(.footnote))
                         .foregroundStyle(Color("BaniCanvas").opacity(0.4))
                 }
             }
@@ -64,7 +64,7 @@ struct RecordingView: View {
             }
         }
         .frame(height: 120)
-        .animation(.spring(response: 0.25, dampingFraction: 0.6), value: recorder.level)
+        .animation(Motion.snappy, value: recorder.level)
     }
 
     /// Per-bar height derived from the single `Recorder.level` sample plus a

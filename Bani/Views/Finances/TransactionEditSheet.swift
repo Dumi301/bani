@@ -41,8 +41,8 @@ struct TransactionEditSheet: View {
                     HStack(spacing: 12) {
                         TextField("Amount", value: $amount, format: .number.precision(.fractionLength(0...2)))
                             .keyboardType(.decimalPad)
-                            .font(.system(.title3, design: .rounded).weight(.semibold))
-                            .monospacedDigit()
+                            .font(Typography.amount(.title3, weight: .semibold))
+                            .foregroundStyle(Palette.accent)
                             .accessibilityIdentifier("editAmountField")
 
                         Picker("Currency", selection: $currency) {
@@ -51,6 +51,7 @@ struct TransactionEditSheet: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                        .tint(Palette.accent)
                         .fixedSize()
                         .accessibilityIdentifier("editCurrencyPicker")
                     }
@@ -71,6 +72,7 @@ struct TransactionEditSheet: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .tint(Palette.accent)
                     .accessibilityIdentifier("editContextPicker")
                 }
 
@@ -93,6 +95,7 @@ struct TransactionEditSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .fontWeight(.semibold)
+                        .tint(Palette.accent)
                         .accessibilityIdentifier("editSaveButton")
                 }
             }

@@ -4,32 +4,33 @@ import SwiftUI
 /// context tag, and the amount. The amount uses the deep-green accent per the
 /// design system's "positive amounts" rule (`## DESIGN SYSTEM & THEME`).
 struct TransactionRow: View {
+    @Environment(\.metrics) private var metrics
     let transaction: Transaction
     /// Lookup for resolving a custom category's symbol/color (C3); empty → presets
     /// and uncategorized only.
     var customs: CustomCategoryLookup = [:]
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: metrics.elementSpacing) {
             categoryIcon
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(transaction.descriptionText)
                     .font(.body.weight(.medium))
-                    .foregroundStyle(Color("BaniInk"))
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
                     if let merchant = transaction.merchant, !merchant.isEmpty {
                         Text(merchant)
                             .font(.caption)
-                            .foregroundStyle(Color("BaniSecondaryInk"))
+                            .foregroundStyle(Palette.secondaryInk)
                             .lineLimit(1)
                     }
                     contextTag
                     Text(dateText)
                         .font(.caption2)
-                        .foregroundStyle(Color("BaniSecondaryInk"))
+                        .foregroundStyle(Palette.secondaryInk)
                         .lineLimit(1)
                         .accessibilityIdentifier("transactionRow.date")
                 }
@@ -39,7 +40,7 @@ struct TransactionRow: View {
 
             amountText
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, metrics.rowVInset)
     }
 
     /// C3: today's entries show just the time; older entries show a compact
@@ -56,9 +57,9 @@ struct TransactionRow: View {
         let style = categoryStyle(ref, customs: customs)
         return Image(systemName: ref == nil ? "circle.dashed" : style.systemImage)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(ref == nil ? Color("BaniSecondaryInk") : style.color)
+            .foregroundStyle(ref == nil ? Palette.secondaryInk : style.color)
             .frame(width: 32, height: 32)
-            .background(Color("BaniCanvas"), in: Circle())
+            .background(Palette.canvas, in: Circle())
     }
 
     private var contextTag: some View {
@@ -70,17 +71,14 @@ struct TransactionRow: View {
             .background(Color(transaction.context.tagColorName).opacity(0.15), in: Capsule())
     }
 
-    /// Amount + currency code, `.rounded` `monospacedDigit()`, accent-colored.
+    /// Amount + currency code, monospaced, accent-colored (money → accent).
     private var amountText: Text {
-        (
-            Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
-                .font(.system(.title3, design: .rounded).weight(.bold))
-                .foregroundStyle(Color("BaniAccent"))
-            + Text(" \(transaction.currency.displayCode)")
-                .font(.system(.caption, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color("BaniSecondaryInk"))
-        )
-        .monospacedDigit()
+        Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
+            .font(Typography.amount(.title3, weight: .bold))
+            .foregroundStyle(Palette.accent)
+        + Text(" \(transaction.currency.displayCode)")
+            .font(.system(.caption).weight(.semibold))
+            .foregroundStyle(Palette.secondaryInk)
     }
 }
 
