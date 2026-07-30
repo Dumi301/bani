@@ -25,3 +25,5 @@ run's artifacts → open it with AltStore → done (AltStore signs at install ti
 - `Bani/` — app source (synced folders; add Swift files with zero project edits).
 - `BaniTests/`, `BaniUITests/` — unit + UI tests.
 - `.github/workflows/ci.yml` — the four-job pipeline above.
+
+▶ **Live preview (Appetize):** https://appetize.io/app/5yixs4bzmn6nothakxdqzwsfby — runs the latest `main` build in your browser.
