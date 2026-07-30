@@ -397,6 +397,231 @@ jobs:
           path: build/Bani-unsigned.ipa
           if-no-files-found: error
 
+  # ── STAGE 2 — Appetize browser preview (non-blocking) ───────────────────────
+  # Runs ONLY after gate is green, push-to-main only. Builds a zipped iOS
+  # SIMULATOR .app (Appetize accepts ONLY simulator .app bundles — a device .ipa
+  # is unsupported) and uploads it so every push to main gets a click-to-run
+  # browser preview. `continue-on-error: true` keeps a preview failure from ever
+  # blocking the pipeline, and this job is deliberately ABSENT from `release`'s
+  # needs, so it can never gate a release. The Appetize publicKey is persisted in
+  # a committed `.appetize` file; if that file is ever lost the same app is
+  # re-found by its note (bani-ci-preview) so a duplicate URL is never minted.
+  preview:
+    name: preview (Appetize browser preview)
+    needs: [gate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: macos-26
+    continue-on-error: true
+    permissions:
+      contents: write
+    env:
+      APPETIZE_API_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
+      APPETIZE_NOTE: bani-ci-preview
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0   # full history so the persist step can rebase onto main
+
+      - name: Guard — require Appetize token (warn + skip, never fail)
+        id: guard
+        run: |
+          if [ -z "${APPETIZE_API_TOKEN:-}" ]; then
+            echo "::warning::APPETIZE_API_TOKEN not set — skipping Appetize preview (non-blocking)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Select newest Xcode
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$XC" ]; then XC=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1); fi
+          sudo xcode-select -s "$XC/Contents/Developer"
+
+      - name: Install XcodeGen
+        if: steps.guard.outputs.run == 'true'
+        run: brew install xcodegen
+
+      - name: Cache SwiftPM checkouts
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/DerivedData/SourcePackages
+            ~/Library/Caches/org.swift.swiftpm
+          key: bani-spm-${{ runner.os }}-${{ hashFiles('project.yml', '**/Package.resolved') }}
+          restore-keys: |
+            bani-spm-${{ runner.os }}-
+
+      - name: Generate Xcode project
+        if: steps.guard.outputs.run == 'true'
+        run: xcodegen generate
+
+      - name: Build simulator .app (Debug)
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          # Appetize accepts ONLY a zipped iOS Simulator .app bundle; a device .ipa
+          # is not supported. Build the Debug simulator slice (no signing needed).
+          xcodebuild build \
+            -project Bani.xcodeproj \
+            -scheme Bani \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Zip the simulator .app
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          APP="build/DerivedData/Build/Products/Debug-iphonesimulator/Bani.app"
+          ls -la "build/DerivedData/Build/Products/Debug-iphonesimulator"
+          test -d "$APP"
+          # ditto --keepParent → the zip's root entry is Bani.app (what Appetize wants),
+          # and ditto preserves bundle symlinks/permissions a plain zip can mangle.
+          ditto -c -k --keepParent "$APP" build/Bani-sim.zip
+          ls -la build/Bani-sim.zip
+
+      - name: Upload to Appetize
+        id: upload
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          API="https://api.appetize.io/v1"
+          ZIP="build/Bani-sim.zip"
+          NOTE="$APPETIZE_NOTE"
+
+          # 1) Resolve the target app's publicKey.
+          PUBLICKEY=""
+          if [ -f .appetize ]; then
+            PUBLICKEY="$(tr -d ' \t\r\n' < .appetize)"
+            echo "publicKey from committed .appetize: $PUBLICKEY"
+          fi
+
+          # Self-healing backstop: .appetize missing → find the SAME app by its note
+          # (never mint a duplicate). Fall back to the sole iOS app if note isn't matched.
+          if [ -z "$PUBLICKEY" ]; then
+            echo "No .appetize — searching existing apps for note=$NOTE"
+            : > build/apps.ndjson
+            NEXT=""
+            while : ; do
+              if [ -n "$NEXT" ] && [ "$NEXT" != "null" ]; then URL="$API/apps?nextKey=$NEXT"; else URL="$API/apps"; fi
+              RESP="$(curl -sS -H "X-API-KEY: $APPETIZE_API_TOKEN" "$URL")"
+              echo "$RESP" | jq -c '.data[]?' >> build/apps.ndjson || true
+              HAS="$(echo "$RESP" | jq -r '.hasMore // false')"
+              NEXT="$(echo "$RESP" | jq -r '.nextKey // ""')"
+              { [ "$HAS" = "true" ] && [ -n "$NEXT" ] && [ "$NEXT" != "null" ]; } || break
+            done
+            PUBLICKEY="$(jq -rs --arg n "$NOTE" 'map(select(.note==$n)) | (.[0].publicKey // "")' build/apps.ndjson)"
+            if [ -z "$PUBLICKEY" ] || [ "$PUBLICKEY" = "null" ]; then
+              IOS_N="$(jq -rs 'map(select(.platform=="ios")) | length' build/apps.ndjson)"
+              if [ "$IOS_N" = "1" ]; then
+                PUBLICKEY="$(jq -rs 'map(select(.platform=="ios")) | .[0].publicKey' build/apps.ndjson)"
+                echo "::warning::.appetize missing and no note match; re-bound to the sole iOS app ($PUBLICKEY) to avoid a duplicate."
+              else
+                PUBLICKEY=""
+                echo "No existing preview app found — a new one will be created."
+              fi
+            else
+              echo "Re-bound to existing app by note: $PUBLICKEY"
+            fi
+          fi
+
+          # 2) Upload: update the existing app, or create a new one on first run.
+          if [ -n "$PUBLICKEY" ]; then
+            echo "Updating Appetize app $PUBLICKEY"
+            TARGET="$API/apps/$PUBLICKEY"; NEW=0
+          else
+            echo "Creating new Appetize app"
+            TARGET="$API/apps"; NEW=1
+          fi
+          RESP="$(curl -sS -w $'\n%{http_code}' -X POST "$TARGET" \
+            -H "X-API-KEY: $APPETIZE_API_TOKEN" \
+            -F "file=@$ZIP" \
+            -F "platform=ios" \
+            -F "fileType=zip" \
+            -F "note=$NOTE")"
+          CODE="$(printf '%s' "$RESP" | tail -1)"
+          BODY="$(printf '%s' "$RESP" | sed '$d')"
+          echo "HTTP $CODE"
+          printf '%s\n' "$BODY" | jq . || printf '%s\n' "$BODY"
+
+          if [ "$CODE" -lt 200 ] || [ "$CODE" -ge 300 ]; then
+            # Real failure — surface it (do NOT let continue-on-error hide it). A 4xx
+            # on a simulator .app zip is a structural rejection worth stopping for.
+            echo "::error::Appetize upload failed (HTTP $CODE). Body above."
+            exit 1
+          fi
+
+          PK="$(printf '%s' "$BODY" | jq -r '.publicKey')"
+          UPD="$(printf '%s' "$BODY" | jq -r '.updated')"
+          VC="$(printf '%s' "$BODY" | jq -r '.versionCode')"
+          if [ -z "$PK" ] || [ "$PK" = "null" ]; then
+            echo "::error::Appetize response contained no publicKey."
+            exit 1
+          fi
+          echo "publickey=$PK" >> "$GITHUB_OUTPUT"
+          echo "updated=$UPD" >> "$GITHUB_OUTPUT"
+          echo "versioncode=$VC" >> "$GITHUB_OUTPUT"
+          echo "new_app=$NEW" >> "$GITHUB_OUTPUT"
+          echo "preview_url=https://appetize.io/app/$PK" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: https://appetize.io/app/$PK (versionCode $VC, updated $UPD)"
+
+      - name: Persist publicKey (.appetize) + README link
+        if: steps.guard.outputs.run == 'true' && steps.upload.outputs.publickey != ''
+        run: |
+          set -euo pipefail
+          PK="${{ steps.upload.outputs.publickey }}"
+          URL="https://appetize.io/app/$PK"
+          CHANGED=0
+          if [ ! -f .appetize ] || [ "$(tr -d ' \t\r\n' < .appetize)" != "$PK" ]; then
+            printf '%s\n' "$PK" > .appetize
+            CHANGED=1
+          fi
+          if grep -q "appetize.io/app/" README.md 2>/dev/null; then
+            :
+          else
+            printf '\n▶ **Live preview (Appetize):** %s — runs the latest `main` build in your browser.\n' "$URL" >> README.md
+            CHANGED=1
+          fi
+          if [ "$CHANGED" = "0" ]; then
+            echo ".appetize + README already current — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .appetize README.md
+          git commit -m "ci: persist Appetize preview publicKey + README link [skip ci]"
+          # Rebase-retry loop so this can't lose a race with the release job's own
+          # commit to main. [skip ci] keeps the push from re-triggering the pipeline.
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Persisted on attempt $i."
+              exit 0
+            fi
+            echo "push rejected — fetching + rebasing (attempt $i)"
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+          done
+          echo "::warning::Could not persist .appetize/README after 5 attempts; it will persist on the next run."
+          exit 0
+
+      - name: Preview summary
+        if: steps.guard.outputs.run == 'true' && steps.upload.outputs.publickey != ''
+        run: |
+          {
+            echo "### ▶ Appetize preview"
+            echo ""
+            echo "▶ Preview: ${{ steps.upload.outputs.preview_url }}"
+            echo ""
+            echo "- version (versionCode): ${{ steps.upload.outputs.versioncode }}"
+            echo "- updated: ${{ steps.upload.outputs.updated }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ── STAGE 3 — release ───────────────────────────────────────────────────────
   # Publishes only when gate + screenshots + ipa are all green. Because a
   # non-blocking UI flake still leaves `screenshots` green, a flake does not stop
