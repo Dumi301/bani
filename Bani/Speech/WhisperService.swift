@@ -30,9 +30,10 @@ final class WhisperService {
     /// Published on-disk size of the ACTIVE variant (cited from the model card).
     var modelSizeMB: Int { activeVariant.approxSizeMB }
 
-    /// A2 forensics: the segment-gate result of the most recent transcription
-    /// (kept/dropped counts + drop reasons), surfaced under the Settings
-    /// "Last voice session" row. `nil` until the first transcription.
+    /// Forensics for the most recent transcription, surfaced under the Settings
+    /// "Last voice session" row (A3). Carries the A1 language decision (detected
+    /// language + constrained ro/en probabilities) AND the A2 segment-gate result
+    /// (kept/dropped counts + drop reasons). `nil` until the first transcription.
     private(set) var lastSegmentDiagnostics: String?
 
     /// When `true`, WhisperKit is never touched — used by the UI-test /
@@ -101,16 +102,49 @@ final class WhisperService {
     // MARK: - Transcription
 
     /// Transcribes `audioFileURL`. Diacritics are preserved end-to-end (no
-    /// lowercasing / stripping). `DecodingOptions(language: nil,
-    /// detectLanguage: true)` is set EXPLICITLY — `language: nil` alone falls
-    /// back to English decoding. `skipSpecialTokens` keeps decoder tokens
-    /// (`<|startoftranscript|>`, `<|ro|>`, …) out of the segment text; the
-    /// `WhisperTokenStripper` post-process (A1) is the guaranteed backstop.
+    /// lowercasing / stripping).
+    ///
+    /// A1 — LANGUAGE IS CONSTRAINED to the app's RO/EN world. A non-Auto
+    /// `TranscriptionLanguage` Setting forces the decoder outright; Auto runs
+    /// WhisperKit's language detector and pins the result to the higher-probability
+    /// of {ro, en} (`LanguageConstraint`), so a noisy/short Romanian clip can never
+    /// be "transcribed" as Russian. Detection off during decode (`detectLanguage:
+    /// false`) keeps the decoder from wandering languages mid-utterance.
+    ///
+    /// `skipSpecialTokens` keeps decoder tokens (`<|startoftranscript|>`, `<|ro|>`,
+    /// …) out of the segment text; the `WhisperTokenStripper` post-process is the
+    /// guaranteed backstop.
     func transcribe(audioFileURL: URL) async throws -> String {
         guard !modelAbsent else { throw WhisperServiceError.modelAbsent }
         guard let pipe else { throw WhisperServiceError.modelNotReady }
 
-        var options = DecodingOptions(language: nil, detectLanguage: true)
+        // A1: decide the decoder language before transcribing.
+        let setting = TranscriptionLanguage.active
+        let language: String
+        let languageNote: String
+        if let forced = setting.forcedCode {
+            language = forced
+            languageNote = "lang \(forced) (forced)"
+        } else {
+            do {
+                // detectLanguage runs detection only (no full transcription) and
+                // returns bare-code probabilities ("ro"/"en"); constrain + argmax.
+                let detection = try await pipe.detectLanguage(audioPath: audioFileURL.path)
+                language = LanguageConstraint.choose(from: detection.langProbs)
+                let pRo = detection.langProbs["ro"].map { String(format: "%.2f", Double($0)) } ?? "—"
+                let pEn = detection.langProbs["en"].map { String(format: "%.2f", Double($0)) } ?? "—"
+                // A3 forensics: raw detected language (may be a third language!) +
+                // the constrained ro/en log-probs that decided the pinned language.
+                languageNote = "lang \(language) (det \(detection.language); ro \(pRo)/en \(pEn))"
+            } catch {
+                // Detector unavailable/failed → floor to the primary language
+                // rather than fall through to English-default decoding.
+                language = LanguageConstraint.primary
+                languageNote = "lang \(LanguageConstraint.primary) (detect failed)"
+            }
+        }
+
+        var options = DecodingOptions(language: language, detectLanguage: false)
         options.skipSpecialTokens = true
         // transcribe(...) returns [TranscriptionResult] — concatenate .text
         // across results rather than assuming a single element.
@@ -118,7 +152,7 @@ final class WhisperService {
 
         // A2: gate on per-segment metadata so background music / ambient noise —
         // which Whisper otherwise transcribes or hallucinates text from — never
-        // reaches a saved entry. A1: strip decoder tokens BEFORE gating so a
+        // reaches a saved entry. Strip decoder tokens BEFORE gating so a
         // token-only segment collapses to empty and is dropped by the gate.
         let segments = results.flatMap(\.segments).map {
             SpeechSegment(
@@ -132,12 +166,14 @@ final class WhisperService {
         guard !segments.isEmpty else {
             // No segment metadata to gate on — return the raw text untouched
             // (still token-stripped) rather than risk dropping a valid transcription.
-            lastSegmentDiagnostics = nil
+            lastSegmentDiagnostics = languageNote
             return WhisperTokenStripper.strip(results.map(\.text).joined(separator: " "))
         }
 
         let gate = SegmentGate.filter(segments)
-        lastSegmentDiagnostics = gate.diagnostics
+        // A3: prepend the language decision to the segment-gate diagnostics so the
+        // Settings "Last voice session" row alone shows a corrected misdetection.
+        lastSegmentDiagnostics = "\(languageNote) · \(gate.diagnostics)"
         // When every segment is dropped, `keptText` is empty — `runVoicePipeline`
         // then routes to the existing "No speech was detected" path.
         return WhisperTokenStripper.strip(gate.keptText)

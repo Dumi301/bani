@@ -2810,6 +2810,38 @@
         }
       }
     },
+    "settings.transcriptionLanguage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcription language"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limba transcrierii"
+          }
+        }
+      }
+    },
+    "settings.transcriptionLanguage.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto detects Romanian or English for each recording. Pick a language to force it if detection ever gets it wrong."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto detectează româna sau engleza pentru fiecare înregistrare. Alege o limbă pentru a o forța dacă detectarea greșește."
+          }
+        }
+      }
+    },
     "timeframe.custom": {
       "localizations": {
         "en": {
@@ -2886,6 +2918,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "An"
+          }
+        }
+      }
+    },
+    "transcription.auto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto (RO/EN)"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automat (RO/EN)"
           }
         }
       }

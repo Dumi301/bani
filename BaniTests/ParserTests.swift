@@ -92,6 +92,121 @@ final class ParserTests: XCTestCase {
             expectedAmount: Decimal(string: "12.50"),
             expectedCurrency: .ron,
             expectedKeyword: "cafea"
+        ),
+
+        // MARK: - B: large-amount parsing
+
+        Case(
+            name: "RO thousands dot — the reported bug (25.000 → 25000)",
+            input: "25.000 lei chirie",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: "chirie"
+        ),
+        Case(
+            name: "EN thousands comma (25,000 → 25000)",
+            input: "25,000 lei",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "spaced thousands group (25 000 → 25000, kills adjacency-0 trap)",
+            input: "25 000 de lei",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "RO decimal with thousands dot (1.234,56 → 1234.56)",
+            input: "1.234,56 lei",
+            expectedAmount: Decimal(string: "1234.56"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "EN decimal with thousands comma (1,234.56 → 1234.56)",
+            input: "1,234.56 euro",
+            expectedAmount: Decimal(string: "1234.56"),
+            expectedCurrency: .eur,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "decimal dot regression (12.5 → 12.5)",
+            input: "12.5 euro",
+            expectedAmount: Decimal(string: "12.5"),
+            expectedCurrency: .eur,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "single thousands dot (1.000 → 1000)",
+            input: "1.000 lei",
+            expectedAmount: Decimal(string: "1000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "multiple thousands groups (1.234.567 → 1234567)",
+            input: "1.234.567 lei",
+            expectedAmount: Decimal(string: "1234567"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "RO spelled thousands (douăzeci și cinci de mii → 25000)",
+            input: "douăzeci și cinci de mii de lei avans",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: "avans"
+        ),
+        Case(
+            name: "RO spelled 'o mie' (→ 1000)",
+            input: "o mie de lei",
+            expectedAmount: Decimal(string: "1000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "RO spelled millions (două milioane → 2000000)",
+            input: "două milioane lei",
+            expectedAmount: Decimal(string: "2000000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "hybrid digit + 'de mii' (25 de mii → 25000)",
+            input: "25 de mii de lei",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "hybrid decimal digit + millions (2,5 milioane → 2500000)",
+            input: "2,5 milioane de lei",
+            expectedAmount: Decimal(string: "2500000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "EN spelled thousands (twenty five thousand → 25000)",
+            input: "twenty five thousand lei",
+            expectedAmount: Decimal(string: "25000"),
+            expectedCurrency: .ron,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "EN spelled 'a million' (→ 1000000)",
+            input: "a million euro",
+            expectedAmount: Decimal(string: "1000000"),
+            expectedCurrency: .eur,
+            expectedKeyword: nil
+        ),
+        Case(
+            name: "B4 guardrail — >100M rejected (nil amount, stays in edit mode)",
+            input: "200000000 lei",
+            expectedAmount: nil,
+            expectedCurrency: .ron,
+            expectedKeyword: nil
         )
     ]
 

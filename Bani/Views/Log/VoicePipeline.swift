@@ -89,7 +89,9 @@ func runVoicePipeline(
     // A1: clean the raw transcript before parsing. If refinement leaves nothing
     // meaningful (recording was only non-speech artifacts), route to the SAME
     // no-speech error path — never a blank card, never an invented amount.
-    let refined = await refine(transcript)
+    // A2: the script guard then rejects a refined transcript whose dominant
+    // script is non-Latin (a Cyrillic mistranscription) via the same path.
+    let refined = ScriptGuard.apply(await refine(transcript))
     guard refined.hadContent else {
         return VoicePipelineResult(
             parsed: ParsedTransaction(amount: nil, descriptionText: ""),

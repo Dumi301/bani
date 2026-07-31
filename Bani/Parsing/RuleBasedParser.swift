@@ -91,6 +91,15 @@ struct RuleBasedParser: TransactionParsing {
             currency = .ron
         }
 
+        // B4 guardrail: an amount above 100,000,000 is almost certainly a mishear
+        // (a stray thousands/millions multiplier stacking up). Reject it — leave
+        // `amount` nil so the card opens in edit mode — but KEEP the number token
+        // in the description so the rejected value stays visible in the card and
+        // the "Last voice session" forensics row (never silently saved).
+        if let span = selectedSpan, span.value > amountGuardrailMax {
+            selectedSpan = nil
+        }
+
         var removedIndices = Set<Int>()
         if let span = selectedSpan {
             removedIndices.formUnion(span.range)
@@ -125,24 +134,126 @@ struct RuleBasedParser: TransactionParsing {
         s.folding(options: .diacriticInsensitive, locale: Locale(identifier: "ro_RO")).lowercased()
     }
 
-    // MARK: - Digit-based numbers ("12", "12,50", "12.50")
+    // MARK: - Digit-based numbers ("12", "12,50", "12.50", "25.000", "25 000", "3 mii")
 
+    /// `en_US_POSIX` so `Decimal(string:)` always reads "." as the decimal point,
+    /// regardless of the device locale.
+    private static let posix = Locale(identifier: "en_US_POSIX")
+
+    /// B4: reject parsed amounts strictly above this as almost-certain misheard
+    /// noise (RON/EUR cash logging never legitimately exceeds 100 million).
+    private static let amountGuardrailMax = Decimal(100_000_000)
+
+    /// Builds digit-based number spans, each of which may cover MORE than one
+    /// token: spaced thousands groups ("25 000" → 25000, B2) and a trailing
+    /// multiplier word ("3 mii" → 3000, "2,5 milioane" → 2500000, B3) fold into a
+    /// single span so the whole run leaves the description together.
     private static func digitNumberSpans(_ tokens: [Token]) -> [NumberSpan] {
         var spans: [NumberSpan] = []
-        for (index, token) in tokens.enumerated() {
-            if let value = digitValue(token.clean) {
-                spans.append(NumberSpan(range: index..<(index + 1), value: value))
+        var index = 0
+        while index < tokens.count {
+            guard let base = digitValue(tokens[index].clean) else {
+                index += 1
+                continue
             }
+            var end = index + 1
+            var value = base
+
+            // B2: spaced digit grouping — absorb following pure-3-digit tokens
+            // ("25 000", "1 234 567") into one number, but only when THIS token is
+            // itself a plain integer (no separators, so "2,5 000" never merges).
+            if isPureDigits(tokens[index].clean) {
+                var digits = tokens[index].clean
+                while end < tokens.count,
+                      isPureDigits(tokens[end].clean),
+                      tokens[end].clean.count == 3 {
+                    digits += tokens[end].clean
+                    end += 1
+                }
+                if end > index + 1 {
+                    value = Decimal(string: digits, locale: posix) ?? value
+                }
+            }
+
+            // B3: hybrid digit + multiplier word ("3 mii", "25 de mii",
+            // "2,5 milioane", "1.5 million"). An optional connective "de" may sit
+            // between the digits and the scale word; both join the span.
+            if end < tokens.count, tokens[end].norm == deWord,
+               end + 1 < tokens.count, let scale = multiplier(tokens[end + 1].norm) {
+                value *= Decimal(scale)
+                end += 2
+            } else if end < tokens.count, let scale = multiplier(tokens[end].norm) {
+                value *= Decimal(scale)
+                end += 1
+            }
+
+            spans.append(NumberSpan(range: index..<end, value: value))
+            index = end
         }
         return spans
     }
 
+    private static func isPureDigits(_ s: String) -> Bool {
+        !s.isEmpty && s.allSatisfy(\.isNumber)
+    }
+
+    /// Converts a single numeric token to a `Decimal`, disambiguating "." / ","
+    /// as decimal marks vs thousands separators (B1). Romanian speech-to-text
+    /// writes thousands with a dot ("25.000"), so a naive comma→dot swap is wrong.
     private static func digitValue(_ clean: String) -> Decimal? {
         guard !clean.isEmpty else { return nil }
         guard clean.contains(where: { $0.isNumber }) else { return nil }
         guard clean.allSatisfy({ $0.isNumber || $0 == "," || $0 == "." }) else { return nil }
-        let normalized = clean.replacingOccurrences(of: ",", with: ".")
-        return Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX"))
+
+        let hasDot = clean.contains(".")
+        let hasComma = clean.contains(",")
+
+        // Plain integer — no separators.
+        if !hasDot && !hasComma {
+            return Decimal(string: clean, locale: posix)
+        }
+
+        // B1a: BOTH separators present → the LAST one (by position) is the decimal
+        // mark; every other separator is thousands grouping and is stripped.
+        // "1.234,56" → 1234.56 · "1,234.56" → 1234.56
+        if hasDot && hasComma {
+            let decimalIsDot = clean.lastIndex(of: ".")! > clean.lastIndex(of: ",")!
+            let thousands: Character = decimalIsDot ? "," : "."
+            var s = clean
+            s.removeAll { $0 == thousands }
+            if !decimalIsDot { s = s.replacingOccurrences(of: ",", with: ".") }
+            return Decimal(string: s, locale: posix)
+        }
+
+        // Single separator kind.
+        let sep: Character = hasDot ? "." : ","
+        let occurrences = clean.reduce(into: 0) { if $1 == sep { $0 += 1 } }
+
+        // B1d: multiple identical separators → thousands grouping ("1.234.567").
+        if occurrences > 1 {
+            var s = clean; s.removeAll { $0 == sep }
+            return Decimal(string: s, locale: posix)
+        }
+
+        // Exactly one separator — decide by the length of the trailing group.
+        let parts = clean.split(separator: sep, omittingEmptySubsequences: false)
+        let afterCount = parts.count == 2 ? parts[1].count : 0
+        switch afterCount {
+        case 3:
+            // B1b: exactly 3 trailing digits → thousands ("25.000" → 25000,
+            // "1.000" → 1000). RON/EUR amounts never carry exactly 3 decimals.
+            var s = clean; s.removeAll { $0 == sep }
+            return Decimal(string: s, locale: posix)
+        case 1, 2:
+            // B1c: 1–2 trailing digits → decimal separator ("12,50", "12.5").
+            return Decimal(string: clean.replacingOccurrences(of: String(sep), with: "."), locale: posix)
+        default:
+            // B1d: malformed grouping (≥4 or 0 trailing digits, e.g. "12.3456") →
+            // best-effort plain digits, separators stripped; never nil-out an
+            // obviously numeric token.
+            var s = clean; s.removeAll { $0 == sep }
+            return Decimal(string: s, locale: posix)
+        }
     }
 
     // MARK: - Spelled numbers (RO + EN, 1...999) — parsed only when no digits are present
@@ -186,11 +297,26 @@ struct RuleBasedParser: TransactionParsing {
 
     /// "sută" / "sute" (RO) and "hundred" (EN) — the diacritic-folded, lowercased forms.
     private static let hundredWords: Set<String> = ["suta", "sute", "hundred"]
-    /// "o" (RO) / "a" / "an" (EN) count as 1 ONLY immediately before a hundred word
-    /// (e.g. "o sută", "a hundred") — never as a standalone number, since these are
-    /// common articles that otherwise appear constantly in ordinary speech.
-    private static let articleOneWords: Set<String> = ["o", "a", "an"]
+    /// "o" / "un" (RO) / "a" / "an" (EN) count as 1 ONLY immediately before a
+    /// hundred or a scale word (e.g. "o sută", "o mie", "un milion", "a hundred",
+    /// "a million") — never as a standalone number, since these are common
+    /// articles that otherwise appear constantly in ordinary speech.
+    private static let articleOneWords: Set<String> = ["o", "un", "a", "an"]
     private static let connectorWords: Set<String> = ["si", "and"]
+    /// The Romanian connective "de" that links a number to a scale/currency word
+    /// ("douăzeci de mii", "25 de lei").
+    private static let deWord = "de"
+
+    /// Scale multiplier words — thousands and millions, RO + EN (B3).
+    private static let thousandWords: Set<String> = ["mie", "mii", "thousand", "thousands"]
+    private static let millionWords: Set<String> = ["milion", "milioane", "million", "millions"]
+
+    /// The multiplier a scale word applies, or `nil` if the token is not a scale word.
+    private static func multiplier(_ norm: String) -> Int? {
+        if thousandWords.contains(norm) { return 1_000 }
+        if millionWords.contains(norm) { return 1_000_000 }
+        return nil
+    }
 
     private static func spelledNumberSpans(_ tokens: [Token]) -> [NumberSpan] {
         var spans: [NumberSpan] = []
@@ -206,70 +332,67 @@ struct RuleBasedParser: TransactionParsing {
         return spans
     }
 
-    /// Greedy grammar: `[hundredPart] [connector] (tensPart [connector] onesPart | teenPart | onesPart)`.
-    /// Handles "douăzeci"=20, "cinci sute"=500, "o sută cincizeci"=150, "a hundred fifty"=150.
+    /// Scale-aware left-to-right accumulator over spelled number words. Builds a
+    /// running group value (ones/teens/tens/hundreds → 0…999) and flushes it into
+    /// `total` whenever a scale word (mie/mii=×1000, milion/milioane=×1,000,000)
+    /// is reached, so it handles both the small cases ("douăzeci"=20, "cinci
+    /// sute"=500, "a hundred fifty"=150) and the large ones ("douăzeci și cinci de
+    /// mii"=25000, "un milion două sute de mii"=1200000, "a million"=1000000).
+    /// Connectives "și"/"and"/"de" are consumed only when a number/scale word
+    /// follows, so a trailing "de lei" / "and …" is left for the currency/remainder.
     private static func parseSpelledNumber(_ tokens: [Token], at start: Int) -> (value: Int, consumed: Int)? {
         var index = start
-        var total = 0
+        var total = 0        // accumulated value with scales applied
+        var current = 0      // the in-progress group (0…999)
         var consumed = 0
+        var sawNumberWord = false
 
-        // Hundred part.
-        if index + 1 < tokens.count,
-           let onesValue = onesWords[tokens[index].norm],
-           hundredWords.contains(tokens[index + 1].norm) {
-            total += onesValue * 100
-            index += 2
-            consumed += 2
-        } else if index + 1 < tokens.count,
-                  articleOneWords.contains(tokens[index].norm),
-                  hundredWords.contains(tokens[index + 1].norm) {
-            total += 100
-            index += 2
-            consumed += 2
-        } else if hundredWords.contains(tokens[index].norm) {
-            total += 100
-            index += 1
-            consumed += 1
-        }
+        loop: while index < tokens.count {
+            let norm = tokens[index].norm
 
-        // Optional connector ("și"/"and") between hundred part and what follows.
-        if consumed > 0, index < tokens.count, connectorWords.contains(tokens[index].norm),
-           index + 1 < tokens.count,
-           tensWords[tokens[index + 1].norm] != nil
-               || teenWords[tokens[index + 1].norm] != nil
-               || onesWords[tokens[index + 1].norm] != nil {
-            index += 1
-            consumed += 1
-        }
-
-        // Tens / teen / ones part.
-        if index < tokens.count, let tensValue = tensWords[tokens[index].norm] {
-            total += tensValue
-            index += 1
-            consumed += 1
-
-            var lookahead = index
-            if lookahead < tokens.count, connectorWords.contains(tokens[lookahead].norm),
-               lookahead + 1 < tokens.count, onesWords[tokens[lookahead + 1].norm] != nil {
-                lookahead += 1
+            if let ones = onesWords[norm] {
+                current += ones
+            } else if let teen = teenWords[norm] {
+                current += teen
+            } else if let tens = tensWords[norm] {
+                current += tens
+            } else if hundredWords.contains(norm) {
+                current = (current == 0 ? 1 : current) * 100
+            } else if let scale = multiplier(norm) {
+                total += (current == 0 ? 1 : current) * scale
+                current = 0
+            } else if articleOneWords.contains(norm),
+                      index + 1 < tokens.count,
+                      hundredWords.contains(tokens[index + 1].norm) || multiplier(tokens[index + 1].norm) != nil {
+                // "o"/"un"/"a"/"an" == 1, only right before a hundred or scale word.
+                current += 1
+            } else if connectorWords.contains(norm) || norm == deWord {
+                // Connective — consume ONLY when a number/scale word follows.
+                guard index + 1 < tokens.count else { break loop }
+                let next = tokens[index + 1].norm
+                let numberFollows = onesWords[next] != nil || teenWords[next] != nil
+                    || tensWords[next] != nil || hundredWords.contains(next)
+                    || multiplier(next) != nil || articleOneWords.contains(next)
+                if norm == deWord {
+                    // "de" only bridges to a scale word ("de mii"); "de lei" breaks.
+                    guard multiplier(next) != nil else { break loop }
+                } else {
+                    guard numberFollows else { break loop }
+                }
+                index += 1
+                consumed += 1
+                continue loop   // connective consumed; not itself a number word
+            } else {
+                break loop
             }
-            if lookahead < tokens.count, let onesValue = onesWords[tokens[lookahead].norm] {
-                total += onesValue
-                consumed += (lookahead - index) + 1
-                index = lookahead + 1
-            }
-        } else if index < tokens.count, let teenValue = teenWords[tokens[index].norm] {
-            total += teenValue
+
             index += 1
             consumed += 1
-        } else if index < tokens.count, let onesValue = onesWords[tokens[index].norm] {
-            total += onesValue
-            index += 1
-            consumed += 1
+            sawNumberWord = true
         }
 
-        guard consumed > 0 else { return nil }
-        return (total, consumed)
+        guard sawNumberWord else { return nil }
+        return (total + current, consumed)
     }
 
     // MARK: - Currency words

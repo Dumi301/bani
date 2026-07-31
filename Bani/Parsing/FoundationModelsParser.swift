@@ -34,9 +34,13 @@ struct FoundationModelsParser: TransactionParsing {
                 Common Romanian finance phrasing includes amounts followed by a \
                 currency word, e.g. "50 de lei benzină", "douăzeci de euro taxi", \
                 "12,50 lei cafea". Extract:
-                - amount: the numeric amount spent, if one is stated. Never guess or \
-                invent an amount — if no amount is mentioned anywhere in the text, \
-                leave it unset.
+                - amount: the numeric amount spent, if one is stated. Romanian \
+                writes thousands with a dot and the decimal with a comma, so \
+                "25.000" means 25000 (twenty-five thousand) while "12,50" means \
+                12.50; "25 000", "25 de mii", and "douăzeci și cinci de mii" all \
+                mean 25000, and "milion"/"milioane" mean millions ("două milioane" \
+                = 2000000). Never guess or invent an amount — if no amount is \
+                mentioned anywhere in the text, leave it unset.
                 - currencyCode: "RON" if the text mentions "lei", "de lei", or "ron"; \
                 "EUR" if it mentions "euro", "eur", or "€"; otherwise leave it empty.
                 - descriptionText: what was purchased, i.e. the remaining text with the \

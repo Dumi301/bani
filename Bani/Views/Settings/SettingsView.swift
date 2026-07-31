@@ -12,6 +12,9 @@ struct SettingsView: View {
     @AppStorage("appearanceMode") private var appearanceRaw: String = AppearanceMode.system.rawValue
     /// In-app language override (B2).
     @AppStorage("appLanguage") private var appLanguageRaw: String = AppLanguage.system.rawValue
+    /// Transcription-language override (A1). Auto = constrained RO/EN detection;
+    /// non-Auto forces the Whisper decoder language.
+    @AppStorage(TranscriptionLanguage.storageKey) private var transcriptionLanguageRaw: String = TranscriptionLanguage.auto.rawValue
     /// Auto-save countdown length for the confirmation card, in seconds (2–8).
     /// `ConfirmationCard` reads the same key; default 4 s.
     @AppStorage("confirmationDuration") private var confirmationDuration: Double = ConfirmationCard.defaultAutoSaveDelay
@@ -57,6 +60,15 @@ struct SettingsView: View {
         )
     }
 
+    /// Transcription language (A1). Setting it persists the choice; the next
+    /// recording reads `TranscriptionLanguage.active` in `WhisperService`.
+    private var transcriptionLanguage: Binding<TranscriptionLanguage> {
+        Binding(
+            get: { TranscriptionLanguage(rawValue: transcriptionLanguageRaw) ?? .auto },
+            set: { transcriptionLanguageRaw = $0.rawValue }
+        )
+    }
+
     /// Selected transcription model (B). Setting it routes through
     /// `WhisperService.select`, which downloads the chosen variant if needed.
     private var modelVariant: Binding<WhisperModelVariant> {
@@ -86,6 +98,14 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .listRowBackground(Palette.surface)
 
+                    Picker("settings.transcriptionLanguage", selection: transcriptionLanguage) {
+                        ForEach(TranscriptionLanguage.allCases) { lang in
+                            Text(lang.label).tag(lang)
+                        }
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.transcriptionLanguagePicker")
+
                     modelStatusRow
                         .accessibilityIdentifier("settings.modelStatusRow")
 
@@ -113,6 +133,7 @@ struct SettingsView: View {
                 } footer: {
                     VStack(alignment: .leading, spacing: metrics.elementSpacing) {
                         Text("Medium hears Romanian more accurately but is a larger download. Switching models downloads the chosen one if you don't already have it — manual entry works throughout.")
+                        Text("settings.transcriptionLanguage.footer")
                         Text("How long the confirmation card waits before auto-saving. Tap the card to pause and edit.")
                     }
                     .foregroundStyle(Palette.secondaryInk)
