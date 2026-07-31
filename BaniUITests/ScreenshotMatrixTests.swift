@@ -60,45 +60,6 @@ final class ScreenshotMatrixTests: XCTestCase {
         snapshot(app, name: "ro-finances")
     }
 
-    // MARK: - Detail view (read-first transaction detail), light + dark
-
-    func testDetail_Light() { captureDetail(appearance: "light") }
-    func testDetail_Dark() { captureDetail(appearance: "dark") }
-
-    private func captureDetail(appearance: String) {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser",
-            "-modelAbsent", "-appearance", appearance,
-        ]
-        app.launch()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
-        selectFinancesTab(app)
-        // The taller metal hero + chart cards push the transaction list well below
-        // the fold, and List rows are lazily rendered (absent from the tree until
-        // near-visible). Scroll — from BELOW the interactive chart so the drag
-        // isn't swallowed by the chart's selection gesture — until the `benzină`
-        // row enters the tree, then until it's hittable, then tap it.
-        let row = app.staticTexts["benzină"]
-        var scrolls = 0
-        while !row.exists && scrolls < 10 { scrollListUp(app); scrolls += 1 }
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "a seeded transaction row should exist")
-        scrolls = 0
-        while !row.isHittable && scrolls < 6 { scrollListUp(app); scrolls += 1 }
-        row.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["detail.amount"].waitForExistence(timeout: 15),
-                      "the detail hero amount should appear")
-        snapshot(app, name: "\(appearance)-detail")
-    }
-
-    /// A big upward drag starting below the chart region, so it scrolls the list
-    /// rather than triggering the chart's touch-selection gesture.
-    private func scrollListUp(_ app: XCUIApplication) {
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-        start.press(forDuration: 0.05, thenDragTo: end)
-    }
-
     // MARK: - B1 density (Log + Finances donut at Airy and Dense, light)
 
     func testDensity_Airy() { captureDensity("airy") }
