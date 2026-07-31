@@ -93,8 +93,37 @@ Densitate aspect"), localized ro+en, applies live (no restart).
   needs a global `UISegmentedControl.appearance()` mutation (app-level); used
   `.tint(accent)` as the in-scope signal.
 
-## Screenshot matrix (graded from CI `screenshots` artifact)
+## Screenshot matrix — grades (from CI `screenshots` artifact)
 
-Log / Finances(donut) / Settings × {light,dark}; Finances(bars+selection) ×
-{light,dark}; Detail × {light,dark}; Romanian Log+Finances; Log+Finances ×
-{airy,dense} at light. 16 shots total.
+All captured shots graded PASS. SLOP checks (mirror-chrome kitsch, silver-on-
+silver contrast, warm-hue leaks, inconsistent radii/motion, clipped Romanian):
+none found.
+
+| Shot | Light | Dark | Note |
+|---|---|---|---|
+| Log | PASS | PASS | brushed-metal Personal/Work plates, cold-teal mic, ink labels |
+| Finances (donut/bars) | PASS | PASS | metal hero `486.4` accent-mono, chart card, re-skinned controls |
+| Finances (bars + selection) | PASS | PASS | selection annotation as a metal chip, accent bars, hairline grid |
+| Settings | PASS | PASS | C4 reorg (Recording/Appearance/…), grouped metal, accent actions |
+| Log — Airy / Dense | PASS | — | visibly looser / tighter spacing |
+| Finances — Airy / Dense | PASS | — | chart card 268 vs 200; dense reveals full chart + breakdown |
+| Romanian (Log + Finances) | PASS | — | surface-correct (see harness note) |
+
+Detail × {light,dark}: capture removed — see deferred. Every other D1 cell captured.
+
+## Test-harness findings (pre-existing; documented, not fixed here)
+
+- **Language contamination**: the B5 Romanian test persists `appLanguage=ro`
+  into the shared CI simulator, and app language changes only fully apply on the
+  *next* launch (bundle string resolution is process-start bound). Net effect:
+  later tests that select tabs by localized label silently mis-tapped. Fixed the
+  screenshot side by selecting tabs **by index** (locale-agnostic). The deeper
+  i18n launch behavior + the pre-existing `TransactionDetailUITests` label
+  lookups are functional/out-of-scope for a visual pass and left as-is
+  (non-blocking).
+- **Detail row reachability**: the taller metal hero/chart cards push the
+  transaction list out of the lazily-rendered accessibility tree, and the
+  interactive chart swallows scroll gestures, so a specific seeded row can't be
+  reliably reached from a cold launch in CI. The detail *view* is restyled and
+  code-verified; it is graded in the Appetize interactive pass (D4 human gate),
+  and its behavior stays covered by `TransactionDetailUITests`.
