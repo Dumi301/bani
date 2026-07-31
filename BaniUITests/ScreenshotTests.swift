@@ -38,18 +38,15 @@ final class ScreenshotTests: XCTestCase {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
 
-        selectTab(tabBar, "Finances")
+        // Select tabs by INDEX, not localized label — the shared simulator can
+        // carry a non-English language over from an earlier test, which would make
+        // a label lookup ("Finances") silently miss and snapshot the wrong screen.
+        // 0 = Log, 1 = Finances, 2 = Settings (stable across languages).
+        tabBar.buttons.element(boundBy: 1).tap()
         snapshot(app, name: "\(appearance)-finances")
 
-        selectTab(tabBar, "Settings")
+        tabBar.buttons.element(boundBy: 2).tap()
         snapshot(app, name: "\(appearance)-settings")
-    }
-
-    private func selectTab(_ tabBar: XCUIElement, _ label: String) {
-        let button = tabBar.buttons[label]
-        if button.waitForExistence(timeout: 5) {
-            button.tap()
-        }
     }
 
     private func snapshot(_ app: XCUIApplication, name: String) {
