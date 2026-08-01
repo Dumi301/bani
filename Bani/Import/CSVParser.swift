@@ -14,7 +14,11 @@ enum CSVParser {
     /// Parse raw file bytes into a single-sheet `TabularDocument`. The first
     /// non-blank row becomes the header; remaining non-blank rows are data.
     static func parse(data: Data, fileName: String) throws -> TabularDocument {
-        let text = decode(data)
+        // Normalize line endings FIRST. Swift treats "\r\n" as a single Character
+        // (grapheme cluster), so a char-by-char state machine never sees a bare
+        // "\r" or "\n" in a CRLF file (the common Excel export) — collapsing to
+        // "\n" up front makes row splitting reliable.
+        let text = normalizeLineEndings(decode(data))
         guard !text.isEmpty else { throw ImportReadError.emptyFile }
 
         let delimiter = detectDelimiter(text)
@@ -47,6 +51,11 @@ enum CSVParser {
     }
 
     // MARK: - Decoding (BOM aware)
+
+    /// Collapse CRLF and lone CR to LF (see the grapheme-cluster note in `parse`).
+    static func normalizeLineEndings(_ s: String) -> String {
+        s.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    }
 
     static func decode(_ data: Data) -> String {
         // UTF-16 LE / BE BOMs.
@@ -127,12 +136,9 @@ enum CSVParser {
                     inQuotes = true
                 case delimiter:
                     endField()
-                case "\r":
-                    // CR or CRLF terminates the record; swallow a following LF.
-                    endRecord()
-                    let next = text.index(after: i)
-                    if next < text.endIndex, text[next] == "\n" { i = next }
-                case "\n":
+                case "\n", "\r", "\r\n":
+                    // "\r\n" is a single grapheme in Swift; matching it (plus lone
+                    // CR/LF) makes this robust even if called on un-normalized text.
                     endRecord()
                 default:
                     field.append(ch)
