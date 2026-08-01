@@ -74,9 +74,18 @@ enum TransactionCategory: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 /// How a transaction was created.
+///
+/// v1.1 adds ONE case: `imported` (Excel/CSV history import). Migration-safety:
+/// SwiftData persists this `String`-raw `Codable` enum as its `rawValue`, so the
+/// addition only widens the set of *valid* values — it never rewrites the stored
+/// "voice"/"manual" strings existing rows already hold, and decoding those is
+/// unchanged. Same additive discipline as the `customCategoryID` precedent; no
+/// heavyweight migration, existing data untouched (proven in
+/// `ImportModelMigrationTests`).
 enum TransactionSource: String, Codable, CaseIterable, Hashable, Sendable {
     case voice
     case manual
+    case imported
 }
 
 // MARK: - SwiftData model
@@ -102,6 +111,12 @@ final class Transaction {
     var date: Date
     var rawTranscript: String?
     var source: TransactionSource
+    /// v1.1 — the batch an imported row belongs to (`ImportBatch.id`), enabling a
+    /// whole-batch undo. `nil` for every non-imported transaction. A nullable,
+    /// additive field, so this is a lightweight SwiftData migration (mirrors the
+    /// `customCategoryID` precedent); existing rows migrate to `nil` and survive
+    /// untouched. Imported rows carry NO `rawTranscript` (scope guard E).
+    var importBatchID: UUID?
     var createdAt: Date
 
     init(
@@ -116,6 +131,7 @@ final class Transaction {
         date: Date = .now,
         rawTranscript: String? = nil,
         source: TransactionSource,
+        importBatchID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -129,6 +145,7 @@ final class Transaction {
         self.date = date
         self.rawTranscript = rawTranscript
         self.source = source
+        self.importBatchID = importBatchID
         self.createdAt = createdAt
     }
 }

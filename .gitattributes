@@ -6,3 +6,6 @@
 *.png binary
 *.wav binary
 *.ipa binary
+# .xlsx is a zipped OOXML archive — EOL normalization would corrupt the zip
+# (the bundled import test fixture must survive the round-trip byte-for-byte).
+*.xlsx binary

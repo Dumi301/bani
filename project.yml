@@ -17,6 +17,14 @@ packages:
   argmax-oss-swift:
     url: https://github.com/argmaxinc/argmax-oss-swift.git
     branch: main
+  # v1.1 Excel/CSV history import — the ONE documented new-dependency exception.
+  # CoreXLSX reads .xlsx (a zipped OOXML archive) natively in Swift; CSV is parsed
+  # with Foundation only. Pinned to exact 0.14.2 (see build-notes.md for the pin
+  # justification). Adding this package changes project.yml, the CI cache key, so
+  # one cold-cache resolve/build cycle is expected on this run.
+  CoreXLSX:
+    url: https://github.com/CoreOffice/CoreXLSX.git
+    exactVersion: "0.14.2"
 targets:
   Bani:
     type: application
@@ -27,6 +35,8 @@ targets:
     dependencies:
       - package: argmax-oss-swift
         product: WhisperKit
+      - package: CoreXLSX
+        product: CoreXLSX
     settings:
       base:
         GENERATE_INFOPLIST_FILE: "YES"

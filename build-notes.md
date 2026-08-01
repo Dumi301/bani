@@ -1,129 +1,127 @@
-# Build notes — "Cold Metal Banking" UI overhaul
+# Build notes — v1.1 Workstream 1: Excel/CSV history import
 
-Visual/UX-only overhaul. Zero behavior, data, learning-logic, or navigation
-changes. One central design system (`Bani/Theme/DesignSystem.swift`) + a retuned
-asset catalog drive the whole app; surface views consume tokens only.
+Adds a self-contained import module (`Bani/Import/` + `Bani/Views/Settings/Import/`)
+that lets the client pick a years-long Excel/CSV expense file, map columns once,
+preview, import thousands of rows in the background, and undo the whole batch.
+Minimal diff outside the new module; the only refactor is the AmountLexer
+extraction; frozen seams stay frozen except the two documented additions.
 
-## Palette (asset catalog — Any + Dark, retuned in place)
+## CoreXLSX dependency — the one sanctioned new dependency
 
-Old warm paper/ink palette **retired by re-tuning the same colorsets** (no
-renames, so no orphan references possible; every colorset is still referenced).
+**Pinned exactly `0.14.2`** (`exactVersion` in `project.yml`). Why this version:
+- `0.14.2` (2023-03) is the **latest** CoreXLSX release — no newer tag exists.
+- It is the first/only line exposing BOTH `XLSXFile(data:)` (read from the picked
+  file's bytes, no temp file) AND `Cell.dateValue` (OLE-serial → `Date`), the two
+  APIs the importer needs.
+- Transitive deps are old but pure-Swift and build in their own Swift-5 language
+  mode (`swift-tools-version:5.1`), so they raise **no strict-concurrency errors**
+  in our Swift-6 target: XMLCoder `.upToNextMinor(0.14.0)`, ZIPFoundation
+  `.upToNextMinor(0.9.11)`.
+- **Exact pin** (not `from:`) because the resolver has no `Package.resolved`
+  committed (branch-pinned WhisperKit) — `project.yml` is the CI cache key, and an
+  exact pin keeps the xlsx dependency from silently drifting between runs.
 
-| Asset | Role | Light (polished silver) | Dark (titanium black) |
-|---|---|---|---|
-| `BaniCanvas` | app background | near-white silver | deep graphite |
-| `BaniSurface` | brushed-steel plates | darker brushed steel | titanium gray (lifts) |
-| `BaniInk` | primary text | crisp cool near-black | off-white |
-| `BaniSecondaryInk` | secondary text | cool gray | cool gray |
-| `BaniHairline` | borders / dividers | cooler-than-surface line | subtle graphite line |
-| `BaniAccent` | **money / actions / record / positive** | cold electric green-teal (deep) | electric terminal green |
-| `BaniTagPersonal` | Personal tag | steel blue | steel blue |
-| `BaniTagWork` | Work tag | gunmetal amber | gunmetal amber |
-| `BaniCat*` (9) · `BaniCustom*` (8) | category hues | cool-shifted, one cold family | brighter cold family |
+CSV is parsed with **Foundation only** (`CSVParser`) — no dependency: quoted
+fields with embedded delimiters/newlines/`""` escapes, `,`/`;`/tab auto-detected
+from the header line, UTF-8 + UTF-16(LE/BE) BOM, CRLF/LF/CR endings.
 
-Metal effect is built **in code, from the asset colors** (never literal RGB):
-`MetalSurface` fills with `BaniSurface`, overlays a 3-stop low-delta vertical
-luminance gradient (white top / clear mid / black bottom), adds a hairline
-top-edge glint and a `BaniHairline` border. Brushed, not mirror-chrome; no image
-assets. One intentional non-asset color exists app-wide: the confirmation card's
-modal scrim (`Color.black.opacity(0.3)`), the platform-standard backdrop dim.
+`project.yml` changed → **CI cache key changed → one cold-cache resolve/build
+cycle is expected** on this run (intended, not a regression). `.gitattributes`
+gains `*.xlsx binary` so the bundled test fixture survives the LF-normalization
+round-trip byte-for-byte.
 
-## Contrast (WCAG, computed from the shipped colorsets)
+## Frozen-seam additions — migration-safety check (both PASS)
 
-**Every text/surface pairing clears 4.5:1 in BOTH modes** (worst = 5.07:1).
+Two documented additions to the frozen `Transaction`, mirroring the
+`customCategoryID` precedent, proven by `ImportModelMigrationTests`:
 
-| Pairing | Light | Dark |
-|---|---|---|
-| Ink on Canvas | 15.73:1 | 15.62:1 |
-| Ink on Surface | 14.07:1 | 13.60:1 |
-| SecondaryInk on Canvas | 5.96:1 | 7.74:1 |
-| SecondaryInk on Surface | 5.33:1 | 6.74:1 |
-| Accent on Canvas | 5.66:1 | 10.18:1 |
-| Accent on Surface | 5.07:1 | 8.86:1 |
-| TagPersonal on Canvas | 6.19:1 | 8.13:1 |
-| TagPersonal on Surface | 5.54:1 | 7.08:1 |
-| TagWork on Canvas | 5.69:1 | 9.21:1 |
-| TagWork on Surface | 5.09:1 | 8.02:1 |
+1. **`TransactionSource` gains `.imported`.** SwiftData persists this `String`-raw
+   `Codable` enum **as its rawValue**, so the addition only widens the set of
+   *valid* values — it never rewrites the `"voice"`/`"manual"` strings existing
+   rows hold, and those still decode unchanged (`testSourceEnumRawValuesStable`).
+2. **`Transaction.importBatchID: UUID?`** — a nullable, additive scalar (NOT a
+   relationship), so existing rows migrate to `nil` and are untouched; a container
+   declaring only `Transaction.self` still persists it (`SmokeTests` unchanged).
+3. **New entity `ImportBatch`** (id, fileName, importedAt, rowCount, skippedCount,
+   contextChoice, notes) — a separate additive `@Model`, same lightweight
+   migration as `CustomCategory`. Registered in `BaniApp`'s container via the
+   controlled orchestrator edit. `testAdditiveFieldsCoexist` proves legacy +
+   imported rows + a batch record coexist with no data loss.
 
-Category/custom hues are **graphical** (donut/bars/icon tints, not body text):
-min contrast vs canvas is **light 3.73:1 / dark 7.30:1** — clears the 3:1
-graphical bar in both modes.
+## AmountLexer extraction — the one allowed refactor
 
-## The `.rounded` decision
+The separator-disambiguation core moved **verbatim** from
+`RuleBasedParser.digitValue` into `AmountLexer.value(forDigitToken:)` (plus
+`isPureDigits`, `posix`). `RuleBasedParser` now calls into it — behavior is
+byte-for-byte identical, so the `ParserTests` table stays green (regression), and
+the parser + the import now share ONE decimal/thousands disambiguator.
+`AmountLexer.parseCell` adds the import-only front end: strips a currency
+word/symbol and internal (space-grouped) separators, and reads negativity from a
+leading minus / Unicode-minus / accounting parentheses, returning a non-negative
+magnitude + a sign flag. Touched files: `RuleBasedParser.swift` (delegation only),
+new `AmountLexer.swift`; nothing else.
 
-**Dropped app-wide.** SF Rounded is retired in favor of default SF for the
-colder, more precise feel; money keeps monospaced digits (`Typography.amount` /
-`.heroAmount`). Zero `design: .rounded` remain in the codebase.
+## Header auto-guess table (RO + EN, diacritic-folded via `Categorizer.normalize`)
 
-## Density token table (B1 — `DesignScale`, live via `@AppStorage("designScale")`)
+Guesses pre-select but never lock — the user overrides every one. Fields assigned
+in priority order; a column is never double-claimed.
 
-| Dimension | Airy | Balanced (default) | Dense |
-|---|---|---|---|
-| screenPadding | 24 | 20 | 16 |
-| sectionSpacing | 26 | 18 | 11 |
-| cardPadding | 22 | 16 | 12 |
-| rowVInset | 11 | 6 | 3 |
-| rowSpacing | 15 | 10 | 6 |
-| elementSpacing | 13 | 9 | 6 |
-| chartCardHeight | 268 | 232 | 200 |
-| secondaryTextScale | 1.06 | 1.00 | 0.92 |
+| Bani field | Matched header keywords (normalized) |
+|---|---|
+| date (required) | data, date, ziua, perioada |
+| amount (required) | suma, valoare, amount, total, value, pret, cost, cheltuiala, debit |
+| description (required) | descriere, detalii, description, denumire, explicatie, comentariu, comment, note, detail, beneficiar, furnizor |
+| category | categorie, category, categ |
+| currency | moneda, valuta, currency, deviza, curr |
+| context | context, type |
 
-Invariants that **never** shrink: hero amount font (size-fixed 44 bold mono) and
-`minTapTarget = 44`. Strict monotonic ordering + distinctness enforced by
-`DensityTokensTests`. Setting lives in Settings → Appearance ("Layout density /
-Densitate aspect"), localized ro+en, applies live (no restart).
+Category-column *values* match preset display names (RO + EN) + enum raw values +
+custom category names, all folded (`CategoryMatcher`): e.g. Alimente/Groceries →
+groceries, Combustibil/Benzina/Fuel → fuel, Utilitati → utilities. Unmatched
+values go to a per-value screen (map / create custom / leave uncategorized).
 
-## Motion spec (unified, named constants)
+Date format is detected from samples: ISO (`yyyy-MM-dd`), day-first dot
+(`dd.MM.yyyy`, Romanian reality), or slash — with a **day/month ambiguity flag**:
+if every slash date has both leading numbers ≤ 12 the order is unknowable, so the
+wizard forces an explicit choice **defaulting to day-first**; a component > 12
+resolves it automatically. `.xlsx` date-formatted numeric cells resolve to real
+serial dates via CoreXLSX styles. Rows lacking a time land at **12:00**.
 
-`Motion.spring` (0.32/0.88), `.snappy` (0.24/0.90 — taps/press), `.chart`
-(0.38/0.90), `.card` (0.36/0.86). All ad-hoc springs/eases replaced.
+## Dedup guard — batch-level, advisory (D)
 
-## Deferred (logged; stayed visual per the brief)
+Per-row silent dedup is deliberately NOT done (legit duplicate expenses exist).
+Instead, each row is fingerprinted `day + amount + normalized-description`; before
+writing, the incoming fingerprints are compared against every previously-imported
+transaction. If **≥ 80 %** overlap, the wizard warns
+("Looks already imported — import anyway / cancel") — advisory only, the user can
+proceed. `< 80 %` imports silently. (`ImportFingerprint`, threshold `0.80`.)
 
-- **Card(normal)/Card(edit) screenshots** — not automated. Presenting the live
-  `ConfirmationCard` for a shot needs a state-seeding launch seam in the
-  load-bearing Log flow; to stay strictly visual this cycle it is covered by the
-  existing `ConfirmationCardTests` (unit) + the human's interactive Appetize pass
-  (the explicit human gate). The card *is* fully restyled and gets a dimmed
-  backdrop; only the automated shot is deferred.
-- **Recording-view numeric timer** — the brief mentions a monospaced timer, but
-  no elapsed-time state is exposed by `Recorder`; adding one is functional. The
-  waveform is accent-on-metal and labels are mono-ready; the timer is deferred.
-- **Accent-filled segmented selection** — a true accent-filled selected segment
-  needs a global `UISegmentedControl.appearance()` mutation (app-level); used
-  `.tint(accent)` as the in-scope signal.
+## Execution, undo, and scope guards
 
-## Screenshot matrix — grades (from CI `screenshots` artifact)
+- **Background `@ModelActor ImportRunner`**: chunked inserts (200/save), progress
+  ticks, `Task.isCancelled` honored. **Cancel = rollback this run's rows via the
+  batch id** (and any custom categories the run created) — never half-visible.
+  The main `@Query` context sees the writes through SwiftData store propagation;
+  the wizard is a full-screen cover, so the list/charts effectively refresh once.
+- **Undo** (summary + Settings → Import history, per batch): delete all
+  transactions with that `importBatchID` + the batch record, behind a count
+  confirmation.
+- **Scope guards (E)**: imported rows carry **no `rawTranscript`**, feed **no
+  DecisionRecords** (the Categorizer guess at import is a guess, correctable later
+  like any transaction — corrections THEN teach normally), and otherwise
+  participate fully in charts/search/grouping/FX totals.
 
-All captured shots graded PASS. SLOP checks (mirror-chrome kitsch, silver-on-
-silver contrast, warm-hue leaks, inconsistent radii/motion, clipped Romanian):
-none found.
+## Tests
 
-| Shot | Light | Dark | Note |
-|---|---|---|---|
-| Log | PASS | PASS | brushed-metal Personal/Work plates, cold-teal mic, ink labels |
-| Finances (donut/bars) | PASS | PASS | metal hero `486.4` accent-mono, chart card, re-skinned controls |
-| Finances (bars + selection) | PASS | PASS | selection annotation as a metal chip, accent bars, hairline grid |
-| Settings | PASS | PASS | C4 reorg (Recording/Appearance/…), grouped metal, accent actions |
-| Log — Airy / Dense | PASS | — | visibly looser / tighter spacing |
-| Finances — Airy / Dense | PASS | — | chart card 268 vs 200; dense reveals full chart + breakdown |
-| Romanian (Log + Finances) | PASS | — | surface-correct (see harness note) |
+`AmountLexerTests` (+ the `ParserTests` regression), `CSVParserTests`
+(quoted/`;`/BOM/CRLF), `XLSXReaderTests` (bundled `sample.xlsx` — CoreXLSX read +
+serial dates), `HeaderGuessTests` (RO+EN), `DateFieldParserTests` (detection incl.
+ambiguity + noon rule), `CategoryMatcherTests`, `ImportRowParserTests` (skips +
+negatives policy + currency/context), `ImportFingerprintTests` (threshold),
+`ImportBatchTests` (import→undo round-trip, cancel-rollback invariant, create-custom
+decision), `ImportModelMigrationTests`. UI: `ImportWizardUITests` reaches preview
+with the CSV fixture via the `-importUITest` seam (non-blocking screenshots job).
 
-Detail × {light,dark}: capture removed — see deferred. Every other D1 cell captured.
+## Out of scope (logged, moved on)
 
-## Test-harness findings (pre-existing; documented, not fixed here)
-
-- **Language contamination**: the B5 Romanian test persists `appLanguage=ro`
-  into the shared CI simulator, and app language changes only fully apply on the
-  *next* launch (bundle string resolution is process-start bound). Net effect:
-  later tests that select tabs by localized label silently mis-tapped. Fixed the
-  screenshot side by selecting tabs **by index** (locale-agnostic). The deeper
-  i18n launch behavior + the pre-existing `TransactionDetailUITests` label
-  lookups are functional/out-of-scope for a visual pass and left as-is
-  (non-blocking).
-- **Detail row reachability**: the taller metal hero/chart cards push the
-  transaction list out of the lazily-rendered accessibility tree, and the
-  interactive chart swallows scroll gestures, so a specific seeded row can't be
-  reliably reached from a cold launch in CI. The detail *view* is restyled and
-  code-verified; it is graded in the Appetize interactive pass (D4 human gate),
-  and its behavior stays covered by `TransactionDetailUITests`.
+Report exports — next run.

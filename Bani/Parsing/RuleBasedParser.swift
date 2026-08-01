@@ -137,8 +137,8 @@ struct RuleBasedParser: TransactionParsing {
     // MARK: - Digit-based numbers ("12", "12,50", "12.50", "25.000", "25 000", "3 mii")
 
     /// `en_US_POSIX` so `Decimal(string:)` always reads "." as the decimal point,
-    /// regardless of the device locale.
-    private static let posix = Locale(identifier: "en_US_POSIX")
+    /// regardless of the device locale. Shared with the import lexer.
+    private static let posix = AmountLexer.posix
 
     /// B4: reject parsed amounts strictly above this as almost-certain misheard
     /// noise (RON/EUR cash logging never legitimately exceeds 100 million).
@@ -152,7 +152,7 @@ struct RuleBasedParser: TransactionParsing {
         var spans: [NumberSpan] = []
         var index = 0
         while index < tokens.count {
-            guard let base = digitValue(tokens[index].clean) else {
+            guard let base = AmountLexer.value(forDigitToken: tokens[index].clean) else {
                 index += 1
                 continue
             }
@@ -162,10 +162,10 @@ struct RuleBasedParser: TransactionParsing {
             // B2: spaced digit grouping — absorb following pure-3-digit tokens
             // ("25 000", "1 234 567") into one number, but only when THIS token is
             // itself a plain integer (no separators, so "2,5 000" never merges).
-            if isPureDigits(tokens[index].clean) {
+            if AmountLexer.isPureDigits(tokens[index].clean) {
                 var digits = tokens[index].clean
                 while end < tokens.count,
-                      isPureDigits(tokens[end].clean),
+                      AmountLexer.isPureDigits(tokens[end].clean),
                       tokens[end].clean.count == 3 {
                     digits += tokens[end].clean
                     end += 1
@@ -193,68 +193,8 @@ struct RuleBasedParser: TransactionParsing {
         return spans
     }
 
-    private static func isPureDigits(_ s: String) -> Bool {
-        !s.isEmpty && s.allSatisfy(\.isNumber)
-    }
-
-    /// Converts a single numeric token to a `Decimal`, disambiguating "." / ","
-    /// as decimal marks vs thousands separators (B1). Romanian speech-to-text
-    /// writes thousands with a dot ("25.000"), so a naive comma→dot swap is wrong.
-    private static func digitValue(_ clean: String) -> Decimal? {
-        guard !clean.isEmpty else { return nil }
-        guard clean.contains(where: { $0.isNumber }) else { return nil }
-        guard clean.allSatisfy({ $0.isNumber || $0 == "," || $0 == "." }) else { return nil }
-
-        let hasDot = clean.contains(".")
-        let hasComma = clean.contains(",")
-
-        // Plain integer — no separators.
-        if !hasDot && !hasComma {
-            return Decimal(string: clean, locale: posix)
-        }
-
-        // B1a: BOTH separators present → the LAST one (by position) is the decimal
-        // mark; every other separator is thousands grouping and is stripped.
-        // "1.234,56" → 1234.56 · "1,234.56" → 1234.56
-        if hasDot && hasComma {
-            let decimalIsDot = clean.lastIndex(of: ".")! > clean.lastIndex(of: ",")!
-            let thousands: Character = decimalIsDot ? "," : "."
-            var s = clean
-            s.removeAll { $0 == thousands }
-            if !decimalIsDot { s = s.replacingOccurrences(of: ",", with: ".") }
-            return Decimal(string: s, locale: posix)
-        }
-
-        // Single separator kind.
-        let sep: Character = hasDot ? "." : ","
-        let occurrences = clean.reduce(into: 0) { if $1 == sep { $0 += 1 } }
-
-        // B1d: multiple identical separators → thousands grouping ("1.234.567").
-        if occurrences > 1 {
-            var s = clean; s.removeAll { $0 == sep }
-            return Decimal(string: s, locale: posix)
-        }
-
-        // Exactly one separator — decide by the length of the trailing group.
-        let parts = clean.split(separator: sep, omittingEmptySubsequences: false)
-        let afterCount = parts.count == 2 ? parts[1].count : 0
-        switch afterCount {
-        case 3:
-            // B1b: exactly 3 trailing digits → thousands ("25.000" → 25000,
-            // "1.000" → 1000). RON/EUR amounts never carry exactly 3 decimals.
-            var s = clean; s.removeAll { $0 == sep }
-            return Decimal(string: s, locale: posix)
-        case 1, 2:
-            // B1c: 1–2 trailing digits → decimal separator ("12,50", "12.5").
-            return Decimal(string: clean.replacingOccurrences(of: String(sep), with: "."), locale: posix)
-        default:
-            // B1d: malformed grouping (≥4 or 0 trailing digits, e.g. "12.3456") →
-            // best-effort plain digits, separators stripped; never nil-out an
-            // obviously numeric token.
-            var s = clean; s.removeAll { $0 == sep }
-            return Decimal(string: s, locale: posix)
-        }
-    }
+    // The separator-disambiguation core (`digitValue` / `isPureDigits`) now lives
+    // in `AmountLexer` (shared with the Excel/CSV import); this file calls into it.
 
     // MARK: - Spelled numbers (RO + EN, 1...999) — parsed only when no digits are present
 

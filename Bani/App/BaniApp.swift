@@ -42,14 +42,15 @@ struct BaniApp: App {
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
             // CategoryRule + the feedback-ledger entities (DecisionRecord,
-            // ContextRule, CorrectionMemory) + CustomCategory join the schema as
-            // separate, additive entities. `Transaction` gains only the optional
-            // `customCategoryID` field (C1), so this stays a lightweight migration;
-            // existing rows migrate that field to `nil` and are untouched.
+            // ContextRule, CorrectionMemory) + CustomCategory + ImportBatch join
+            // the schema as separate, additive entities. `Transaction` gains only
+            // the optional `customCategoryID` (C1) and `importBatchID` (v1.1)
+            // fields, so this stays a lightweight migration; existing rows migrate
+            // those fields to `nil` and are untouched.
             container = try ModelContainer(
                 for: Transaction.self, CategoryRule.self,
                 DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
-                CustomCategory.self,
+                CustomCategory.self, ImportBatch.self,
                 configurations: config
             )
         } catch {

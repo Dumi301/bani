@@ -33,6 +33,10 @@ struct SettingsView: View {
     /// so the choice applies live across every surface.
     @AppStorage("designScale") private var designScaleRaw: String = DesignScale.balanced.rawValue
 
+    /// UI-test seam: `-importUITest` auto-presents the import wizard so the flow can
+    /// be exercised without driving the system document picker.
+    @State private var autoPresentImport = ProcessInfo.processInfo.arguments.contains("-importUITest")
+
     private var appearance: Binding<AppearanceMode> {
         Binding(
             get: { AppearanceMode(rawValue: appearanceRaw) ?? .system },
@@ -192,6 +196,21 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Import history (v1.1)
+                Section {
+                    NavigationLink {
+                        ImportHistoryView()
+                    } label: {
+                        Label("import.title", systemImage: "square.and.arrow.down")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.importRow")
+                } header: {
+                    Text("import.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
                 // MARK: Data & Decisions
                 Section {
                     VStack(alignment: .leading, spacing: metrics.elementSpacing) {
@@ -253,6 +272,9 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Palette.canvas.ignoresSafeArea())
             .navigationTitle("Settings")
+            .fullScreenCover(isPresented: $autoPresentImport) {
+                ImportWizardView()
+            }
         }
     }
 
