@@ -70,22 +70,14 @@ final class ImportWizardModel {
         errorMessage = nil
         isReading = true
         Task { [weak self] in
-            // Read off the main actor; return a Sendable Result (map the error to a
-            // localized message inside the detached task, since `any Error` isn't
-            // Sendable).
-            let result: Result<TabularDocument, String> = await Task.detached(priority: .userInitiated) {
-                do {
-                    return .success(try DocumentReader.read(url: url))
-                } catch {
-                    let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                    return .failure(message)
-                }
-            }.value
-            await MainActor.run {
-                guard let self else { return }
-                self.isReading = false
-                switch result {
-                case .success(let doc):
+            do {
+                // Read off the main actor; `TabularDocument` is Sendable.
+                let doc = try await Task.detached(priority: .userInitiated) {
+                    try DocumentReader.read(url: url)
+                }.value
+                await MainActor.run {
+                    guard let self else { return }
+                    self.isReading = false
                     self.document = doc
                     if doc.sheets.count > 1 {
                         self.step = .pickSheet
@@ -94,8 +86,12 @@ final class ImportWizardModel {
                     } else {
                         self.errorMessage = ImportReadError.noSheets.localizedDescription
                     }
-                case .failure(let message):
-                    self.errorMessage = message
+                }
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run {
+                    self?.isReading = false
+                    self?.errorMessage = message
                 }
             }
         }
