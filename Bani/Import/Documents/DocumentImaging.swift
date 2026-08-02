@@ -55,33 +55,27 @@ enum PdfImportReader {
 /// supports them (checked via `supportedRecognitionLanguages`), else falls back to
 /// the automatic language set — a note the pipeline surfaces in the report.
 enum OCRService {
-    /// The languages actually requested for the last/any run (for the report note).
-    static func requestedLanguages() -> [String] {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        return resolveLanguages(for: request)
-    }
+    /// Romanian + English requested; Vision falls back to its automatic set for
+    /// any unsupported language at perform-time (caught below), so no fragile
+    /// runtime capability query is needed (D1: check at runtime, fall back).
+    static let preferredLanguages = ["ro-RO", "en-US"]
 
     static func recognize(_ image: UIImage) -> String? {
         guard let cg = image.cgImage else { return nil }
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        let langs = resolveLanguages(for: request)
-        if !langs.isEmpty { request.recognitionLanguages = langs }
+        request.recognitionLanguages = preferredLanguages
         let handler = VNImageRequestHandler(cgImage: cg, options: [:])
-        do { try handler.perform([request]) } catch { return nil }
+        do {
+            try handler.perform([request])
+        } catch {
+            // An unsupported-language / handler error → retry with the automatic set.
+            request.recognitionLanguages = []
+            guard (try? handler.perform([request])) != nil else { return nil }
+        }
         let observations = request.results ?? []
         let text = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
         return text.isEmpty ? nil : text
-    }
-
-    private static func resolveLanguages(for request: VNRecognizeTextRequest) -> [String] {
-        let supported = (try? request.supportedRecognitionLanguages()) ?? []
-        var out: [String] = []
-        for preferred in ["ro-RO", "ro", "en-US", "en"] where supported.contains(preferred) && !out.contains(preferred) {
-            out.append(preferred)
-        }
-        return out   // empty → Vision uses its automatic default
     }
 }

@@ -70,7 +70,9 @@ struct HeuristicExtractor: DocumentUnderstanding {
                     if let cleaned = cleanName(name) { return cleaned }
                 }
                 if let r = folded.range(of: kw) {
-                    let after = String(line[line.index(line.startIndex, offsetBy: folded.distance(from: folded.startIndex, to: r.upperBound))...])
+                    let offset = folded.distance(from: folded.startIndex, to: r.upperBound)
+                    let idx = line.index(line.startIndex, offsetBy: offset, limitedBy: line.endIndex) ?? line.endIndex
+                    let after = String(line[idx...])
                     if let cleaned = cleanName(after.trimmingCharacters(in: CharacterSet(charactersIn: " :,-"))) { return cleaned }
                 }
             }

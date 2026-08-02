@@ -51,7 +51,7 @@ struct FoundationModelsParser: TransactionParsing {
 
             let response = try await session.respond(
                 to: text,
-                generating: ExtractedTransaction.self
+                generating: VoiceExtraction.self
             )
 
             guard let parsed = Self.map(response.content) else {
@@ -70,7 +70,7 @@ struct FoundationModelsParser: TransactionParsing {
     /// Maps the model's structured output into `ParsedTransaction`.
     /// Returns `nil` (→ caller falls back) only when the model extracted nothing
     /// usable at all: no amount, no description, no merchant.
-    private static func map(_ extracted: ExtractedTransaction) -> ParsedTransaction? {
+    private static func map(_ extracted: VoiceExtraction) -> ParsedTransaction? {
         let normalizedCode = extracted.currencyCode
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
@@ -110,7 +110,7 @@ struct FoundationModelsParser: TransactionParsing {
 /// Structured extraction target for `LanguageModelSession.respond(to:generating:)`.
 /// `Decimal` (and `Decimal?`) conforms to `Generable` directly — money stays `Decimal`.
 @Generable
-private struct ExtractedTransaction {
+private struct VoiceExtraction {
     @Guide(description: "The numeric amount spent. Left unset if no amount was stated — never invent one.")
     var amount: Decimal?
 

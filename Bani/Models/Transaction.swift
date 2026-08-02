@@ -157,7 +157,8 @@ final class Transaction {
     /// Additive with a stored default of `.expense`, so this stays a lightweight
     /// SwiftData migration: existing rows (no `direction` column) migrate to
     /// `.expense` and are untouched. Documented in build-notes.md.
-    var direction: TransactionDirection = .expense
+    /// NOTE: the `@Model` macro requires a fully-qualified default (not `.expense`).
+    var direction: TransactionDirection = TransactionDirection.expense
     /// A2 — the other party to the transaction (person / firm), when import
     /// extraction or a manual edit supplies one. Nullable + additive, so existing
     /// rows migrate to `nil`; drives the People view (B) and counterparty search (B3).
