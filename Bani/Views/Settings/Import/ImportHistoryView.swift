@@ -8,14 +8,14 @@ struct ImportHistoryView: View {
     @Environment(\.metrics) private var metrics
     @Query(sort: \ImportBatch.importedAt, order: .reverse) private var batches: [ImportBatch]
 
-    @State private var showWizard = false
+    @State private var showFlow = false
     @State private var pendingUndo: ImportBatch?
 
     var body: some View {
         Form {
             Section {
                 Button {
-                    showWizard = true
+                    showFlow = true
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "square.and.arrow.down")
@@ -60,8 +60,8 @@ struct ImportHistoryView: View {
         .background(Palette.canvas.ignoresSafeArea())
         .navigationTitle("import.title")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(isPresented: $showWizard) {
-            ImportWizardView()
+        .fullScreenCover(isPresented: $showFlow) {
+            ImportFlowView()
         }
         .confirmationDialog(
             Text("import.summary.undo.confirm \(pendingUndo.map { ImportBatchStore.transactionCount(batchID: $0.id, in: modelContext) } ?? 0)"),

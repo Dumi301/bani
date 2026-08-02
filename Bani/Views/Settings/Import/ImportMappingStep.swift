@@ -9,6 +9,7 @@ struct ImportMappingStep: View {
 
     var body: some View {
         Form {
+            headerRowSection
             requiredSection
             optionalSection
             if model.parseResult?.negativesFound == true { negativesSection }
@@ -18,6 +19,36 @@ struct ImportMappingStep: View {
         .background(Palette.canvas.ignoresSafeArea())
         .onChange(of: model.mapping.dateColumn) { _, _ in model.detectDateFormat() }
         .onChange(of: model.mapping) { _, _ in model.refreshParse() }
+    }
+
+    // MARK: - Header row (bug #2 manual fallback)
+
+    @ViewBuilder
+    private var headerRowSection: some View {
+        if model.maxHeaderRow > 0 {
+            Section {
+                Stepper(value: Binding(
+                    get: { model.headerRowIndex },
+                    set: { model.applyHeaderRow($0) }
+                ), in: 0...model.maxHeaderRow) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("import.map.headerRow \(model.headerRowIndex + 1)")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.ink)
+                        Text(model.headerRowPreview(model.headerRowIndex))
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryInk)
+                            .lineLimit(1)
+                    }
+                }
+                .listRowBackground(Palette.surface)
+                .accessibilityIdentifier("import.map.headerRowStepper")
+            } header: {
+                Text("import.map.headerRow.title").foregroundStyle(Palette.secondaryInk)
+            } footer: {
+                Text("import.map.headerRow.footer").foregroundStyle(Palette.secondaryInk)
+            }
+        }
     }
 
     // MARK: - Required

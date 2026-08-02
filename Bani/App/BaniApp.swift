@@ -44,9 +44,11 @@ struct BaniApp: App {
             // CategoryRule + the feedback-ledger entities (DecisionRecord,
             // ContextRule, CorrectionMemory) + CustomCategory + ImportBatch join
             // the schema as separate, additive entities. `Transaction` gains only
-            // the optional `customCategoryID` (C1) and `importBatchID` (v1.1)
-            // fields, so this stays a lightweight migration; existing rows migrate
-            // those fields to `nil` and are untouched.
+            // additive fields — the optional `customCategoryID` (C1), `importBatchID`
+            // (v1.1), plus the v1.1-RUN-1 trio `direction` (stored default `.expense`),
+            // `counterparty`, and `attachmentID` — so this stays a lightweight
+            // migration; existing rows migrate those to their defaults/`nil` and are
+            // untouched (proven in ImportModelMigrationTests / DirectionMigrationTests).
             container = try ModelContainer(
                 for: Transaction.self, CategoryRule.self,
                 DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
@@ -139,6 +141,11 @@ struct BaniApp: App {
                     // Seed the categorizer's keyword table off the launch
                     // critical path (idempotent — a no-op once rules exist).
                     CategoryRuleStore.seedIfNeeded(container.mainContext)
+                    // C2 — pre-seed the ~16 real-estate/finance custom categories +
+                    // their OBSERVATII keyword rules on first launch (idempotent,
+                    // marker-gated). Ordered AFTER the preset seed so preset rules
+                    // seed first; upgraders still get the customs.
+                    PresetSeeding.seedIfNeeded(container.mainContext)
                     if !modelAbsent {
                         await whisper.prepareModelIfNeeded()
                     }

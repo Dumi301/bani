@@ -44,6 +44,57 @@ enum XLSXReader {
         return TabularDocument(fileName: fileName, kind: .xlsx, sheets: sheets)
     }
 
+    /// Parse .xlsx bytes into FULL positional grids (`RawDocument`) — every row of
+    /// every worksheet, nothing stripped — for the one-tap family pipeline (D).
+    /// Reuses the same shared-string / serial-date resolution as `parse`.
+    static func parseRaw(data: Data, fileName: String) throws -> RawDocument {
+        guard !data.isEmpty else { throw ImportReadError.emptyFile }
+        let file: XLSXFile
+        do { file = try XLSXFile(data: data) } catch { throw ImportReadError.corruptArchive }
+
+        let sharedStrings = try? file.parseSharedStrings()
+        let styles = try? file.parseStyles()
+        let dateStyles = dateFormattedStyleIndices(styles)
+
+        var sheets: [RawSheet] = []
+        let workbooks = (try? file.parseWorkbooks()) ?? []
+        for workbook in workbooks {
+            let pathsAndNames = (try? file.parseWorksheetPathsAndNames(workbook: workbook)) ?? []
+            for (offset, item) in pathsAndNames.enumerated() {
+                guard let worksheet = try? file.parseWorksheet(at: item.path) else { continue }
+                let rows = rawRows(worksheet, sharedStrings: sharedStrings, dateStyles: dateStyles)
+                sheets.append(RawSheet(id: item.name ?? "sheet\(sheets.count + offset + 1)", name: item.name, rows: rows))
+            }
+        }
+        guard !sheets.isEmpty else { throw ImportReadError.noSheets }
+        return RawDocument(fileName: fileName, kind: .xlsx, sheets: sheets)
+    }
+
+    /// Densify every row of a worksheet into positional `SheetCell`s (blanks
+    /// included) — the shared core behind both `buildSheet` and `parseRaw`.
+    private static func rawRows(_ worksheet: Worksheet, sharedStrings: SharedStrings?, dateStyles: Set<Int>) -> [SheetRow] {
+        let raw = worksheet.data?.rows ?? []
+        let columnA = ColumnReference("A")!
+        var width = 0
+        for row in raw {
+            for cell in row.cells {
+                width = max(width, columnA.distance(to: cell.reference.column) + 1)
+            }
+        }
+        return raw.map { row in
+            var cells = Array(repeating: SheetCell(text: ""), count: width)
+            for cell in row.cells {
+                let idx = columnA.distance(to: cell.reference.column)
+                guard idx >= 0, idx < width else { continue }
+                cells[idx] = SheetCell(
+                    text: cellText(cell, sharedStrings: sharedStrings),
+                    serialDate: serialDate(cell, dateStyles: dateStyles)
+                )
+            }
+            return SheetRow(cells: cells, sourceRow: Int(row.reference))
+        }
+    }
+
     // MARK: - Sheet building
 
     private static func buildSheet(

@@ -15,6 +15,8 @@ struct ManualEntrySheet: View {
     @State private var currency: Currency = .ron
     @State private var descriptionText = ""
     @State private var context: TransactionContext = .personal
+    /// A3 — default expense (zero new friction), editable for income/neutral.
+    @State private var direction: TransactionDirection = .expense
     /// C2: date+time for the manual entry, default now, editable for logging past
     /// expenses.
     @State private var date = Date()
@@ -69,6 +71,10 @@ struct ManualEntrySheet: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("manualEntry.contextPicker")
 
+                    // A3: direction (expense default), editable for income/neutral.
+                    DirectionPicker(selection: $direction)
+                        .accessibilityIdentifier("manualEntry.directionPicker")
+
                     // C2: locale-aware date+time picker, pre-filled with now.
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .accessibilityIdentifier("manualEntry.datePicker")
@@ -117,7 +123,8 @@ struct ManualEntrySheet: View {
             descriptionText: cleanDescription,
             date: date,
             rawTranscript: nil,
-            source: .manual
+            source: .manual,
+            direction: direction
         )
         modelContext.insert(transaction)
         try? modelContext.save()

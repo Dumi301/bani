@@ -80,6 +80,8 @@ actor ImportRunner {
                 date: row.date,
                 rawTranscript: nil,             // scope guard E — imported rows carry none
                 source: .imported,
+                direction: row.direction,       // A1 — expense/income/neutral from the family parser
+                counterparty: row.counterparty, // A2/B2 — extracted party
                 importBatchID: batchID
             )
             tx.categoryRef = resolveCategory(for: row, decisions: decisions, createdByKey: createdByKey, snapshots: snapshots)

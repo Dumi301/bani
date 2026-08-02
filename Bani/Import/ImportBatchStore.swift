@@ -46,13 +46,17 @@ enum ImportBatchStore {
     static func undo(batchID: UUID, in context: ModelContext) -> Int {
         let all = (try? context.fetch(FetchDescriptor<Transaction>())) ?? []
         var removed = 0
+        var attachmentIDs: [UUID?] = []
         for tx in all where tx.importBatchID == batchID {
+            attachmentIDs.append(tx.attachmentID)
             context.delete(tx)
             removed += 1
         }
         let batches = (try? context.fetch(FetchDescriptor<ImportBatch>())) ?? []
         for batch in batches where batch.id == batchID { context.delete(batch) }
         try? context.save()
+        // E2 — undoing a batch deletes the stored document files too.
+        AttachmentStore.delete(attachmentIDs: attachmentIDs)
         return removed
     }
 }

@@ -51,6 +51,20 @@ enum SampleData {
                         descriptionText: "parcare", merchant: nil,
                         date: daysAgo(18), source: .manual),
 
+            // ── Direction + counterparty variety (A1/B — feeds income line + People) ──
+            Transaction(amount: 4500, currency: .ron, context: .work, category: nil,
+                        descriptionText: "salariu", merchant: nil, date: daysAgo(5),
+                        source: .manual, direction: .income, counterparty: "Firma ACME"),
+            Transaction(amount: 300, currency: .ron, context: .personal, category: nil,
+                        descriptionText: "chirie primită", merchant: nil, date: daysAgo(11),
+                        source: .manual, direction: .income, counterparty: "Maria"),
+            Transaction(amount: 800, currency: .ron, context: .personal, category: nil,
+                        descriptionText: "împrumut", merchant: nil, date: daysAgo(7),
+                        source: .manual, direction: .neutral, counterparty: "Andrei"),
+            Transaction(amount: 250, currency: .ron, context: .personal, category: nil,
+                        descriptionText: "plată Andrei", merchant: nil, date: daysAgo(9),
+                        source: .manual, direction: .expense, counterparty: "Andrei"),
+
             // ── Previous month (feeds the trend comparison + 6M bars) ──
             Transaction(amount: 61, currency: .ron, context: .personal, category: .fuel,
                         descriptionText: "benzină", merchant: "Petrom",

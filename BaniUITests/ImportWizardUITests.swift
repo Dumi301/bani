@@ -1,52 +1,66 @@
 import XCTest
 
-/// Drives the Excel/CSV import wizard to the preview step using the bundled CSV
-/// fixture (loaded via the `-importUITest` seam, since a UI test can't drive the
-/// system document picker). Non-blocking (not `ManualEntryUITests`) and captures
-/// mapping + preview screenshots for visual grading.
+/// The one-tap import (v1.1 RUN 1): a multi-file import reaches the understanding
+/// report with per-file status chips + questions, and the People view renders
+/// paid/received/net. Both are non-blocking (not `ManualEntryUITests`) and capture
+/// screenshots for visual grading (light + dark). The demoted wizard is no longer
+/// auto-driven — it is reachable only from the report's fix-mapping hatch (D5).
 final class ImportWizardUITests: XCTestCase {
 
     override func setUpWithError() throws { continueAfterFailure = false }
 
     private func snapshot(_ app: XCUIApplication, name: String) {
-        Thread.sleep(forTimeInterval: 0.6)
+        Thread.sleep(forTimeInterval: 0.7)
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
     }
 
-    /// XCUITest won't auto-scroll for `.tap()`; swipe until the element is hittable.
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication, maxSwipes: Int = 8) {
         var swipes = 0
-        while !element.isHittable && swipes < maxSwipes {
-            app.swipeUp()
-            swipes += 1
+        while !element.isHittable && swipes < maxSwipes { app.swipeUp(); swipes += 1 }
+    }
+
+    /// Multi-file import (a Family-B statement + a generic table) reaches the report.
+    func testImportReachesUnderstandingReport() {
+        for appearance in ["light", "dark"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-uiTesting", "-modelAbsent", "-importUITest", "-importReportUITest", "-appearance", appearance]
+            app.launch()
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+
+            // Settings (3rd tab, locale-agnostic) auto-presents the import flow,
+            // which — under -importReportUITest — loads the synthetic files straight
+            // to the report.
+            let tabBar = app.tabBars.firstMatch
+            XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
+            tabBar.buttons.element(boundBy: 2).tap()
+
+            let confirm = app.buttons["import.report.confirm"]
+            XCTAssertTrue(confirm.waitForExistence(timeout: 20), "the understanding report should appear")
+            snapshot(app, name: "\(appearance)-import-report")
         }
     }
 
-    func testWizardReachesPreviewWithCSVFixture() {
+    /// The People view (grouping → People) renders per-counterparty rows.
+    func testPeopleView() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-modelAbsent", "-importUITest"]
+        app.launchArguments = ["-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser", "-modelAbsent", "-appearance", "light"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
 
-        // Settings is the 3rd tab (index 2) — locale-agnostic. The wizard
-        // auto-presents on the mapping step with the fixture preloaded.
         let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
-        tabBar.buttons.element(boundBy: 2).tap()
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 10))
+        tabBar.buttons.element(boundBy: 1).tap()   // Finances
 
-        let continueButton = app.buttons["import.map.continueButton"]
-        XCTAssertTrue(continueButton.waitForExistence(timeout: 15), "mapping step should appear")
-        snapshot(app, name: "import-mapping")
-
-        scrollToHittable(continueButton, in: app)
-        XCTAssertTrue(continueButton.isHittable, "continue button should be reachable")
-        continueButton.tap()
-
-        let importButton = app.buttons["import.preview.importButton"]
-        XCTAssertTrue(importButton.waitForExistence(timeout: 15), "preview step should appear")
-        snapshot(app, name: "import-preview")
+        let grouping = app.segmentedControls["financesGroupingPicker"]
+        if !grouping.waitForExistence(timeout: 8) { app.swipeUp() }
+        scrollToHittable(grouping, in: app)
+        if grouping.exists {
+            // Category(0) · Month(1) · Merchant(2) · People(3) — index is locale-agnostic.
+            grouping.buttons.element(boundBy: 3).tap()
+        }
+        snapshot(app, name: "light-people")
     }
 }

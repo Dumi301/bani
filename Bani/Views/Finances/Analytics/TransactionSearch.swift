@@ -19,12 +19,15 @@ enum TransactionSearch {
         var descriptionText: String
         var rawTranscript: String?
         var merchant: String?
+        /// B3 — the counterparty is searchable (diacritic-folded like every field).
+        var counterparty: String?
         var categoryRef: CategoryRef?
 
-        init(descriptionText: String, rawTranscript: String? = nil, merchant: String? = nil, category: TransactionCategory? = nil, customCategoryID: UUID? = nil) {
+        init(descriptionText: String, rawTranscript: String? = nil, merchant: String? = nil, counterparty: String? = nil, category: TransactionCategory? = nil, customCategoryID: UUID? = nil) {
             self.descriptionText = descriptionText
             self.rawTranscript = rawTranscript
             self.merchant = merchant
+            self.counterparty = counterparty
             if let customCategoryID { self.categoryRef = .custom(customCategoryID) }
             else if let category { self.categoryRef = .preset(category) }
             else { self.categoryRef = nil }
@@ -75,6 +78,7 @@ enum TransactionSearch {
         if fold(fields.descriptionText).contains(q) { return true }
         if let raw = fields.rawTranscript, fold(raw).contains(q) { return true }
         if let merchant = fields.merchant, fold(merchant).contains(q) { return true }
+        if let cp = fields.counterparty, fold(cp).contains(q) { return true }
         if let preset = fields.categoryRef?.presetValue, matchingCategories.contains(preset) { return true }
         if let customID = fields.categoryRef?.customID, matchingCustoms.contains(customID) { return true }
         return false

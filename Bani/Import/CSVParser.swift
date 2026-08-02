@@ -50,6 +50,24 @@ enum CSVParser {
         return TabularDocument(fileName: fileName, kind: .csv, sheets: [sheet])
     }
 
+    /// Parse CSV bytes into a FULL positional grid (`RawDocument`, one sheet) —
+    /// every record in order, blanks included — for the one-tap family pipeline.
+    /// CSV cells never carry a serial date (dates are text, parsed downstream).
+    static func parseRaw(data: Data, fileName: String) throws -> RawDocument {
+        let text = normalizeLineEndings(decode(data))
+        guard !text.isEmpty else { throw ImportReadError.emptyFile }
+        let delimiter = detectDelimiter(text)
+        var records = parseRows(text, delimiter: delimiter)
+        while let last = records.last, last.allSatisfy({ $0.isEmpty }) { records.removeLast() }
+        let width = records.map(\.count).max() ?? 0
+        let rows: [SheetRow] = records.enumerated().map { offset, record in
+            let fields = pad(record.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, to: width)
+            return SheetRow(cells: fields.map { SheetCell(text: $0) }, sourceRow: offset + 1)
+        }
+        let sheet = RawSheet(id: "csv", name: nil, rows: rows)
+        return RawDocument(fileName: fileName, kind: .csv, sheets: [sheet])
+    }
+
     // MARK: - Decoding (BOM aware)
 
     /// Collapse CRLF and lone CR to LF (see the grapheme-cluster note in `parse`).

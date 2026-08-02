@@ -9,16 +9,22 @@ struct TransactionEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var customCategories: [CustomCategory]
+    /// Existing parties → counterparty-field suggestions (B2).
+    @Query private var allTransactions: [Transaction]
 
     let transaction: Transaction
 
     @State private var amount: Decimal
     @State private var currency: Currency
     @State private var context: TransactionContext
+    /// A1 — money direction, editable.
+    @State private var direction: TransactionDirection
     /// The unified category (preset OR custom, C3).
     @State private var categoryRef: CategoryRef?
     @State private var descriptionText: String
     @State private var merchant: String
+    /// B2 — the counterparty, editable with suggestions.
+    @State private var counterparty: String
     /// C3: the transaction's date+time, pre-filled (never blank) and editable.
     @State private var date: Date
     @State private var isCreatingCategory = false
@@ -28,10 +34,24 @@ struct TransactionEditSheet: View {
         _amount = State(initialValue: transaction.amount)
         _currency = State(initialValue: transaction.currency)
         _context = State(initialValue: transaction.context)
+        _direction = State(initialValue: transaction.direction)
         _categoryRef = State(initialValue: transaction.categoryRef)
         _descriptionText = State(initialValue: transaction.descriptionText)
         _merchant = State(initialValue: transaction.merchant ?? "")
+        _counterparty = State(initialValue: transaction.counterparty ?? "")
         _date = State(initialValue: transaction.date)
+    }
+
+    /// Distinct existing counterparties, most-recent-first, for the suggestions.
+    private var counterpartySuggestions: [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for tx in allTransactions.sorted(by: { $0.date > $1.date }) {
+            guard let cp = tx.counterparty?.trimmingCharacters(in: .whitespaces), !cp.isEmpty else { continue }
+            let key = Categorizer.normalize(cp)
+            if seen.insert(key).inserted { out.append(cp) }
+        }
+        return out
     }
 
     var body: some View {
@@ -60,6 +80,7 @@ struct TransactionEditSheet: View {
                 Section("Details") {
                     TextField("Description", text: $descriptionText)
                     TextField("Merchant (optional)", text: $merchant)
+                    CounterpartyField(text: $counterparty, suggestions: counterpartySuggestions)
                     // C3: editable, locale-aware date+time picker (pre-filled).
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .accessibilityIdentifier("editDatePicker")
@@ -74,6 +95,10 @@ struct TransactionEditSheet: View {
                     .pickerStyle(.segmented)
                     .tint(Palette.accent)
                     .accessibilityIdentifier("editContextPicker")
+
+                    // A1: direction editor.
+                    DirectionPicker(selection: $direction)
+                        .accessibilityIdentifier("editDirectionPicker")
                 }
 
                 Section("Category") {
@@ -114,9 +139,12 @@ struct TransactionEditSheet: View {
         transaction.amount = amount
         transaction.currency = currency
         transaction.context = context
+        transaction.direction = direction
         transaction.categoryRef = categoryRef
         transaction.descriptionText = cleanDescription
         transaction.merchant = merchant.isEmpty ? nil : merchant
+        let cleanParty = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
+        transaction.counterparty = cleanParty.isEmpty ? nil : cleanParty
         transaction.date = date
         try? modelContext.save()
 

@@ -73,6 +73,48 @@ enum TransactionCategory: String, Codable, CaseIterable, Hashable, Sendable {
     }
 }
 
+/// The money direction of a transaction (v1.1 RUN 1, section A — the ONE
+/// structural frozen-seam revision this release makes).
+///
+/// - `expense`  — spending (the app's original, only behaviour). The DEFAULT, so
+///   every voice/manual entry and every pre-v1.1 migrated row is an expense with
+///   zero new friction.
+/// - `income`   — money in (salary, rent received, sale proceeds, interest).
+/// - `neutral`  — transfers / cash moves / loans; visible + searchable but
+///   EXCLUDED from both spending and income totals.
+///
+/// Migration-safety: SwiftData persists this `String`-raw `Codable` enum as its
+/// `rawValue`. The property is declared with a stored default of `.expense`
+/// (below), so existing rows — which have no `direction` column — migrate to
+/// `.expense` and are untouched, exactly the additive discipline already proven
+/// for `customCategoryID` and `importBatchID` (see `ImportModelMigrationTests`).
+enum TransactionDirection: String, Codable, CaseIterable, Hashable, Sendable {
+    case expense
+    case income
+    case neutral
+
+    /// Localized display name (A3) — the stored `rawValue` is unchanged.
+    var label: String {
+        switch self {
+        case .expense: String(localized: "direction.expense")
+        case .income: String(localized: "direction.income")
+        case .neutral: String(localized: "direction.neutral")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .expense: "arrow.up.right"
+        case .income: "arrow.down.left"
+        case .neutral: "arrow.left.arrow.right"
+        }
+    }
+
+    /// The sign prefix shown before an amount in lists/detail (A3): income gets a
+    /// "+"; expenses and neutral rows show the bare magnitude.
+    var amountPrefix: String { self == .income ? "+" : "" }
+}
+
 /// How a transaction was created.
 ///
 /// v1.1 adds ONE case: `imported` (Excel/CSV history import). Migration-safety:
@@ -111,6 +153,20 @@ final class Transaction {
     var date: Date
     var rawTranscript: String?
     var source: TransactionSource
+    /// A1 — money direction. The ONE structural frozen-seam revision (section A).
+    /// Additive with a stored default of `.expense`, so this stays a lightweight
+    /// SwiftData migration: existing rows (no `direction` column) migrate to
+    /// `.expense` and are untouched. Documented in build-notes.md.
+    var direction: TransactionDirection = .expense
+    /// A2 — the other party to the transaction (person / firm), when import
+    /// extraction or a manual edit supplies one. Nullable + additive, so existing
+    /// rows migrate to `nil`; drives the People view (B) and counterparty search (B3).
+    var counterparty: String?
+    /// E2 — the imported document this transaction was extracted from
+    /// (`ImportedDocuments/<id>` — original file + cached OCR/extraction text).
+    /// Nullable + additive; `nil` for every voice/manual/tabular-import row.
+    /// Deleting the transaction (or undoing its batch) deletes the stored file.
+    var attachmentID: UUID?
     /// v1.1 — the batch an imported row belongs to (`ImportBatch.id`), enabling a
     /// whole-batch undo. `nil` for every non-imported transaction. A nullable,
     /// additive field, so this is a lightweight SwiftData migration (mirrors the
@@ -131,6 +187,9 @@ final class Transaction {
         date: Date = .now,
         rawTranscript: String? = nil,
         source: TransactionSource,
+        direction: TransactionDirection = .expense,
+        counterparty: String? = nil,
+        attachmentID: UUID? = nil,
         importBatchID: UUID? = nil,
         createdAt: Date = .now
     ) {
@@ -145,6 +204,9 @@ final class Transaction {
         self.date = date
         self.rawTranscript = rawTranscript
         self.source = source
+        self.direction = direction
+        self.counterparty = counterparty
+        self.attachmentID = attachmentID
         self.importBatchID = importBatchID
         self.createdAt = createdAt
     }

@@ -25,6 +25,12 @@ struct ParsedImportRow: Equatable, Sendable {
     var categorySource: ImportCategorySource
     var sourceRow: Int
     var fingerprint: String
+    /// A1 — money direction. Defaults to `.expense` so the legacy generic-tabular
+    /// wizard path is unchanged; the family parsers (D) set income/neutral.
+    var direction: TransactionDirection = .expense
+    /// A2/B2 — the extracted counterparty, when a family parser or document
+    /// extractor found one. `nil` for the generic path.
+    var counterparty: String? = nil
 }
 
 /// Why a row was skipped (surfaced with its row number in the summary, C5).

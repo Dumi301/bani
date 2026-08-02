@@ -21,7 +21,12 @@ struct TransactionRow: View {
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
-                    if let merchant = transaction.merchant, !merchant.isEmpty {
+                    if let party = transaction.counterparty, !party.isEmpty {
+                        Text(party)
+                            .font(.caption)
+                            .foregroundStyle(Palette.secondaryInk)
+                            .lineLimit(1)
+                    } else if let merchant = transaction.merchant, !merchant.isEmpty {
                         Text(merchant)
                             .font(.caption)
                             .foregroundStyle(Palette.secondaryInk)
@@ -71,14 +76,25 @@ struct TransactionRow: View {
             .background(Color(transaction.context.tagColorName).opacity(0.15), in: Capsule())
     }
 
-    /// Amount + currency code, monospaced, accent-colored (money → accent).
+    /// Amount + currency code, monospaced. A3 direction styling: income shows a
+    /// "+" prefix in the accent; neutral rows are muted; expenses keep the accent.
     private var amountText: Text {
-        Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
+        Text(transaction.direction.amountPrefix)
             .font(Typography.amount(.title3, weight: .bold))
-            .foregroundStyle(Palette.accent)
+            .foregroundStyle(amountColor)
+        + Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
+            .font(Typography.amount(.title3, weight: .bold))
+            .foregroundStyle(amountColor)
         + Text(" \(transaction.currency.displayCode)")
             .font(.system(.caption).weight(.semibold))
             .foregroundStyle(Palette.secondaryInk)
+    }
+
+    private var amountColor: Color {
+        switch transaction.direction {
+        case .expense, .income: Palette.accent
+        case .neutral: Palette.secondaryInk
+        }
     }
 }
 

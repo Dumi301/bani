@@ -26,10 +26,15 @@ struct TransactionDetailView: View {
                 HStack(spacing: metrics.elementSpacing) {
                     categoryChip
                     contextTag
+                    directionTag
                     Spacer()
                 }
 
                 detailsSection
+
+                if let attachmentID = transaction.attachmentID {
+                    AttachmentPreview(attachmentID: attachmentID)
+                }
 
                 if transaction.source == .voice,
                    let raw = transaction.rawTranscript,
@@ -60,14 +65,32 @@ struct TransactionDetailView: View {
 
     private var amountHero: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(transaction.amount, format: .number.precision(.fractionLength(0...2)))
+            Text("\(transaction.direction.amountPrefix)\(transaction.amount.formatted(.number.precision(.fractionLength(0...2))))")
                 .font(Typography.heroAmount)
             Text(transaction.currency.symbol)
                 .font(Typography.amount(.title, weight: .semibold))
         }
-        .foregroundStyle(Palette.accent)
+        .foregroundStyle(transaction.direction == .neutral ? Palette.secondaryInk : Palette.accent)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("detail.amount")
+    }
+
+    /// A1 direction chip (shown for income/neutral; expense is the default, so it
+    /// stays uncluttered).
+    @ViewBuilder
+    private var directionTag: some View {
+        if transaction.direction != .expense {
+            HStack(spacing: 4) {
+                Image(systemName: transaction.direction.systemImage)
+                Text(transaction.direction.label)
+            }
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Palette.accent.opacity(0.16), in: Capsule())
+            .foregroundStyle(Palette.accent)
+            .accessibilityIdentifier("detail.directionTag")
+        }
     }
 
     /// The OTHER currency at the cached BNR rate: a EUR entry shows its RON
@@ -145,6 +168,13 @@ struct TransactionDetailView: View {
                 Text(merchant)
                     .font(.subheadline)
                     .foregroundStyle(Palette.secondaryInk)
+            }
+
+            if let party = transaction.counterparty, !party.isEmpty {
+                Label(party, systemImage: "person.crop.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .accessibilityIdentifier("detail.counterparty")
             }
 
             Text(transaction.date.formatted(date: .abbreviated, time: .shortened))

@@ -273,7 +273,7 @@ struct SettingsView: View {
             .background(Palette.canvas.ignoresSafeArea())
             .navigationTitle("Settings")
             .fullScreenCover(isPresented: $autoPresentImport) {
-                ImportWizardView()
+                ImportFlowView()
             }
         }
     }

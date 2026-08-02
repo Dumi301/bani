@@ -113,6 +113,8 @@ final class ImportWizardModel {
     }
 
     func selectSheet(_ sheet: TabularSheet) {
+        baseSheet = sheet
+        headerRowIndex = 0
         selectedSheet = sheet
         guard !sheet.headers.isEmpty else {
             errorMessage = ImportReadError.emptyFile.localizedDescription
@@ -122,6 +124,43 @@ final class ImportWizardModel {
         detectDateFormat()
         refreshParse()
         step = .mapping
+    }
+
+    // MARK: - Header-row picker (bug #2 manual fallback, D5)
+
+    /// The chosen header row (0-based into the sheet's full grid: 0 = the
+    /// auto-detected header row, higher = skip more preamble). Added as the demoted
+    /// wizard's manual fallback for files where auto-detection picked the wrong row.
+    var headerRowIndex: Int = 0
+    private var baseSheet: TabularSheet?
+
+    /// The full grid = the auto-detected header row + all data rows, so the picker
+    /// can promote a LATER row to the header (skipping mis-detected preamble).
+    private var fullRows: [SheetRow] {
+        guard let base = baseSheet else { return [] }
+        let headerAsRow = SheetRow(cells: base.headers.map { SheetCell(text: $0) }, sourceRow: 0)
+        return [headerAsRow] + base.rows
+    }
+    var maxHeaderRow: Int { max(0, fullRows.count - 1) }
+
+    /// Sample of a candidate header row's first few cells (for the picker caption).
+    func headerRowPreview(_ index: Int) -> String {
+        let rows = fullRows
+        guard index >= 0, index < rows.count else { return "" }
+        return rows[index].cells.prefix(4).map(\.text).filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// Promote row `index` to the header and re-guess the mapping.
+    func applyHeaderRow(_ index: Int) {
+        let rows = fullRows
+        guard index >= 0, index < rows.count else { return }
+        headerRowIndex = index
+        let headers = rows[index].cells.map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let data = Array(rows[(index + 1)...]).filter { !$0.isBlank }
+        selectedSheet = TabularSheet(id: baseSheet?.id ?? "sheet", name: baseSheet?.name, headers: headers, rows: data)
+        mapping = HeaderGuesser.guess(headers: headers)
+        detectDateFormat()
+        refreshParse()
     }
 
     // MARK: - Mapping

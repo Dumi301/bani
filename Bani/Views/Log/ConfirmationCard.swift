@@ -58,6 +58,8 @@ struct ConfirmationCard: View {
     @State private var currency: Currency
     @State private var descriptionText: String
     @State private var editingContext: TransactionContext
+    /// A3 — direction, default expense (zero new friction), editable in edit mode.
+    @State private var direction: TransactionDirection = .expense
     @State private var isEditing: Bool
     /// The transaction date+time (C1). Defaults to now; editable in edit mode so
     /// past expenses can be logged.
@@ -552,6 +554,10 @@ struct ConfirmationCard: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("confirmationCard.contextPicker")
 
+            // A3: direction (expense default), editable for income/neutral entries.
+            DirectionPicker(selection: $direction)
+                .accessibilityIdentifier("confirmationCard.directionPicker")
+
             // C1: date+time is editable so past expenses can be logged.
             DatePicker(
                 "Date & time",
@@ -689,6 +695,7 @@ struct ConfirmationCard: View {
             context: editingContext,
             categoryRef: finalRef,
             date: date,
+            direction: direction,
             into: modelContext
         )
 
@@ -819,6 +826,7 @@ func saveVoiceTransaction(
     category: TransactionCategory? = nil,
     categoryRef: CategoryRef? = nil,
     date: Date = .now,
+    direction: TransactionDirection = .expense,
     into modelContext: ModelContext
 ) -> Transaction? {
     guard let amount = parsed.amount else { return nil }
@@ -831,7 +839,8 @@ func saveVoiceTransaction(
         merchant: parsed.merchant,
         date: date,
         rawTranscript: transcript,
-        source: .voice
+        source: .voice,
+        direction: direction
     )
     // A custom-aware ref (C3) overrides the preset `category` param when given.
     if let categoryRef {

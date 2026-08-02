@@ -37,6 +37,8 @@ struct FinancesView: View {
     @AppStorage("financesChartType") private var chartRaw: String = ChartKind.donut.rawValue
     /// Which currency the charts aggregate when NO BNR rate is cached (D3 fallback).
     @AppStorage("financesCurrencyToggle") private var currencyToggleRaw: String = Currency.ron.rawValue
+    /// A3 — the hero shows spending (default) or net (income − spending), remembered.
+    @AppStorage("financesHeroMode") private var heroModeRaw: String = HeroMode.spent.rawValue
     /// Custom-range endpoints (timeIntervalSince1970); 0 = unset.
     @AppStorage("financesCustomStart") private var customStart: Double = 0
     @AppStorage("financesCustomEnd") private var customEnd: Double = 0
@@ -71,6 +73,9 @@ struct FinancesView: View {
             .navigationTitle("Finances")
             .navigationDestination(for: Transaction.self) { transaction in
                 TransactionDetailView(transaction: transaction)
+            }
+            .navigationDestination(for: PersonRoute.self) { route in
+                PersonDetailView(counterparty: route.name)
             }
             .searchable(text: $searchText, prompt: Text("finances.searchPrompt"))
             .overlay(alignment: .bottom) {
@@ -153,7 +158,9 @@ struct FinancesView: View {
                 .listRowSeparator(.hidden)
             }
 
-            if listTransactions.isEmpty {
+            if groupingBinding.wrappedValue == .people {
+                peopleSections
+            } else if listTransactions.isEmpty {
                 Section {
                     filteredEmptyRow
                         .listRowBackground(Color.clear)
@@ -300,9 +307,11 @@ struct FinancesView: View {
     private var hero: some View {
         if let rate = displayRate {
             VStack(spacing: metrics.elementSpacing) {
+                if hasIncome { heroModeControl }
                 heroCombined
                     .accessibilityIdentifier("financesHeroTotal")
-                Text(perCurrencyBreakdown(analyticsTransactions))
+                if hasIncome { incomeLine }
+                Text(perCurrencyBreakdown(expenseTransactions))
                     .font(.subheadline)
                     .foregroundStyle(Palette.secondaryInk)
                 if let date = rates.bnrPublishingDate {
@@ -325,6 +334,7 @@ struct FinancesView: View {
                     perCurrencyStat(currency: .eur)
                         .accessibilityIdentifier("financesEurTotal")
                 }
+                if hasIncome { incomeLine }
             }
             .frame(maxWidth: .infinity)
             .padding(metrics.cardPadding)
@@ -332,23 +342,52 @@ struct FinancesView: View {
         }
     }
 
+    /// A3 — spent / net segmented toggle on the hero (shown only with a rate, so
+    /// income and spending are combinable into one net figure). Remembered.
+    private var heroModeControl: some View {
+        Picker("Hero mode", selection: heroModeBinding) {
+            ForEach(HeroMode.allCases) { mode in Text(mode.label).tag(mode) }
+        }
+        .pickerStyle(.segmented)
+        .tint(Palette.accent)
+        .fixedSize()
+        .accessibilityIdentifier("finances.heroModeToggle")
+    }
+
+    /// A3 — the secondary income line, shown whenever the period has any income.
+    private var incomeLine: some View {
+        Text("finances.incomeLine \(incomeAmountText)")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Palette.accent)
+            .accessibilityIdentifier("finances.incomeLine")
+    }
+
+    private var incomeAmountText: String {
+        let code = displayRate == nil ? currencyToggle.displayCode : Currency.ron.displayCode
+        return "\(incomeTotal.formatted(.number.precision(.fractionLength(0...2)))) \(code)"
+    }
+
     private var heroCombined: some View {
         VStack(spacing: 2) {
-            Text(spentThisPeriodText)
+            Text(heroCaption)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(Palette.secondaryInk)
             (
-                Text(periodTotal, format: .number.precision(.fractionLength(0...2)))
+                Text(heroValue, format: .number.precision(.fractionLength(0...2)))
                     .font(Typography.heroAmount)
                 + Text(" RON")
                     .font(Typography.amount(.title3, weight: .semibold))
             )
-            .foregroundStyle(Palette.accent)
+            .foregroundStyle(heroColor)
         }
     }
 
+    private var heroCaption: String { heroMode == .net ? String(localized: "finances.net") : spentThisPeriodText }
+    private var heroValue: Decimal { heroMode == .net ? netTotal : periodTotal }
+    private var heroColor: Color { (heroMode == .net && netTotal < 0) ? Palette.secondaryInk : Palette.accent }
+
     private func perCurrencyStat(currency: Currency) -> some View {
-        let total = analyticsTransactions
+        let total = expenseTransactions
             .filter { $0.currency == currency }
             .reduce(Decimal(0)) { $0 + $1.amount }
         return VStack(spacing: 4) {
@@ -504,10 +543,14 @@ struct FinancesView: View {
         withAnimation(Motion.card) { recentlyDeleted = snapshot }
 
         let snapshotID = snapshot.id
+        let attachmentID = snapshot.attachmentID
         Task {
             try? await Task.sleep(for: .seconds(4))
             if recentlyDeleted?.id == snapshotID {
                 withAnimation(Motion.card) { recentlyDeleted = nil }
+                // The undo window elapsed — the delete is permanent, so drop the
+                // imported-document attachment file too (E2).
+                if let attachmentID { AttachmentStore.delete(id: attachmentID) }
             }
         }
     }
@@ -519,11 +562,15 @@ struct FinancesView: View {
             currency: snapshot.currency,
             context: snapshot.context,
             category: snapshot.category,
+            customCategoryID: snapshot.customCategoryID,
             descriptionText: snapshot.descriptionText,
             merchant: snapshot.merchant,
             date: snapshot.date,
             rawTranscript: snapshot.rawTranscript,
             source: snapshot.source,
+            direction: snapshot.direction,
+            counterparty: snapshot.counterparty,
+            attachmentID: snapshot.attachmentID,
             createdAt: snapshot.createdAt
         )
         modelContext.insert(restored)
@@ -646,6 +693,7 @@ struct FinancesView: View {
                     descriptionText: tx.descriptionText,
                     rawTranscript: tx.rawTranscript,
                     merchant: tx.merchant,
+                    counterparty: tx.counterparty,
                     category: tx.category,
                     customCategoryID: tx.customCategoryID
                 ),
@@ -665,6 +713,13 @@ struct FinancesView: View {
         return applySearch(inWindow)
     }
     private var analyticsTransactions: [Transaction] { searchedTransactions }
+
+    /// A3 direction split. Charts + the spending hero aggregate EXPENSES only;
+    /// income drives the secondary hero line ("Venituri: +X") and the net toggle;
+    /// neutral rows (transfers/cash moves/loans) are excluded from every total but
+    /// still appear in the list and the People view.
+    private var expenseTransactions: [Transaction] { searchedTransactions.filter { $0.direction == .expense } }
+    private var incomeTransactions: [Transaction] { searchedTransactions.filter { $0.direction == .income } }
 
     /// The list drills further than the charts: the shared category filter
     /// (`selectedRef`) and the shared bucket filter (`selectedBucket`) compose
@@ -692,16 +747,30 @@ struct FinancesView: View {
         SpendItem(amount: tx.amount, currency: tx.currency, category: tx.category, customCategoryID: tx.customCategoryID, date: tx.date)
     }
 
-    /// Analytics items with the no-rate currency toggle applied.
+    /// Analytics items (EXPENSES only, A3) with the no-rate currency toggle applied.
     private var analyticsSpendItems: [SpendItem] {
-        let base = analyticsTransactions
+        let base = expenseTransactions
         let scoped = displayRate == nil ? base.filter { $0.currency == currencyToggle } : base
         return scoped.map(spendItem)
     }
     private var previousSpendItems: [SpendItem] {
-        let base = previousWindowTransactions
+        let base = previousWindowTransactions.filter { $0.direction == .expense }
         let scoped = displayRate == nil ? base.filter { $0.currency == currencyToggle } : base
         return scoped.map(spendItem)
+    }
+
+    /// Income items (A3) for the secondary hero line + net toggle.
+    private var incomeSpendItems: [SpendItem] {
+        let scoped = displayRate == nil ? incomeTransactions.filter { $0.currency == currencyToggle } : incomeTransactions
+        return scoped.map(spendItem)
+    }
+    private var incomeTotal: Decimal { FinancesAnalytics.combinedTotal(incomeSpendItems, rate: displayRate) }
+    private var hasIncome: Bool { !incomeTransactions.isEmpty }
+    /// Net cash flow = income − spending (A3 net toggle).
+    private var netTotal: Decimal { incomeTotal - periodTotal }
+    private var heroMode: HeroMode { HeroMode(rawValue: heroModeRaw) ?? .spent }
+    private var heroModeBinding: Binding<HeroMode> {
+        Binding(get: { heroMode }, set: { heroModeRaw = $0.rawValue })
     }
 
     // MARK: - Aggregates
@@ -783,7 +852,62 @@ struct FinancesView: View {
                     transactions: items
                 )
             }
+
+        case .people:
+            // People is rendered separately (paid/received/net rows) — never as
+            // transaction sections.
+            return []
         }
+    }
+
+    // MARK: - People (B1)
+
+    /// Per-counterparty summaries for the People grouping, over the searched set
+    /// (context + timeframe + search), currency-scoped like the analytics.
+    private var peopleSummaries: [PersonSummary] {
+        let items = searchedTransactions.compactMap { tx -> PersonItem? in
+            guard let cp = tx.counterparty, !cp.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+            return PersonItem(counterparty: cp, amount: tx.amount, currency: tx.currency, direction: tx.direction, date: tx.date)
+        }
+        let scoped = displayRate == nil ? items.filter { $0.currency == currencyToggle } : items
+        return PeopleAnalytics.summaries(scoped, rate: displayRate)
+    }
+
+    @ViewBuilder
+    private var peopleSections: some View {
+        if peopleSummaries.isEmpty {
+            Section {
+                peopleEmptyRow
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+        } else {
+            Section {
+                ForEach(peopleSummaries) { person in
+                    NavigationLink(value: PersonRoute(name: person.counterparty)) {
+                        PersonSummaryRow(person: person, currencyCode: currencyCode)
+                    }
+                    .listRowBackground(Palette.surface)
+                }
+            } header: {
+                PeopleColumnHeader()
+            }
+        }
+    }
+
+    private var peopleEmptyRow: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "person.2.slash")
+                .font(.system(size: 28))
+                .foregroundStyle(Palette.secondaryInk.opacity(0.6))
+            Text("finances.people.empty")
+                .font(.subheadline)
+                .foregroundStyle(Palette.secondaryInk)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .accessibilityIdentifier("finances.peopleEmpty")
     }
 }
 
@@ -897,6 +1021,23 @@ private enum FinancesFilter: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// A3 — the hero total mode (spending vs net cash flow), `@AppStorage`-remembered.
+enum HeroMode: String, CaseIterable, Identifiable, Sendable {
+    case spent, net
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .spent: String(localized: "finances.hero.spent")
+        case .net: String(localized: "finances.hero.net")
+        }
+    }
+}
+
+/// Navigation value for a People-view person → their history + mini-summary (B1).
+struct PersonRoute: Hashable, Sendable {
+    let name: String
+}
+
 private struct TransactionGroup: Identifiable {
     let id: String
     let title: String
@@ -912,11 +1053,15 @@ private struct DeletedTransactionSnapshot {
     let currency: Currency
     let context: TransactionContext
     let category: TransactionCategory?
+    let customCategoryID: UUID?
     let descriptionText: String
     let merchant: String?
     let date: Date
     let rawTranscript: String?
     let source: TransactionSource
+    let direction: TransactionDirection
+    let counterparty: String?
+    let attachmentID: UUID?
     let createdAt: Date
 
     init(_ transaction: Transaction) {
@@ -924,11 +1069,15 @@ private struct DeletedTransactionSnapshot {
         currency = transaction.currency
         context = transaction.context
         category = transaction.category
+        customCategoryID = transaction.customCategoryID
         descriptionText = transaction.descriptionText
         merchant = transaction.merchant
         date = transaction.date
         rawTranscript = transaction.rawTranscript
         source = transaction.source
+        direction = transaction.direction
+        counterparty = transaction.counterparty
+        attachmentID = transaction.attachmentID
         createdAt = transaction.createdAt
     }
 }

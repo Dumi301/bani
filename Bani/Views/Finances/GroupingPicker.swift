@@ -6,6 +6,7 @@ enum TransactionGrouping: String, CaseIterable, Identifiable, Sendable {
     case category
     case month
     case merchant
+    case people
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum TransactionGrouping: String, CaseIterable, Identifiable, Sendable {
         case .category: String(localized: "grouping.category")
         case .month: String(localized: "grouping.month")
         case .merchant: String(localized: "grouping.merchant")
+        case .people: String(localized: "grouping.people")
         }
     }
 }
