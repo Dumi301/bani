@@ -39,6 +39,7 @@ enum ImportSkipReason: String, Equatable, Sendable {
     case unparseableDate
     case missingAmount
     case unparseableAmount
+    case implausibleAmount
     case missingDescription
     case negativeSkipped
 
@@ -48,6 +49,7 @@ enum ImportSkipReason: String, Equatable, Sendable {
         case .unparseableDate:     String(localized: "import.skip.unparseableDate")
         case .missingAmount:       String(localized: "import.skip.missingAmount")
         case .unparseableAmount:   String(localized: "import.skip.unparseableAmount")
+        case .implausibleAmount:   String(localized: "import.skip.implausibleAmount")
         case .missingDescription:  String(localized: "import.skip.missingDescription")
         case .negativeSkipped:     String(localized: "import.skip.negativeSkipped")
         }
@@ -110,11 +112,27 @@ enum ImportRowParser {
                 skip(.unparseableDate); continue
             }
 
-            // Amount (required).
+            // Amount (required). PREFER a resolved xlsx numeric value (float-dust
+            // safe) over re-lexing the raw cell string; fall back to the string
+            // lexer for text/CSV cells.
             let trimmedAmount = rawAmount.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedAmount.isEmpty else { skip(.missingAmount); continue }
-            guard let parsedAmount = AmountLexer.parseCell(trimmedAmount) else {
-                skip(.unparseableAmount); continue
+            let amountNumeric = mapping.amountColumn.flatMap { row.cell(at: $0) }?.numericValue
+            let classified: AmountLexer.CellAmount
+            if let amountNumeric {
+                classified = AmountLexer.classify(numeric: amountNumeric)
+            } else {
+                guard !trimmedAmount.isEmpty else { skip(.missingAmount); continue }
+                classified = AmountLexer.classifyCell(trimmedAmount)
+            }
+            let parsedAmount: AmountLexer.Amount
+            switch classified {
+            case .value(let a):
+                parsedAmount = a
+            case .implausible:
+                // Never silently commit; never silently drop — surface the reason.
+                skip(.implausibleAmount); continue
+            case .none:
+                skip(trimmedAmount.isEmpty ? .missingAmount : .unparseableAmount); continue
             }
             if parsedAmount.isNegative { negativesFound = true }
             if parsedAmount.isNegative && mapping.negativesPolicy == .skip {

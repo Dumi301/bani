@@ -207,6 +207,25 @@ final class ParserTests: XCTestCase {
             expectedAmount: nil,
             expectedCurrency: .ron,
             expectedKeyword: nil
+        ),
+
+        // MARK: - Bug B: float-dust / long-decimal tails round to money (shared
+        // `value(forDigitToken)` change — the voice path inherits it too). Replaces
+        // the old digit-concatenation behavior (would have read "12.3456" → 123456).
+
+        Case(
+            name: "long decimal tail rounds to 2dp (12.3456 → 12.35)",
+            input: "12.3456 lei ceva",
+            expectedAmount: Decimal(string: "12.35"),
+            expectedCurrency: .ron,
+            expectedKeyword: "ceva"
+        ),
+        Case(
+            name: "float-dust tail rounds to 2dp (1149.8500000000001 → 1149.85)",
+            input: "1149.8500000000001 lei taxa",
+            expectedAmount: Decimal(string: "1149.85"),
+            expectedCurrency: .ron,
+            expectedKeyword: "taxa"
         )
     ]
 

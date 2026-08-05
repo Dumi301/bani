@@ -3432,6 +3432,22 @@
         }
       }
     },
+    "import.skip.implausibleAmount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Implausible amount"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sumă implauzibilă"
+          }
+        }
+      }
+    },
     "import.skip.missingAmount": {
       "localizations": {
         "en": {
@@ -4434,6 +4450,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ordinea datei a fost ambiguă (zi/lună)."
+          }
+        }
+      }
+    },
+    "import.note.implausibleAmount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠ Some rows had an impossibly large amount and were skipped — check the original file."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⚠ Unele rânduri aveau o sumă imposibil de mare și au fost omise — verifică fișierul original."
           }
         }
       }

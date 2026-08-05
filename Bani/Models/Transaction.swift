@@ -84,10 +84,16 @@ enum TransactionCategory: String, Codable, CaseIterable, Hashable, Sendable {
 ///   EXCLUDED from both spending and income totals.
 ///
 /// Migration-safety: SwiftData persists this `String`-raw `Codable` enum as its
-/// `rawValue`. The property is declared with a stored default of `.expense`
-/// (below), so existing rows — which have no `direction` column — migrate to
-/// `.expense` and are untouched, exactly the additive discipline already proven
-/// for `customCategoryID` and `importBatchID` (see `ImportModelMigrationTests`).
+/// `rawValue`. A **non-optional** additive enum attribute is NOT migration-safe:
+/// SwiftData does not reliably backfill a store-level default for enum columns,
+/// so rows written before this column existed (≤ v1.0.26) hold NULL and faulting
+/// them dynamic-casts NULL into the non-optional enum → SIGABRT (the Finances-tab
+/// update-install crash, `Bani-2026-08-02-233214.ips`). The fix stores the value
+/// in an **Optional** backing attribute (`Transaction.directionStored`, same
+/// on-disk column name via `originalName`) and exposes the non-optional `.expense`
+/// default through a computed accessor — legal decode of NULL for legacy rows,
+/// while v1.0.31-fielded income/neutral rows keep their stored value. Proven by
+/// `DirectionNullMigrationTests` + `DirectionPreservationTests`.
 enum TransactionDirection: String, Codable, CaseIterable, Hashable, Sendable {
     case expense
     case income
@@ -154,11 +160,23 @@ final class Transaction {
     var rawTranscript: String?
     var source: TransactionSource
     /// A1 — money direction. The ONE structural frozen-seam revision (section A).
-    /// Additive with a stored default of `.expense`, so this stays a lightweight
-    /// SwiftData migration: existing rows (no `direction` column) migrate to
-    /// `.expense` and are untouched. Documented in build-notes.md.
-    /// NOTE: the `@Model` macro requires a fully-qualified default (not `.expense`).
-    var direction: TransactionDirection = TransactionDirection.expense
+    /// STORED as an **Optional** under the original `direction` column name: a
+    /// non-optional additive enum column is NOT migration-safe (SwiftData leaves
+    /// pre-v1.1 rows NULL → dynamic-cast crash when Finances renders). Optional
+    /// decode of NULL is legal (legacy rows → `nil` → `.expense` via the accessor),
+    /// while rows written by v1.0.31 (same column name + type) keep their stored
+    /// value. Public API stays `direction: TransactionDirection` (below), so every
+    /// call site — `FinancesView`, `PeopleView`, edit sheets, import commit,
+    /// sort/filter — compiles unchanged. Documented in build-notes.md.
+    @Attribute(originalName: "direction") private var directionStored: TransactionDirection?
+    /// A1 — non-optional public accessor: legacy/NULL rows read `.expense`; writes
+    /// go through to the optional backing store. Kept a plain computed property
+    /// (never used in a `#Predicate`/`SortDescriptor` keypath — all direction
+    /// filtering is in-memory), so no fetch site needs the stored property.
+    var direction: TransactionDirection {
+        get { directionStored ?? .expense }
+        set { directionStored = newValue }
+    }
     /// A2 — the other party to the transaction (person / firm), when import
     /// extraction or a manual edit supplies one. Nullable + additive, so existing
     /// rows migrate to `nil`; drives the People view (B) and counterparty search (B3).
@@ -205,7 +223,7 @@ final class Transaction {
         self.date = date
         self.rawTranscript = rawTranscript
         self.source = source
-        self.direction = direction
+        self.directionStored = direction
         self.counterparty = counterparty
         self.attachmentID = attachmentID
         self.importBatchID = importBatchID

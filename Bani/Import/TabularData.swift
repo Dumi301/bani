@@ -15,13 +15,21 @@ enum ImportFileKind: String, Sendable, Equatable {
 /// set ONLY for an .xlsx cell that is numeric AND carries a date number-format —
 /// i.e. a real Excel serial date already resolved to a `Date` via CoreXLSX. CSV
 /// and text cells always leave it `nil` (their dates are strings, parsed later).
+///
+/// `numericValue` is set ONLY for an .xlsx cell that is numeric and NOT a date —
+/// the cell's real stored number, resolved as `Double` → `Decimal` rounded to 2dp
+/// money. It exists so the import reads amounts as numbers (float-dust safe:
+/// Excel stores displayed "34.839,70" as `34839.699999999997`) instead of
+/// re-lexing the raw string. `nil` for text cells and every CSV cell.
 struct SheetCell: Equatable, Sendable {
     var text: String
     var serialDate: Date?
+    var numericValue: Decimal?
 
-    init(text: String, serialDate: Date? = nil) {
+    init(text: String, serialDate: Date? = nil, numericValue: Decimal? = nil) {
         self.text = text
         self.serialDate = serialDate
+        self.numericValue = numericValue
     }
 
     var isEmpty: Bool { text.isEmpty }

@@ -71,6 +71,11 @@ enum GenericSheetImport {
         }
         var notes: [String] = []
         if ambiguousDate { notes.append("import.note.ambiguousDate") }
+        // Surface the plausibility-cap skips as their own ⚠ line — never a silent
+        // drop of an implausible amount.
+        if parsed.skipped.contains(where: { $0.reason == .implausibleAmount }) {
+            notes.append("import.note.implausibleAmount")
+        }
         return Outcome(drafts: drafts, skippedCount: parsed.skipped.count, mappingComplete: true, ambiguousDate: ambiguousDate, noteKeys: notes)
     }
 }

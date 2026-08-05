@@ -88,7 +88,8 @@ enum XLSXReader {
                 guard idx >= 0, idx < width else { continue }
                 cells[idx] = SheetCell(
                     text: cellText(cell, sharedStrings: sharedStrings),
-                    serialDate: serialDate(cell, dateStyles: dateStyles)
+                    serialDate: serialDate(cell, dateStyles: dateStyles),
+                    numericValue: numericValue(cell, dateStyles: dateStyles)
                 )
             }
             return SheetRow(cells: cells, sourceRow: Int(row.reference))
@@ -124,7 +125,8 @@ enum XLSXReader {
                 guard idx >= 0, idx < width else { continue }
                 cells[idx] = SheetCell(
                     text: cellText(cell, sharedStrings: sharedStrings),
-                    serialDate: serialDate(cell, dateStyles: dateStyles)
+                    serialDate: serialDate(cell, dateStyles: dateStyles),
+                    numericValue: numericValue(cell, dateStyles: dateStyles)
                 )
             }
             return SheetRow(cells: cells, sourceRow: Int(row.reference))
@@ -178,6 +180,27 @@ enum XLSXReader {
             return nil
         default:
             return cell.dateValue
+        }
+    }
+
+    /// The cell's real stored number as money (`Decimal` rounded to 2dp) when the
+    /// cell is numeric and NOT a date; `nil` for text/bool/error/date cells. Reads
+    /// the raw `<v>` via `Double` so Excel float-dust (displayed "34.839,70" stored
+    /// as `34839.699999999997`) and scientific notation (`3.4E7`) resolve to the
+    /// intended amount instead of being re-lexed from the raw string. The import
+    /// prefers this over `AmountLexer.parseCell(text)` for the amount column.
+    private static func numericValue(_ cell: Cell, dateStyles: Set<Int>) -> Decimal? {
+        // Date-styled numeric cells go down the `serialDate` path, not here.
+        if let styleIndex = cell.styleIndex, dateStyles.contains(styleIndex) { return nil }
+        // Same non-numeric cell types the serial-date resolver excludes. A native
+        // ISO-date cell (`t="d"`) falls to `default` and its `Double(...)` fails, so
+        // it correctly yields `nil` without naming a possibly-absent `.date` case.
+        switch cell.type {
+        case .sharedString, .string, .inlineStr, .bool, .error:
+            return nil
+        default:
+            guard let raw = cell.value, let d = Double(raw) else { return nil }
+            return AmountLexer.roundedMoney(Decimal(d))
         }
     }
 
