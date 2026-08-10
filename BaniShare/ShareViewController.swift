@@ -46,18 +46,31 @@ final class ShareViewController: UIViewController {
     @MainActor
     private func store(_ provider: NSItemProvider) async {
         if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier),
-           let data = try? await provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) {
+           let data = await loadData(provider, typeIdentifier: UTType.image.identifier) {
             SharedPayloadStore.writeImage(data)
             return
         }
         for type in [UTType.plainText, UTType.utf8PlainText, UTType.text, UTType.url] {
             guard provider.hasItemConformingToTypeIdentifier(type.identifier),
-                  let data = try? await provider.loadDataRepresentation(forTypeIdentifier: type.identifier),
-                  let text = String(data: data, encoding: .utf8),
-                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                  let data = await loadData(provider, typeIdentifier: type.identifier),
+                  let text = String(data: data, encoding: .utf8)
             else { continue }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
             SharedPayloadStore.writeText(text)
             return
+        }
+    }
+
+    /// Continuation wrapper over the completion-handler API. The completion-handler
+    /// `loadDataRepresentation(forTypeIdentifier:completionHandler:)` returns
+    /// `Progress`, so Swift generates NO async bridge for it — wrap it by hand.
+    @MainActor
+    private func loadData(_ provider: NSItemProvider, typeIdentifier: String) async -> Data? {
+        await withCheckedContinuation { continuation in
+            _ = provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
+                continuation.resume(returning: data)
+            }
         }
     }
 }
