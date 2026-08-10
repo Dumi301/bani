@@ -10,7 +10,9 @@ import SwiftData
 final class AutoLogReviewTests: XCTestCase {
 
     private func makeContext() throws -> ModelContext {
-        try ImportTestSupport.inMemoryContainer().mainContext
+        // Strongly retain the container via ModelContext(container) — the proven
+        // idiom; `.mainContext` on a throwaway container dangles (native crash).
+        ModelContext(try ImportTestSupport.inMemoryContainer())
     }
 
     private func records(_ ctx: ModelContext) -> [DecisionRecord] {

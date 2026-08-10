@@ -11,7 +11,10 @@ import SwiftData
 final class LogPaymentIntentTests: XCTestCase {
 
     private func makeContext() throws -> ModelContext {
-        try ImportTestSupport.inMemoryContainer().mainContext
+        // `ModelContext(container)` STRONGLY retains its container (the proven
+        // idiom in FeedbackLedgerTests/ImportBatchTests); `container.mainContext`
+        // would let the throwaway container deallocate and dangle the context.
+        ModelContext(try ImportTestSupport.inMemoryContainer())
     }
 
     private func allTransactions(_ ctx: ModelContext) -> [Transaction] {
