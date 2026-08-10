@@ -31,6 +31,10 @@ struct LogView: View {
     /// and after the sheet closes, so background-logged payments surface promptly.
     @State private var autoLogCount = 0
     @State private var showAutoLogReview = false
+    /// Share-sheet capture (Part B): the queue of drained captures awaiting the
+    /// pre-filled confirmation card, and the one currently presented.
+    @State private var shareQueue: [SharePickup.Capture] = []
+    @State private var currentShare: SharePickup.Capture?
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("-forceRuleParser") {
@@ -134,10 +138,20 @@ struct LogView: View {
         .sheet(isPresented: $showAutoLogReview, onDismiss: refreshAutoLogCount) {
             AutoLogReviewView()
         }
-        .onAppear(perform: refreshAutoLogCount)
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { refreshAutoLogCount() }
+        .sheet(item: $currentShare, onDismiss: advanceShareQueue) { capture in
+            ShareCaptureCard(capture: capture) { resolveShare(capture) }
         }
+        .onAppear(perform: onForeground)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { onForeground() }
+        }
+    }
+
+    /// Run whenever the Log tab appears / the app returns to the foreground: refresh
+    /// the auto-log review count AND drain any share-sheet captures.
+    private func onForeground() {
+        refreshAutoLogCount()
+        drainShares()
     }
 
     /// The count of unreviewed auto-logged payments (Part A). Auto-logged entries
@@ -145,6 +159,26 @@ struct LogView: View {
     /// tab appears / the app returns to the foreground / the review sheet closes.
     private func refreshAutoLogCount() {
         autoLogCount = AutoLogReview.unreviewedCount(in: modelContext)
+    }
+
+    /// Part B: drain the App Group captures the share extension wrote, parse them
+    /// off-main, and present the confirmation card for each in turn.
+    private func drainShares() {
+        Task {
+            let captures = await SharePickup.drain()
+            guard !captures.isEmpty else { return }
+            shareQueue.append(contentsOf: captures)
+            advanceShareQueue()
+        }
+    }
+
+    private func advanceShareQueue() {
+        if currentShare == nil { currentShare = shareQueue.first }
+    }
+
+    private func resolveShare(_ capture: SharePickup.Capture) {
+        shareQueue.removeAll { $0.id == capture.id }
+        refreshAutoLogCount()
     }
 
     // MARK: - Subviews

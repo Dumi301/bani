@@ -130,4 +130,43 @@ enum AutoLogWriter {
         try? context.save()
         return transaction
     }
+
+    /// Part B — write a share-sheet capture as an `.autoLogged` transaction after
+    /// the user confirmed it on the pre-filled card. Same seam as the intent
+    /// (`.autoLogged`), differentiated only by the `[share]` `rawTranscript` prefix
+    /// preserving the verbatim captured text. Direction comes from the parse
+    /// (income/expense); the amount is already a confirmed `Decimal` from the card.
+    @discardableResult
+    static func logShared(
+        amount: Decimal,
+        currency: Currency,
+        descriptionText: String,
+        merchant: String?,
+        direction: TransactionDirection,
+        rawText: String,
+        in context: ModelContext
+    ) -> Transaction {
+        let cleanMerchant = cleanedMerchant(merchant)
+        let typed = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalDescription = typed.isEmpty ? (cleanMerchant ?? String(localized: "autolog.description.fallback")) : typed
+        let categoryRef = CategoryRuleStore.guessRef(description: finalDescription, merchant: cleanMerchant, in: context)
+        let selectedContext = ContextRuleStore.preselectedContext(description: finalDescription, merchant: cleanMerchant, in: context) ?? .personal
+        let cleanRaw = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let transaction = Transaction(
+            amount: amount,
+            currency: currency,
+            context: selectedContext,
+            descriptionText: finalDescription,
+            merchant: cleanMerchant,
+            date: .now,
+            rawTranscript: "\(AutoLogPayload.Origin.share.prefix) \(cleanRaw)",
+            source: .autoLogged,
+            direction: direction
+        )
+        transaction.categoryRef = categoryRef
+        context.insert(transaction)
+        try? context.save()
+        return transaction
+    }
 }

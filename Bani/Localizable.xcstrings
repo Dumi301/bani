@@ -5557,6 +5557,38 @@
           }
         }
       }
+    },
+    "share.card.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review shared payment"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifică plata primită"
+          }
+        }
+      }
+    },
+    "share.card.rawText": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captured text"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text primit"
+          }
+        }
+      }
     }
   }
 }
