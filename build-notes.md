@@ -125,3 +125,75 @@ with the CSV fixture via the `-importUITest` seam (non-blocking screenshots job)
 ## Out of scope (logged, moved on)
 
 Report exports — next run.
+
+---
+
+# v1.1 "Auto-Logging" run — Part A (Apple Pay auto-capture)
+
+## Frozen-seam exception: `TransactionSource.autoLogged` (approved)
+
+Additive `String`-raw `Codable` enum case (`Transaction.swift`). Adding a case
+only widens the valid set — stored `"voice"/"manual"/"imported"` strings decode
+unchanged, no heavyweight migration. **Decode proof** (`TransactionSourceMigrationTests`,
+on a REAL on-disk store, close + reopen): a store holding only the old cases
+decodes clean and no row spuriously becomes `.autoLogged`; an `.autoLogged` row
+round-trips with its value intact alongside an old-case row. Both the Apple Pay
+intent AND the share-sheet capture (Part B) reuse this ONE case — origin is
+distinguished by the `rawTranscript` prefix (`[intent]` vs `[share]`), never a
+second source case.
+
+## No `Double` touchpoint (money path stays `Decimal`-only)
+
+`LogPaymentIntent.amountText` is bound as a **`String`** `@Parameter` (the
+Shortcuts Transaction trigger passes its amount as text). It is parsed by the
+hardened `AmountLexer.classifyCell`, inheriting the float-dust rounding + the
+plausibility cap. The documented `Double` fallback was **not needed** — String
+binding works — so no `Double` enters the money path and the Double-in-money grep
+stays clean.
+
+## Shared container (controlled `BaniApp` integration edit)
+
+`BaniModelContainer.shared` is the single on-disk `ModelContainer`. The background
+`LogPaymentIntent` launch (`openAppWhenRun == false`) and the foreground app both
+resolve to it, so there is exactly one container over the default store. `BaniApp`
+now takes its on-disk container from `BaniModelContainer.shared` (UI tests keep a
+throwaway in-memory one). The store URL is unchanged (`ModelConfiguration(isStoredInMemoryOnly:)`
+only) → existing users' data preserved; schema unchanged except the additive enum case.
+
+## Card-contract compliance (never invisible, never un-resolvable)
+
+Auto-logged entries save immediately (real payments), carry a distinct **"auto"
+badge** everywhere they render (via `TransactionRow`), and surface an **"N auto-logged
+— review" chip** on the Log tab. "Unreviewed" is DERIVED (an `.autoLogged` row with
+no `DecisionRecord` referencing it) — no new field on the frozen `Transaction`.
+Each resolution writes exactly one `DecisionRecord` feeding `TrustEngine`, exactly
+like a voice card: Confirm → `confirmedExplicit` (+ rule reinforce), Edit →
+`corrected` (+ changed fields, learns the category correction), Discard → real
+delete + `discarded` record + restorable Undo toast.
+
+## Dedup
+
+`.autoLogged` rows join the existing-fingerprint set alongside `.imported`
+(`ImportBatchStore.existingImportFingerprints`), so a later statement import of the
+same payment is caught by the existing batch-level dedup flow (grouped choice,
+default skip). No stored fingerprint on the frozen `Transaction` — it is derived
+from the persisted day+amount+description (`DedupCollisionTests`). Voice/manual
+rows are deliberately excluded (legit duplicate hand-entered spend is expected).
+
+## Settings guide + test-intent row
+
+Settings → "Auto-logging" (`AutoLoggingGuideView`): numbered ro+en Shortcuts-setup
+steps (matching iOS 26 Shortcuts wording) + a **"Log a test payment"** row that
+fires the SAME write path (`AutoLogWriter.log`) with a sample payload, so on-device
+setup is verifiable without a real payment (the sample lands in the review chip).
+
+## Part A tests (gate)
+
+`TransactionSourceMigrationTests` (decode proof, on disk), `LogPaymentIntentTests`
+(payload → persisted `Transaction`: Decimal amount, categorizer applied, verbatim
+`rawTranscript`, RON default, EUR mapping, garbage/zero/implausible → throws with
+NO row saved), `DedupCollisionTests` (auto-logged vs later import collides; scoping
+excludes voice/manual), `AutoLogReviewTests` (unreviewed count; confirm/edit/discard
+→ one `DecisionRecord` each; discard deletes + Undo restores). New localized keys
+added to `Localizable.xcstrings` in both en+ro (parity kept for
+`LocalizationCompletenessTests`).

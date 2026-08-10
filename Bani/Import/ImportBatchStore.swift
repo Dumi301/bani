@@ -27,10 +27,16 @@ enum ImportBatchStore {
     }
 
     /// Fingerprints of every previously-imported transaction, for the dedup guard.
+    /// v1.1 Auto-Logging: `.autoLogged` rows (Apple Pay / share-sheet captures) are
+    /// real payments that a later statement import would duplicate, so they join the
+    /// existing-fingerprint set too — a shared/auto-logged payment plus its later
+    /// statement row collapse through the SAME batch-level dedup flow (no per-row
+    /// stored fingerprint on the frozen `Transaction`; it is derived from the
+    /// persisted day+amount+description, proven in `DedupCollisionTests`).
     static func existingImportFingerprints(in context: ModelContext) -> Set<String> {
         let all = (try? context.fetch(FetchDescriptor<Transaction>())) ?? []
         var out = Set<String>()
-        for tx in all where tx.source == .imported {
+        for tx in all where tx.source == .imported || tx.source == .autoLogged {
             out.insert(ImportFingerprint.fingerprint(date: tx.date, amount: tx.amount, description: tx.descriptionText))
         }
         return out

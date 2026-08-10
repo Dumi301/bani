@@ -40,21 +40,18 @@ struct BaniApp: App {
         self.modelAbsent = absent
 
         do {
-            let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-            // CategoryRule + the feedback-ledger entities (DecisionRecord,
-            // ContextRule, CorrectionMemory) + CustomCategory + ImportBatch join
-            // the schema as separate, additive entities. `Transaction` gains only
-            // additive fields — the optional `customCategoryID` (C1), `importBatchID`
-            // (v1.1), plus the v1.1-RUN-1 trio `direction` (stored default `.expense`),
-            // `counterparty`, and `attachmentID` — so this stays a lightweight
-            // migration; existing rows migrate those to their defaults/`nil` and are
-            // untouched (proven in ImportModelMigrationTests / DirectionMigrationTests).
-            container = try ModelContainer(
-                for: Transaction.self, CategoryRule.self,
-                DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
-                CustomCategory.self, ImportBatch.self,
-                configurations: config
-            )
+            // v1.1 Auto-Logging (controlled integration edit): the on-disk store is
+            // now owned by `BaniModelContainer.shared` so the background
+            // `LogPaymentIntent` launch and this foreground launch share exactly ONE
+            // container over the default store (see BaniModelContainer). The schema
+            // is unchanged from before this run (same default URL → existing data
+            // preserved); only `TransactionSource` gained the additive `.autoLogged`
+            // case. UI tests keep their own throwaway in-memory container.
+            if inMemory {
+                container = try BaniModelContainer.make(inMemory: true)
+            } else {
+                container = BaniModelContainer.shared
+            }
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

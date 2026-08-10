@@ -123,17 +123,24 @@ enum TransactionDirection: String, Codable, CaseIterable, Hashable, Sendable {
 
 /// How a transaction was created.
 ///
-/// v1.1 adds ONE case: `imported` (Excel/CSV history import). Migration-safety:
-/// SwiftData persists this `String`-raw `Codable` enum as its `rawValue`, so the
-/// addition only widens the set of *valid* values — it never rewrites the stored
-/// "voice"/"manual" strings existing rows already hold, and decoding those is
-/// unchanged. Same additive discipline as the `customCategoryID` precedent; no
-/// heavyweight migration, existing data untouched (proven in
-/// `ImportModelMigrationTests`).
+/// v1.1 adds `imported` (Excel/CSV history import) and — v1.1 "Auto-Logging" run —
+/// `autoLogged` (an Apple Pay / share-sheet capture that logged itself with no
+/// taps). Migration-safety: SwiftData persists this `String`-raw `Codable` enum as
+/// its `rawValue`, so each addition only widens the set of *valid* values — it
+/// never rewrites the stored "voice"/"manual"/"imported" strings existing rows
+/// already hold, and decoding those is unchanged. Same additive discipline as the
+/// `customCategoryID` precedent; no heavyweight migration, existing data untouched
+/// (proven in `ImportModelMigrationTests` + `TransactionSourceMigrationTests`).
+///
+/// `autoLogged` is the SINGLE approved frozen-seam enum exception for this run:
+/// both the `LogPaymentIntent` (Apple Pay) AND the share-sheet capture reuse it
+/// (one seam, not two); the origin is distinguished by the `rawTranscript` prefix
+/// (`[intent]` vs `[share]`), never by a second source case.
 enum TransactionSource: String, Codable, CaseIterable, Hashable, Sendable {
     case voice
     case manual
     case imported
+    case autoLogged
 }
 
 // MARK: - SwiftData model

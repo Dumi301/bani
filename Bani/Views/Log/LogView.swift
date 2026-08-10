@@ -13,6 +13,7 @@ struct LogView: View {
     @Environment(WhisperService.self) private var whisper
     @Environment(\.modelContext) private var modelContext
     @Environment(\.metrics) private var metrics
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Constructed once per view identity. `-forceRuleParser` (test seam,
     /// see interfaces.md) forces the deterministic rule-based parser + refiner;
@@ -25,6 +26,11 @@ struct LogView: View {
     @State private var recorder: Recorder?
     @State private var activeContext: TransactionContext = .personal
     @State private var showManualEntry = false
+    /// Auto-logging (Part A): count of unreviewed auto-logged payments driving the
+    /// review chip, and the presented review sheet. Refreshed on appear / foreground
+    /// and after the sheet closes, so background-logged payments surface promptly.
+    @State private var autoLogCount = 0
+    @State private var showAutoLogReview = false
 
     init() {
         if ProcessInfo.processInfo.arguments.contains("-forceRuleParser") {
@@ -65,6 +71,7 @@ struct LogView: View {
 
             VStack(spacing: metrics.sectionSpacing) {
                 header
+                if autoLogCount > 0 { reviewChip }
                 Spacer(minLength: 12)
                 recordButton(for: .personal)
                 recordButton(for: .work)
@@ -124,6 +131,20 @@ struct LogView: View {
         .onChange(of: recorder?.state) { _, newState in
             handle(recorderState: newState)
         }
+        .sheet(isPresented: $showAutoLogReview, onDismiss: refreshAutoLogCount) {
+            AutoLogReviewView()
+        }
+        .onAppear(perform: refreshAutoLogCount)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { refreshAutoLogCount() }
+        }
+    }
+
+    /// The count of unreviewed auto-logged payments (Part A). Auto-logged entries
+    /// arrive via the background `LogPaymentIntent`, so recompute whenever the Log
+    /// tab appears / the app returns to the foreground / the review sheet closes.
+    private func refreshAutoLogCount() {
+        autoLogCount = AutoLogReview.unreviewedCount(in: modelContext)
     }
 
     // MARK: - Subviews
@@ -145,6 +166,33 @@ struct LogView: View {
             .accessibilityLabel("Add transaction manually")
         }
         .padding(.top, 8)
+    }
+
+    /// "N auto-logged — review" chip (Part A): auto-logged payments save
+    /// immediately but are never invisible — this surfaces the unreviewed ones and
+    /// opens the review sheet (one-tap confirm / edit / discard).
+    private var reviewChip: some View {
+        Button {
+            showAutoLogReview = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.fill")
+                Text("autolog.review.chip \(autoLogCount)")
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .opacity(0.6)
+            }
+            .font(.system(.subheadline).weight(.semibold))
+            .foregroundStyle(Palette.accent)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .metalSurface(cornerRadius: Radius.chip)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("logView.autoLogReviewChip")
+        .accessibilityLabel(Text("autolog.review.chip \(autoLogCount)"))
     }
 
     private func recordButton(for ctx: TransactionContext) -> some View {

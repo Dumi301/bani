@@ -33,6 +33,7 @@ struct TransactionRow: View {
                             .lineLimit(1)
                     }
                     contextTag
+                    if transaction.source == .autoLogged { autoBadge }
                     Text(dateText)
                         .font(.caption2)
                         .foregroundStyle(Palette.secondaryInk)
@@ -74,6 +75,22 @@ struct TransactionRow: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Color(transaction.context.tagColorName).opacity(0.15), in: Capsule())
+    }
+
+    /// Provenance badge for an auto-logged payment (Apple Pay / share-sheet
+    /// capture) — a distinct "auto" chip so these rows are never invisible.
+    private var autoBadge: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 8, weight: .bold))
+            Text("autolog.badge")
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(Palette.accent)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Palette.accent.opacity(0.14), in: Capsule())
+        .accessibilityIdentifier("transactionRow.autoBadge")
     }
 
     /// Amount + currency code, monospaced. A3 direction styling: income shows a

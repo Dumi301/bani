@@ -181,6 +181,24 @@ struct SettingsView: View {
                     .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Auto-logging (v1.1 Auto-Logging run)
+                Section {
+                    NavigationLink {
+                        AutoLoggingGuideView()
+                    } label: {
+                        Label("autolog.settings.title", systemImage: "bolt.fill")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.autoLoggingRow")
+                } header: {
+                    Text("autolog.settings.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    Text("autolog.settings.footer")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
                 // MARK: Categories
                 Section {
                     NavigationLink {

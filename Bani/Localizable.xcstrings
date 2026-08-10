@@ -5173,6 +5173,390 @@
           }
         }
       }
+    },
+    "autolog.badge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auto"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auto"
+          }
+        }
+      }
+    },
+    "autolog.review.chip %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld auto-logged — review"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld automate — verifică"
+          }
+        }
+      }
+    },
+    "autolog.review.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-logged payments"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plăți automate"
+          }
+        }
+      }
+    },
+    "autolog.review.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to review"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimic de verificat"
+          }
+        }
+      }
+    },
+    "autolog.confirm": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmă"
+          }
+        }
+      }
+    },
+    "autolog.discard": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renunță"
+          }
+        }
+      }
+    },
+    "autolog.discarded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discarded"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Șters"
+          }
+        }
+      }
+    },
+    "autolog.done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gata"
+          }
+        }
+      }
+    },
+    "autolog.description.fallback": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card payment"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plată card"
+          }
+        }
+      }
+    },
+    "autolog.error.amount %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read the amount “%@”."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu am putut citi suma „%@”."
+          }
+        }
+      }
+    },
+    "autolog.settings.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-logging"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plăți automate"
+          }
+        }
+      }
+    },
+    "autolog.settings.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log Apple Pay payments automatically with a Shortcuts automation."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Înregistrează automat plățile Apple Pay printr-o automatizare Shortcuts."
+          }
+        }
+      }
+    },
+    "autolog.guide.intro": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up a Shortcuts automation once, and every Apple Pay payment logs itself into Bani — no taps."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configurează o automatizare Shortcuts o singură dată, iar fiecare plată Apple Pay se înregistrează singură în Bani — fără atingeri."
+          }
+        }
+      }
+    },
+    "autolog.guide.section.steps": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steps"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pași"
+          }
+        }
+      }
+    },
+    "autolog.guide.step1": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the Shortcuts app → Automation tab → tap + → New Automation."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deschide aplicația Shortcuts → fila Automatizare → apasă + → Automatizare nouă."
+          }
+        }
+      }
+    },
+    "autolog.guide.step2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose “Transaction” as the trigger, then pick your Apple Pay card(s)."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alege „Tranzacție” ca declanșator, apoi selectează cardul (cardurile) Apple Pay."
+          }
+        }
+      }
+    },
+    "autolog.guide.step3": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set it to run for any amount and select “Run Immediately”."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setează-o să ruleze pentru orice sumă și alege „Rulează imediat”."
+          }
+        }
+      }
+    },
+    "autolog.guide.step4": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add an action and search for “Log a Payment in Bani”."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă o acțiune și caută „Log a Payment in Bani”."
+          }
+        }
+      }
+    },
+    "autolog.guide.step5": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Map the Transaction’s Amount, Merchant and Currency onto the action’s fields."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asociază Suma, Comerciantul și Moneda tranzacției cu câmpurile acțiunii."
+          }
+        }
+      }
+    },
+    "autolog.guide.step6": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save. Every payment now logs automatically — review them from the Log tab chip."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvează. Fiecare plată se înregistrează acum automat — verifică-le din eticheta filei Jurnal."
+          }
+        }
+      }
+    },
+    "autolog.guide.test.button": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log a test payment"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Înregistrează o plată de test"
+          }
+        }
+      }
+    },
+    "autolog.guide.test.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fires the intent with a sample payment so you can verify setup — it appears in the Log tab’s review chip."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rulează acțiunea cu o plată exemplu ca să verifici configurarea — apare în eticheta de verificare din fila Jurnal."
+          }
+        }
+      }
+    },
+    "autolog.guide.test.done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test payment logged — check the Log tab."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plată de test înregistrată — verifică fila Jurnal."
+          }
+        }
+      }
+    },
+    "autolog.guide.test.merchant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Café"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cafenea Test"
+          }
+        }
+      }
     }
   }
 }
