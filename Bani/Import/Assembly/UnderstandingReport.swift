@@ -77,6 +77,10 @@ struct ReportDecisions: Sendable, Equatable {
     var skipDuplicates: Bool = true
     /// Negatives policy, shown ONLY when negatives exist.
     var negativesPolicy: NegativesPolicy = .absolute
+    /// v1.2a — the batch-level project applied to every committed row on Confirm
+    /// (`nil` = none). Defaulted to the last-used project for Work-defaulting
+    /// batches (families A/B/C), none for Personal/D — set when the report is built.
+    var projectID: UUID? = nil
 }
 
 /// The whole understanding report shown after processing (F). Pure value type so

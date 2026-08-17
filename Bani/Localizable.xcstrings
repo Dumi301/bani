@@ -6773,6 +6773,38 @@
           }
         }
       }
+    },
+    "import.report.project.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assign to project"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atribuie unui proiect"
+          }
+        }
+      }
+    },
+    "import.report.project.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to every imported row."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se aplică fiecărui rând importat."
+          }
+        }
+      }
     }
   }
 }

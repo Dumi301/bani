@@ -59,6 +59,8 @@ enum AutoLogReview {
         var categoryRef: CategoryRef?
         var context: TransactionContext
         var direction: TransactionDirection
+        /// v1.2a — the assigned project, correctable like the card chip.
+        var projectID: UUID?
 
         init(from tx: Transaction) {
             amount = tx.amount
@@ -67,6 +69,7 @@ enum AutoLogReview {
             categoryRef = tx.categoryRef
             context = tx.context
             direction = tx.direction
+            projectID = tx.projectID
         }
     }
 
@@ -88,6 +91,7 @@ enum AutoLogReview {
         if tx.descriptionText != cleanDescription { fields.insert(.description) }
         if originalRef != edit.categoryRef { fields.insert(.category) }
         if originalContext != edit.context { fields.insert(.context) }
+        if tx.projectID != edit.projectID { fields.insert(.project) }
 
         tx.amount = edit.amount
         tx.currency = edit.currency
@@ -95,6 +99,7 @@ enum AutoLogReview {
         tx.categoryRef = edit.categoryRef
         tx.context = edit.context
         tx.direction = edit.direction
+        tx.projectID = edit.projectID
         try? context.save()
 
         if fields.contains(.category), let ref = edit.categoryRef {

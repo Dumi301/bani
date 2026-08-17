@@ -73,6 +73,17 @@ enum AutoLogWriter {
         }
     }
 
+    /// v1.2a — the last-used project to assign to an auto-logged entry: the
+    /// persisted project (`lastUsedProjectID`) when the resolved context is Work AND
+    /// it still exists (non-archived), else `nil`. Personal is never project-tagged.
+    /// Clamps against the store so a deleted/archived last-used never leaves a dead id.
+    static func lastUsedProject(for resolvedContext: TransactionContext, in modelContext: ModelContext) -> UUID? {
+        let raw = UserDefaults.standard.string(forKey: "lastUsedProjectID") ?? ""
+        guard let id = ProjectAssignment.smartDefault(context: resolvedContext, lastUsedRaw: raw) else { return nil }
+        let existing = (try? modelContext.fetch(FetchDescriptor<Project>()))?.first { $0.id == id && !$0.archived }
+        return existing?.id
+    }
+
     /// The cleaned merchant, trimmed of whitespace; `nil`/blank stays `nil`.
     static func cleanedMerchant(_ merchant: String?) -> String? {
         guard let merchant else { return nil }
@@ -113,6 +124,9 @@ enum AutoLogWriter {
         // pre-selection, else Personal — the same seams the voice card uses.
         let categoryRef = CategoryRuleStore.guessRef(description: description, merchant: merchant, in: context)
         let selectedContext = ContextRuleStore.preselectedContext(description: description, merchant: merchant, in: context) ?? .personal
+        // v1.2a: a Work auto-log carries the last-used project (Personal never does);
+        // the review chip can correct it.
+        let projectID = lastUsedProject(for: selectedContext, in: context)
 
         let transaction = Transaction(
             amount: amount,
@@ -123,7 +137,8 @@ enum AutoLogWriter {
             date: payload.date,
             rawTranscript: rawTranscript(for: payload, amount: amount, currency: currency),
             source: .autoLogged,
-            direction: .expense
+            direction: .expense,
+            projectID: projectID
         )
         transaction.categoryRef = categoryRef
         context.insert(transaction)

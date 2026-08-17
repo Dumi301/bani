@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// The one screen shown after processing (F) — the UX heart of the one-tap import.
 /// Per-file ✓/⚠/✗ chips with counts, plain-language reasons, editable document
@@ -6,6 +7,8 @@ import SwiftUI
 /// NOTHING saves before Confirm; Cancel discards everything.
 struct UnderstandingReportView: View {
     @Environment(\.metrics) private var metrics
+    /// v1.2a — projects for the batch-level project picker.
+    @Query private var projects: [Project]
     @Binding var report: UnderstandingReport
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -20,6 +23,7 @@ struct UnderstandingReportView: View {
                     ForEach(Array(report.files.enumerated()), id: \.element.id) { index, _ in
                         fileCard(index)
                     }
+                    projectSection
                     questionsSection
                 }
                 .padding(metrics.screenPadding)
@@ -48,6 +52,33 @@ struct UnderstandingReportView: View {
         .padding(metrics.cardPadding)
         .metalSurface(cornerRadius: Radius.card, elevated: true)
         .accessibilityIdentifier("import.report.header")
+    }
+
+    // MARK: - Batch project (v1.2a)
+
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
+
+    private var projectBinding: Binding<UUID?> {
+        Binding(get: { report.decisions.projectID }, set: { report.decisions.projectID = $0 })
+    }
+
+    /// One batch-level project picker applied to every committed row on Confirm
+    /// (defaulted to last-used for a Work-defaulting batch; per-row overrides are out).
+    private var projectSection: some View {
+        VStack(alignment: .leading, spacing: metrics.elementSpacing) {
+            Text("import.report.project.title")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.ink)
+            ProjectPickerRow(projects: activeProjects, selectedID: projectBinding)
+                .accessibilityIdentifier("import.report.projectPicker")
+            Text("import.report.project.note")
+                .font(.caption2)
+                .foregroundStyle(Palette.secondaryInk)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
+        .accessibilityIdentifier("import.report.projectSection")
     }
 
     // MARK: - File card

@@ -335,13 +335,33 @@ notifications only.
 - **Loans / rate-splits** → v1.2b (the `LiquidityCalculator.loanAdjustment` +
   `ScheduledItem` seams are ready).
 - **Sub-units / houses-split** → a later run.
-- **Per-row import project assignment** → only batch-level was in scope; and the
-  batch-level import picker + the auto-logged App-Intent review chip were **deferred
-  from this run** (clean seams: `Transaction.projectID` + `saveVoiceTransaction`
-  already accept a project; these surfaces only need to pass it).
+- **Per-row import project assignment** → out of scope; only the **batch-level**
+  picker ships (below).
 - **Voice project-name parsing** ("log 500 lei on Manhattan") — not attempted; the
   smart-default chip (last-used project on Work) covers assignment without an NLU risk.
 - **Person registry** — `counterparty` stays free text.
+
+## Assignment coverage — every entry surface (import + auto-log now closed)
+
+The smart-default chip (`ProjectAssignment.smartDefault`) covers ALL entry surfaces:
+
+- **Voice / manual / share** confirmation cards — Work-only chip, last-used default;
+  a change records a `.project` correction in the `DecisionRecord`.
+- **Finances** detail + edit sheet — project field on any transaction.
+- **Import** — the understanding report carries ONE batch-level project picker
+  (`ReportDecisions.projectID`), defaulted to the last-used project for a
+  Work-defaulting batch (families A/B/C land committable rows in Work) and none for
+  a Personal/D batch. On Confirm the chosen project is applied to EVERY committed row
+  (`CommitItem.projectID` → `ImportCommitRunner`); per-row overrides stay out.
+  *Proof:* `ImportProjectAssignmentTests` (fixture batch → commit → every row carries
+  the chosen projectID; none → unassigned).
+- **Auto-logged** (Apple Pay App Intent) — `AutoLogWriter.log` assigns the last-used
+  project when the resolved context is Work (clamped to an existing, non-archived
+  project; Personal never tagged); the review chip's edit makes **project a
+  correctable field** — a change updates the transaction AND writes a `.project`
+  `DecisionRecord`, exactly like the card chip. *Proof:*
+  `AutoLogProjectAssignmentTests` (Work intent carries last-used → review correction
+  updates it + records the ledger entry; Personal none; dead last-used clamped away).
 
 ## Assignment at entry (smart-default chip)
 

@@ -6,6 +6,9 @@ struct CommitItem: Sendable {
     var draft: DraftTransaction
     var context: TransactionContext
     var attachment: PendingAttachment?
+    /// v1.2a — the batch-level project assigned in the understanding report
+    /// (applies to the whole batch; `nil` = unassigned). Per-row overrides are out.
+    var projectID: UUID?
 }
 
 /// Commits the confirmed report as ONE `ImportBatch` (F: "Confirm commits ALL
@@ -60,7 +63,8 @@ actor ImportCommitRunner {
                 direction: item.draft.direction,
                 counterparty: item.draft.counterparty,
                 attachmentID: attachmentID,
-                importBatchID: batchID
+                importBatchID: batchID,
+                projectID: item.projectID
             )
             tx.categoryRef = resolve(item.draft.category, resolution: resolution, snapshots: snapshots, description: item.draft.descriptionText)
             modelContext.insert(tx)
