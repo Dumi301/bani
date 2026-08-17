@@ -41,11 +41,15 @@ final class ScreenshotTests: XCTestCase {
         // Select tabs by INDEX, not localized label — the shared simulator can
         // carry a non-English language over from an earlier test, which would make
         // a label lookup ("Finances") silently miss and snapshot the wrong screen.
-        // 0 = Log, 1 = Finances, 2 = Settings (stable across languages).
+        // v1.2a order: 0 = Log, 1 = Projects, 2 = Finances, 3 = Settings
+        // (stable across languages).
         tabBar.buttons.element(boundBy: 1).tap()
-        snapshot(app, name: "\(appearance)-finances")
+        snapshot(app, name: "\(appearance)-projects")
 
         tabBar.buttons.element(boundBy: 2).tap()
+        snapshot(app, name: "\(appearance)-finances")
+
+        tabBar.buttons.element(boundBy: 3).tap()
         snapshot(app, name: "\(appearance)-settings")
     }
 
