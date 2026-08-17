@@ -58,7 +58,7 @@ private enum LegacyStoreV36 {
             self.source = source
             self.directionStored = direction
             self.counterparty = counterparty
-            self.attachmentID = attachmentID
+            self.attachmentID = nil
             self.importBatchID = importBatchID
             self.createdAt = createdAt
         }
