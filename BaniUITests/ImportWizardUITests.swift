@@ -30,12 +30,12 @@ final class ImportWizardUITests: XCTestCase {
             app.launch()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
 
-            // Settings (3rd tab, locale-agnostic) auto-presents the import flow,
-            // which — under -importReportUITest — loads the synthetic files straight
-            // to the report.
+            // Settings (v1.2a: 4th tab, index 3 — Log/Projects/Finances/Settings,
+            // locale-agnostic) auto-presents the import flow, which — under
+            // -importReportUITest — loads the synthetic files straight to the report.
             let tabBar = app.tabBars.firstMatch
             XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
-            tabBar.buttons.element(boundBy: 2).tap()
+            tabBar.buttons.element(boundBy: 3).tap()
 
             let confirm = app.buttons["import.report.confirm"]
             XCTAssertTrue(confirm.waitForExistence(timeout: 20), "the understanding report should appear")
@@ -52,7 +52,7 @@ final class ImportWizardUITests: XCTestCase {
 
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10))
-        tabBar.buttons.element(boundBy: 1).tap()   // Finances
+        tabBar.buttons.element(boundBy: 2).tap()   // Finances (v1.2a: index 2)
 
         let grouping = app.segmentedControls["financesGroupingPicker"]
         if !grouping.waitForExistence(timeout: 8) { app.swipeUp() }

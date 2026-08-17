@@ -199,6 +199,15 @@ final class Transaction {
     /// `customCategoryID` precedent); existing rows migrate to `nil` and survive
     /// untouched. Imported rows carry NO `rawTranscript` (scope guard E).
     var importBatchID: UUID?
+    /// v1.2a "Projects Core" — the business project this transaction belongs to
+    /// (`Project.id`), the analytical lens it is counted under. Optional +
+    /// additive, the proven-safe pattern (mirrors `customCategoryID` /
+    /// `importBatchID`): existing rows migrate to `nil` and survive untouched
+    /// (proven in `ProjectMigrationTests`). NO non-optional additions — the
+    /// direction-crash lesson is law. `nil` = Personal/unassigned; the project is
+    /// resolved by id-lookup, never a SwiftData relationship. Cash is ONE pot;
+    /// this pointer never moves money, it only labels which lens sees the row.
+    var projectID: UUID?
     var createdAt: Date
 
     init(
@@ -217,6 +226,7 @@ final class Transaction {
         counterparty: String? = nil,
         attachmentID: UUID? = nil,
         importBatchID: UUID? = nil,
+        projectID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -234,6 +244,7 @@ final class Transaction {
         self.counterparty = counterparty
         self.attachmentID = attachmentID
         self.importBatchID = importBatchID
+        self.projectID = projectID
         self.createdAt = createdAt
     }
 }

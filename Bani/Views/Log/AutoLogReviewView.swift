@@ -154,6 +154,8 @@ struct AutoLogReviewView: View {
 private struct AutoLogEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var customCategories: [CustomCategory]
+    /// v1.2a — projects for the correctable project field.
+    @Query private var projects: [Project]
 
     let transaction: Transaction
     let onSave: (AutoLogReview.Edit) -> Void
@@ -164,6 +166,7 @@ private struct AutoLogEditSheet: View {
     @State private var categoryRef: CategoryRef?
     @State private var editingContext: TransactionContext
     @State private var direction: TransactionDirection
+    @State private var selectedProjectID: UUID?
 
     init(transaction: Transaction, onSave: @escaping (AutoLogReview.Edit) -> Void) {
         self.transaction = transaction
@@ -174,7 +177,10 @@ private struct AutoLogEditSheet: View {
         _categoryRef = State(initialValue: transaction.categoryRef)
         _editingContext = State(initialValue: transaction.context)
         _direction = State(initialValue: transaction.direction)
+        _selectedProjectID = State(initialValue: transaction.projectID)
     }
+
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
     private var canSave: Bool {
         guard let amount = Decimal(string: amountText.replacingOccurrences(of: ",", with: ".")) else { return false }
@@ -215,6 +221,9 @@ private struct AutoLogEditSheet: View {
                     }
                     .pickerStyle(.segmented)
                     DirectionPicker(selection: $direction)
+                    // v1.2a: project is a correctable field on the review chip.
+                    ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
+                        .accessibilityIdentifier("autoLogEdit.projectPicker")
                 }
                 .listRowBackground(Palette.surface)
             }
@@ -236,6 +245,7 @@ private struct AutoLogEditSheet: View {
                         edit.categoryRef = categoryRef
                         edit.context = editingContext
                         edit.direction = direction
+                        edit.projectID = selectedProjectID
                         onSave(edit)
                         dismiss()
                     }

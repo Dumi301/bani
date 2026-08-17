@@ -38,7 +38,17 @@ final class ImportFlowModel {
             let extractor = FoundationModelsExtractor()
             let built = await ImportPipeline.buildReport(inputs: inputs, existingFingerprints: existing, importDate: importDate, extractor: extractor)
             await MainActor.run {
-                self?.report = built
+                var built2 = built
+                // v1.2a: default the batch-level project to the last-used project for
+                // a Work-defaulting batch (families A/B/C land committable rows in
+                // Work); none for a Personal/D batch. The report picker can override.
+                if built2.committableDrafts.contains(where: { $0.context == .work }) {
+                    built2.decisions.projectID = ProjectAssignment.smartDefault(
+                        context: .work,
+                        lastUsedRaw: UserDefaults.standard.string(forKey: "lastUsedProjectID") ?? ""
+                    )
+                }
+                self?.report = built2
                 self?.phase = .report
             }
         }
@@ -47,7 +57,8 @@ final class ImportFlowModel {
     func confirm() {
         guard let container, let report else { return }
         let committable = report.committableDrafts
-        let items = committable.map { CommitItem(draft: $0.draft, context: $0.context, attachment: $0.attachment) }
+        let batchProjectID = report.decisions.projectID
+        let items = committable.map { CommitItem(draft: $0.draft, context: $0.context, attachment: $0.attachment, projectID: batchProjectID) }
         guard !items.isEmpty else { importedCount = 0; phase = .done; return }
 
         let names = report.files.map(\.fileName)

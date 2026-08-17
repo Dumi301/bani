@@ -86,6 +86,46 @@ enum SampleData {
         ]
 
         for s in samples { ctx.insert(s) }
+
+        // ── v1.2a Projects Core: two business projects, their assigned
+        //    transactions, and scheduled money (one overdue) so the Projects tab
+        //    renders a real portfolio header, cards, and an overdue badge. Cash is
+        //    ONE pot — these transactions also count in the whole-portfolio totals.
+        let manhattan = Project(name: "Proiect Manhattan", status: .active, colorIndex: 3, sortOrder: 0)
+        let renovare = Project(name: "Renovare apartament", status: .active, colorIndex: 5, sortOrder: 1)
+        ctx.insert(manhattan)
+        ctx.insert(renovare)
+
+        let projectTx: [Transaction] = [
+            Transaction(amount: 8000, currency: .ron, context: .work, category: .utilities,
+                        descriptionText: "avans constructor", date: daysAgo(20),
+                        source: .manual, direction: .expense, counterparty: "Ion", projectID: manhattan.id),
+            Transaction(amount: 15000, currency: .ron, context: .work,
+                        descriptionText: "tranșă client", date: daysAgo(14),
+                        source: .manual, direction: .income, counterparty: "Client SRL", projectID: manhattan.id),
+            Transaction(amount: 3200, currency: .ron, context: .work, category: .shopping,
+                        descriptionText: "materiale", merchant: "Dedeman", date: daysAgo(9),
+                        source: .manual, direction: .expense, projectID: renovare.id),
+            Transaction(amount: 500, currency: .eur, context: .work, category: .shopping,
+                        descriptionText: "gresie import", date: daysAgo(5),
+                        source: .manual, direction: .expense, projectID: renovare.id),
+        ]
+        for t in projectTx { ctx.insert(t) }
+
+        func daysAhead(_ n: Int) -> Date { calendar.date(byAdding: .day, value: n, to: now) ?? now }
+        let scheduled: [ScheduledItem] = [
+            ScheduledItem(direction: .outgoing, amount: 6000, currency: .ron,
+                          title: "Plată Ion", counterparty: "Ion", dueDate: daysAgo(3),
+                          projectID: manhattan.id),
+            ScheduledItem(direction: .incoming, amount: 12000, currency: .ron,
+                          title: "Avans client", counterparty: "Client SRL",
+                          dueDate: daysAhead(10), projectID: manhattan.id),
+            ScheduledItem(direction: .outgoing, amount: 2500, currency: .ron,
+                          title: "Materiale suplimentare", counterparty: "Dedeman",
+                          dueDate: daysAhead(20), projectID: renovare.id),
+        ]
+        for s in scheduled { ctx.insert(s) }
+
         try? ctx.save()
     }
 }

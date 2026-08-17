@@ -258,3 +258,124 @@ packaging within 2 cycles, Part B is reverted cleanly and Part A (v1.0.34) stand
 merchant/counterparty extraction, income detection, implausible → nil, unparseable →
 nil), `AppGroupRoundTripTests` (extension-side write → drain → parse on a temp dir;
 drain removes processed files, oldest-first). New card keys added en+ro (parity kept).
+
+---
+
+# Build notes — v1.2a "Projects Core": projects, portfolio liquidity, scheduled money
+
+Adds a new top-level **Projects** tab (between Log and Finances). Projects are
+**analytical lenses over the single cash pot — never wallets**; money never moves
+between them. Nothing loan-shaped is written — loans + rate-splits are v1.2b and
+build on the seams below. `project.yml` was NOT touched (all new files land in the
+synced folders `Bani/Projects/`, `Bani/Views/Projects/`).
+
+## Frozen-seam exceptions — three, all additive, all migration-proven
+
+The biggest data-model change since v1.1. Proven on a REAL on-disk store (write in
+the old shape → close → reopen under the new schema) in **`ProjectMigrationTests`**,
+plus the `DirectionNull` / `DirectionPreservation` / `TransactionSource` /
+`ImportModel` migration suites stay green untouched.
+
+1. **`Transaction.projectID: UUID?`** — optional additive attribute, the
+   proven-safe pattern (mirrors `customCategoryID` / `importBatchID`). **NO
+   non-optional additions** — the direction-crash lesson (`Bani-2026-08-02`, a
+   non-optional enum column left legacy rows NULL → SIGABRT) is law. Resolved by
+   id-lookup, never a SwiftData relationship. `nil` = Personal/unassigned.
+   *Proof:* `ProjectMigrationTests.testV36StoreReopensWithProjectIDNilAndNoDataLoss`
+   (v1.0.36-shaped store reopens; every row readable, `projectID` nil, zero loss).
+
+2. **New `@Model Project`** (id, name, status active/finished, colorIndex mod-8,
+   sortOrder, archived). A brand-new entity → its OWN fields may be non-optional
+   (no pre-existing rows to decode NULL from) — same discipline as `CustomCategory`
+   / `ImportBatch`. Registering it is a lightweight additive migration.
+
+3. **New `@Model ScheduledItem`** (direction incoming/outgoing, amount `Decimal`,
+   currency, title/descriptionText, counterparty free-text, dueDate, projectID?,
+   status pending/done, linkedTransactionID?). **"Overdue" is COMPUTED**
+   (`pending && dueDate < now`), never stored — it can never drift stale.
+   *Proof:* `ProjectMigrationTests.testProjectScheduledItemAndProjectIDRoundTrip`
+   (Project + ScheduledItem + Transaction.projectID persist, close, reopen, intact
+   + linked). Enum rawValues pinned by `testStatusEnumRawValuesStable`.
+
+Both entities register in the ONE production schema (`BaniModelContainer.schema`);
+the on-disk store URL is unchanged, so existing users migrate in place.
+
+## LiquidityCalculator — the v1.2b extension seam (documented, DO NOT pre-build)
+
+`LiquidityCalculator` (pure, `Bani/Projects/LiquidityCalculator.swift`) assembles the
+free-liquidity answer: `netLoggedPosition + expectedIn − expectedOut (+ loanAdjustment)`
+over a 30/60/90 horizon, mixed currencies via an injected BNR rate, overdue items
+included, empty states handled. **`loanAdjustment: Decimal = .zero` is the exact seam
+v1.2b injects net loan balances into** — it defaults to zero, v1.2a never passes a
+non-zero value, and NO loan logic is computed here. `LiquidityCalculatorTests`
+proves horizons / mixed currency / overdue inclusion / empty / the loan-seam wiring.
+**v1.2b (loans + rate splits) builds on this seam and the `ScheduledItem` model —
+nothing loan-shaped was written in this run.**
+
+## Reuse (no forks)
+
+- Project **Dashboard** reuses `SpendChartCard` + `FinancesAnalytics` scoped by
+  `projectID` (a project filter, not a copy) + a native RON/EUR currency-split row.
+- Project **Documents** reuses the existing `AttachmentPreview` infra, filtered.
+- Projects reuse the `CustomCategoryPalette` 8-swatch semantic colors (mod-8).
+- Mark-done reuses the card contract: it ALWAYS ends in a persisted, linked
+  `Transaction` (incoming→income, outgoing→expense) — `ScheduledItemStore`.
+
+## Reminders — pure logic vs thin wrapper
+
+`NotificationScheduler` (pure) owns deterministic ids, the 09:00-local trigger, and
+ro+en copy (unit-tested; CI never delivers a real notification). `ReminderService`
+is the thin `UNUserNotificationCenter` wrapper (default OFF; Settings toggle requests
+permission, denial reverts + alerts; disable cancels all). **In-app overdue flags +
+the Projects-tab badge work regardless of the toggle** — the toggle governs
+notifications only.
+
+## Out-of-scope temptations (logged, deliberately NOT built)
+
+- **Loans / rate-splits** → v1.2b (the `LiquidityCalculator.loanAdjustment` +
+  `ScheduledItem` seams are ready).
+- **Sub-units / houses-split** → a later run.
+- **Per-row import project assignment** → out of scope; only the **batch-level**
+  picker ships (below).
+- **Voice project-name parsing** ("log 500 lei on Manhattan") — not attempted; the
+  smart-default chip (last-used project on Work) covers assignment without an NLU risk.
+- **Person registry** — `counterparty` stays free text.
+
+## Assignment coverage — every entry surface (import + auto-log now closed)
+
+The smart-default chip (`ProjectAssignment.smartDefault`) covers ALL entry surfaces:
+
+- **Voice / manual / share** confirmation cards — Work-only chip, last-used default;
+  a change records a `.project` correction in the `DecisionRecord`.
+- **Finances** detail + edit sheet — project field on any transaction.
+- **Import** — the understanding report carries ONE batch-level project picker
+  (`ReportDecisions.projectID`), defaulted to the last-used project for a
+  Work-defaulting batch (families A/B/C land committable rows in Work) and none for
+  a Personal/D batch. On Confirm the chosen project is applied to EVERY committed row
+  (`CommitItem.projectID` → `ImportCommitRunner`); per-row overrides stay out.
+  *Proof:* `ImportProjectAssignmentTests` (fixture batch → commit → every row carries
+  the chosen projectID; none → unassigned).
+- **Auto-logged** (Apple Pay App Intent) — `AutoLogWriter.log` assigns the last-used
+  project when the resolved context is Work (clamped to an existing, non-archived
+  project; Personal never tagged); the review chip's edit makes **project a
+  correctable field** — a change updates the transaction AND writes a `.project`
+  `DecisionRecord`, exactly like the card chip. *Proof:*
+  `AutoLogProjectAssignmentTests` (Work intent carries last-used → review correction
+  updates it + records the ledger entry; Personal none; dead last-used clamped away).
+
+## Assignment at entry (smart-default chip)
+
+`ProjectAssignment.smartDefault(context:lastUsedRaw:)` — pure, context-gated: Work
+pre-fills the last-used project (`@AppStorage("lastUsedProjectID")`), Personal is
+never project-tagged (`ProjectAssignmentTests`). The voice `ConfirmationCard`,
+`ManualEntrySheet`, and `ShareCaptureCard` show the chip only for Work; changing it
+on the confirmation card records a `.project` correction in the `DecisionRecord`
+(new additive `CorrectedFields` bit). Finances rows (detail + edit sheet) get a
+project field; ScheduledItems created inside a project inherit its id.
+
+## UI-test note
+
+The new tab shifts the tab order to **Log / Projects / Finances / Settings**; the
+index-based screenshot/import UI tests were bumped accordingly. `ManualEntryUITests`
+(the one blocking UI suite) stays on the Log tab and is unaffected. Projects +
+project-dashboard screenshots added (non-blocking grade).

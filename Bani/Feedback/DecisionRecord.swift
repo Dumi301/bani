@@ -39,6 +39,10 @@ struct CorrectedFields: OptionSet, Hashable, Sendable {
     static let category    = CorrectedFields(rawValue: 1 << 3)
     static let context     = CorrectedFields(rawValue: 1 << 4)
     static let date        = CorrectedFields(rawValue: 1 << 5)
+    /// v1.2a — the project chip was changed from the smart-default (last-used
+    /// project). Additive bit; `correctedFieldsRaw` is a plain stored `Int`, so
+    /// this widens the set with no migration surface.
+    static let project     = CorrectedFields(rawValue: 1 << 6)
 }
 
 /// The feedback ledger's one row per card resolution (B1). A NEW, separate

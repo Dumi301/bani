@@ -11,6 +11,8 @@ struct TransactionEditSheet: View {
     @Query private var customCategories: [CustomCategory]
     /// Existing parties → counterparty-field suggestions (B2).
     @Query private var allTransactions: [Transaction]
+    /// v1.2a — projects for the assignment field.
+    @Query private var projects: [Project]
 
     let transaction: Transaction
 
@@ -27,6 +29,8 @@ struct TransactionEditSheet: View {
     @State private var counterparty: String
     /// C3: the transaction's date+time, pre-filled (never blank) and editable.
     @State private var date: Date
+    /// v1.2a — the assigned project (nil = unassigned).
+    @State private var selectedProjectID: UUID?
     @State private var isCreatingCategory = false
 
     init(transaction: Transaction) {
@@ -40,7 +44,10 @@ struct TransactionEditSheet: View {
         _merchant = State(initialValue: transaction.merchant ?? "")
         _counterparty = State(initialValue: transaction.counterparty ?? "")
         _date = State(initialValue: transaction.date)
+        _selectedProjectID = State(initialValue: transaction.projectID)
     }
+
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
     /// Distinct existing counterparties, most-recent-first, for the suggestions.
     private var counterpartySuggestions: [String] {
@@ -110,6 +117,12 @@ struct TransactionEditSheet: View {
                     )
                     .accessibilityIdentifier("editCategoryPicker")
                 }
+
+                // v1.2a: project assignment (any transaction can carry a project).
+                Section("project.field.label") {
+                    ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
+                        .accessibilityIdentifier("editProjectPicker")
+                }
             }
             .navigationTitle("Edit Transaction")
             .navigationBarTitleDisplayMode(.inline)
@@ -146,6 +159,7 @@ struct TransactionEditSheet: View {
         let cleanParty = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
         transaction.counterparty = cleanParty.isEmpty ? nil : cleanParty
         transaction.date = date
+        transaction.projectID = selectedProjectID
         try? modelContext.save()
 
         // D2: a category correction here feeds the SAME learning path as the

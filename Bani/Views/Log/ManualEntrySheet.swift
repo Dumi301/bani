@@ -20,6 +20,12 @@ struct ManualEntrySheet: View {
     /// C2: date+time for the manual entry, default now, editable for logging past
     /// expenses.
     @State private var date = Date()
+    /// v1.2a — Work-context project assignment (smart-default: last-used project).
+    @Query private var projects: [Project]
+    @AppStorage("lastUsedProjectID") private var lastUsedProjectRaw: String = ""
+    @State private var selectedProjectID: UUID?
+
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
     private var parsedAmount: Decimal? {
         Decimal(string: amountText.replacingOccurrences(of: ",", with: "."))
@@ -78,6 +84,12 @@ struct ManualEntrySheet: View {
                     // C2: locale-aware date+time picker, pre-filled with now.
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .accessibilityIdentifier("manualEntry.datePicker")
+
+                    // v1.2a: project assignment, Work context only.
+                    if context == .work {
+                        ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
+                            .accessibilityIdentifier("manualEntry.projectPicker")
+                    }
                 } header: {
                     Text("Details")
                 }
@@ -87,6 +99,9 @@ struct ManualEntrySheet: View {
             .background(Color("BaniCanvas"))
             .navigationTitle("Add Transaction")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                if selectedProjectID == nil { selectedProjectID = UUID(uuidString: lastUsedProjectRaw) }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -115,6 +130,11 @@ struct ManualEntrySheet: View {
             category = .other
         }
 
+        // v1.2a: Work entries carry the chosen project (clamped to an active one);
+        // Personal never does. Remember the last-used project for next time.
+        let projectID: UUID? = (context == .work)
+            ? activeProjects.first(where: { $0.id == selectedProjectID })?.id
+            : nil
         let transaction = Transaction(
             amount: amount,
             currency: currency,
@@ -124,10 +144,12 @@ struct ManualEntrySheet: View {
             date: date,
             rawTranscript: nil,
             source: .manual,
-            direction: direction
+            direction: direction,
+            projectID: projectID
         )
         modelContext.insert(transaction)
         try? modelContext.save()
+        if let projectID { lastUsedProjectRaw = projectID.uuidString }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
