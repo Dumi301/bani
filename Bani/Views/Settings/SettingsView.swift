@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Settings tab: appearance override, Whisper model status, app version.
 /// Reads `WhisperService` from the environment (owned by Unit B); the
@@ -32,6 +33,13 @@ struct SettingsView: View {
     /// Layout density (B2). Writes the same `"designScale"` key the app root reads,
     /// so the choice applies live across every surface.
     @AppStorage("designScale") private var designScaleRaw: String = DesignScale.balanced.rawValue
+    /// v1.2a — payment reminders master toggle, default OFF (`ReminderService`
+    /// reads the same key). Enabling requests notification permission.
+    @AppStorage(ReminderService.enabledKey) private var remindersEnabled: Bool = false
+    /// modelContext for rescheduling reminders from the store on enable.
+    @Environment(\.modelContext) private var modelContext
+    /// Shown when the user enables reminders but notification permission is denied.
+    @State private var showReminderDeniedAlert = false
 
     /// UI-test seam: `-importUITest` auto-presents the import wizard so the flow can
     /// be exercised without driving the system document picker.
@@ -61,6 +69,34 @@ struct SettingsView: View {
         Binding(
             get: { DesignScale(rawValue: designScaleRaw) ?? .balanced },
             set: { designScaleRaw = $0.rawValue }
+        )
+    }
+
+    /// v1.2a — the reminders toggle. Enabling requests notification permission
+    /// (denial reverts the toggle + shows an explanatory alert). Disabling cancels
+    /// every pending Bani notification.
+    private var reminders: Binding<Bool> {
+        Binding(
+            get: { remindersEnabled },
+            set: { newValue in
+                if newValue {
+                    // @MainActor task so the non-Sendable modelContext stays on
+                    // main; requestAuthorization awaits off-main and hops back.
+                    Task { @MainActor in
+                        let granted = await ReminderService.requestAuthorization()
+                        if granted {
+                            remindersEnabled = true
+                            ReminderService.refreshFromStore(modelContext)
+                        } else {
+                            remindersEnabled = false
+                            showReminderDeniedAlert = true
+                        }
+                    }
+                } else {
+                    remindersEnabled = false
+                    Task { await ReminderService.cancelAll() }
+                }
+            }
         )
     }
 
@@ -199,6 +235,23 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Payment reminders (v1.2a)
+                Section {
+                    Toggle(isOn: reminders) {
+                        Label("reminders.toggle", systemImage: "bell.badge")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .tint(Palette.accent)
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.remindersToggle")
+                } header: {
+                    Text("reminders.section")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    Text("reminders.footer")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
                 // MARK: Categories
                 Section {
                     NavigationLink {
@@ -292,6 +345,16 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .fullScreenCover(isPresented: $autoPresentImport) {
                 ImportFlowView()
+            }
+            .alert("reminders.denied.title", isPresented: $showReminderDeniedAlert) {
+                Button("reminders.denied.openSettings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("reminders.denied.message")
             }
         }
     }

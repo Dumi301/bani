@@ -43,9 +43,15 @@ struct ShareCaptureCard: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var customCategories: [CustomCategory]
+    /// v1.2a — projects for the Work-context project chip.
+    @Query private var projects: [Project]
+    @AppStorage("lastUsedProjectID") private var lastUsedProjectRaw: String = ""
+    @State private var selectedProjectID: UUID?
 
     let capture: SharePickup.Capture
     let onResolve: () -> Void
+
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
     @State private var amountText: String
     @State private var currency: Currency
@@ -101,6 +107,11 @@ struct ShareCaptureCard: View {
                     }
                     .pickerStyle(.segmented)
                     DirectionPicker(selection: $direction)
+                    // v1.2a: project assignment, Work context only.
+                    if editingContext == .work {
+                        ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
+                            .accessibilityIdentifier("shareCard.projectPicker")
+                    }
                 }
                 .listRowBackground(Palette.surface)
 
@@ -125,6 +136,7 @@ struct ShareCaptureCard: View {
                 if categoryRef == nil {
                     categoryRef = CategoryRuleStore.guessRef(description: descriptionText, merchant: capture.parse.merchant, in: modelContext)
                 }
+                if selectedProjectID == nil { selectedProjectID = UUID(uuidString: lastUsedProjectRaw) }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -152,8 +164,14 @@ struct ShareCaptureCard: View {
         )
         if let categoryRef {
             tx.categoryRef = categoryRef
-            try? modelContext.save()
         }
+        // v1.2a: Work captures carry the chosen project (clamped to an active one).
+        if editingContext == .work,
+           let projectID = activeProjects.first(where: { $0.id == selectedProjectID })?.id {
+            tx.projectID = projectID
+            lastUsedProjectRaw = projectID.uuidString
+        }
+        try? modelContext.save()
         // Resolve it in the ledger (marks it reviewed; feeds TrustEngine) — the card
         // WAS the confirmation, so it does not re-appear in the review chip.
         AutoLogReview.confirm(tx, in: modelContext)

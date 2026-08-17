@@ -25,6 +25,8 @@ struct ConfirmationCard: View {
     @Environment(\.metrics) private var metrics
     /// Custom categories (C2/C3) — resolve the guess chip and feed the picker.
     @Query private var customCategories: [CustomCategory]
+    /// v1.2a — projects feed the Work-context project chip (smart-default).
+    @Query private var projects: [Project]
 
     let transcript: String
     let context: TransactionContext
@@ -52,6 +54,9 @@ struct ConfirmationCard: View {
     private let baselineRef: CategoryRef
     private let baselineContext: TransactionContext
     private let baselineDate: Date
+    /// v1.2a — the smart-default project the card opened with (last-used when Work,
+    /// nil when Personal). Changing the chip away from this is a `.project` correction.
+    private let baselineProjectID: UUID?
     private let openedInEditMode: Bool
 
     @State private var amountText: String
@@ -64,6 +69,9 @@ struct ConfirmationCard: View {
     /// The transaction date+time (C1). Defaults to now; editable in edit mode so
     /// past expenses can be logged.
     @State private var date: Date
+    /// v1.2a — the Work-context project chip selection (smart-default: last-used
+    /// project). `nil` for Personal, or when no project is chosen.
+    @State private var selectedProjectID: UUID?
 
     /// The category guess (Q2) — ALWAYS a real category, never nil, so the chip
     /// is never a placeholder. Pre-filled from the categorizer (falls back to
@@ -97,6 +105,9 @@ struct ConfirmationCard: View {
     /// Auto-save countdown length. Read from the "Confirmation time" setting
     /// (`confirmationDuration`, 2–8 s); defaults to 4 s.
     @AppStorage("confirmationDuration") private var storedDuration: Double = ConfirmationCard.defaultAutoSaveDelay
+    /// v1.2a — the last-used project (persisted), the smart default for Work
+    /// confirmation cards. Written on every Work save that carries a project.
+    @AppStorage("lastUsedProjectID") private var lastUsedProjectRaw: String = ""
 
     static let defaultAutoSaveDelay: Double = 4.0
     static let minAutoSaveDelay: Double = 2.0
@@ -160,6 +171,14 @@ struct ConfirmationCard: View {
         self.baselineRef = categoryRef
         self.baselineContext = context
         self.baselineDate = now
+        // v1.2a smart default: Work cards pre-fill the last-used project; Personal
+        // gets no project (read from UserDefaults here since @AppStorage/@Query are
+        // unavailable in init).
+        let initialProject = ProjectAssignment.smartDefault(
+            context: context,
+            lastUsedRaw: UserDefaults.standard.string(forKey: "lastUsedProjectID") ?? ""
+        )
+        self.baselineProjectID = initialProject
         self.openedInEditMode = VoicePipelineResult.shouldOpenInEditMode(
             parsedAmount: parsed.amount,
             errorMessage: errorMessage
@@ -171,6 +190,7 @@ struct ConfirmationCard: View {
         _editingContext = State(initialValue: context)
         _categoryRef = State(initialValue: categoryRef)
         _date = State(initialValue: now)
+        _selectedProjectID = State(initialValue: initialProject)
         // Never invent a number, never hide a failure: no parsed amount OR a
         // transcription error → open directly in edit mode. Shared derivation
         // so the view and the A2 unit tests can never drift.
@@ -191,6 +211,20 @@ struct ConfirmationCard: View {
     private var categoryStyleValue: CategoryStyle { categoryStyle(categoryRef, customs: customLookup) }
     private var categoryLabel: String { categoryStyleValue.label }
     private var noDescriptionText: String { String(localized: "confirm.noDescription") }
+
+    /// v1.2a — active projects for the Work-context chip (archived hidden).
+    private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
+
+    /// The Work-only project chip (smart-default last-used). Hidden for Personal.
+    @ViewBuilder
+    private var projectChipRow: some View {
+        if editingContext == .work {
+            HStack(spacing: metrics.elementSpacing) {
+                ProjectChipMenu(projects: activeProjects, selectedID: $selectedProjectID)
+                Spacer()
+            }
+        }
+    }
 
     /// The binding the chip picker drives — any hand pick flags the save to learn.
     private var refBinding: Binding<CategoryRef?> {
@@ -290,6 +324,8 @@ struct ConfirmationCard: View {
                 if autoContextApplied { autoContextNote }
                 Spacer()
             }
+
+            projectChipRow
 
             Text(descriptionText.isEmpty ? noDescriptionText : descriptionText)
                 .font(.system(.body))
@@ -554,6 +590,18 @@ struct ConfirmationCard: View {
             .pickerStyle(.segmented)
             .accessibilityIdentifier("confirmationCard.contextPicker")
 
+            // v1.2a: project chip, Work context only (last-used smart default).
+            if editingContext == .work {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("project.field.label")
+                        .font(.system(.caption).weight(.semibold))
+                        .foregroundStyle(Palette.secondaryInk)
+                    ProjectChipMenu(projects: activeProjects, selectedID: $selectedProjectID)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("confirmationCard.projectPicker")
+            }
+
             // A3: direction (expense default), editable for income/neutral entries.
             DirectionPicker(selection: $direction)
                 .accessibilityIdentifier("confirmationCard.directionPicker")
@@ -679,7 +727,13 @@ struct ConfirmationCard: View {
         }
         isResolved = true
         let cleanDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let fields = computeCorrectedFields(finalAmount: amount, finalDescription: cleanDescription)
+        var fields = computeCorrectedFields(finalAmount: amount, finalDescription: cleanDescription)
+        // v1.2a: resolve the project (Work only; clamp to an existing active
+        // project) and record a change away from the smart default as a correction.
+        let finalProject: UUID? = (editingContext == .work)
+            ? activeProjects.first(where: { $0.id == selectedProjectID })?.id
+            : nil
+        if finalProject != baselineProjectID { fields.insert(.project) }
         let outcome = resolveOutcome(reason: reason, fields: fields)
         let finalRef = resolveCategoryRefForSave(description: cleanDescription)
 
@@ -696,8 +750,11 @@ struct ConfirmationCard: View {
             categoryRef: finalRef,
             date: date,
             direction: direction,
+            projectID: finalProject,
             into: modelContext
         )
+        // Remember the last-used project so the next Work card defaults to it.
+        if let finalProject { lastUsedProjectRaw = finalProject.uuidString }
 
         // B3: accrue a context confirmation on every save (a context correction is
         // just a save under the corrected context) …
@@ -827,6 +884,7 @@ func saveVoiceTransaction(
     categoryRef: CategoryRef? = nil,
     date: Date = .now,
     direction: TransactionDirection = .expense,
+    projectID: UUID? = nil,
     into modelContext: ModelContext
 ) -> Transaction? {
     guard let amount = parsed.amount else { return nil }
@@ -840,7 +898,8 @@ func saveVoiceTransaction(
         date: date,
         rawTranscript: transcript,
         source: .voice,
-        direction: direction
+        direction: direction,
+        projectID: projectID
     )
     // A custom-aware ref (C3) overrides the preset `category` param when given.
     if let categoryRef {

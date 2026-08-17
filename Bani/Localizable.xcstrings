@@ -6677,6 +6677,102 @@
           }
         }
       }
+    },
+    "reminders.section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment reminders"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memento plăți"
+          }
+        }
+      }
+    },
+    "reminders.toggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment reminders"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Memento plăți"
+          }
+        }
+      }
+    },
+    "reminders.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get a notification at 9:00 on a scheduled item's due date. Overdue flags in the app work either way."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primești o notificare la ora 9:00 în ziua scadenței unei programări. Marcajele de restanță din aplicație funcționează oricum."
+          }
+        }
+      }
+    },
+    "reminders.denied.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are off"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notificările sunt dezactivate"
+          }
+        }
+      }
+    },
+    "reminders.denied.message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable notifications for Bani in the Settings app to receive payment reminders."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activează notificările pentru Bani din aplicația Setări pentru a primi memento-uri de plată."
+          }
+        }
+      }
+    },
+    "reminders.denied.openSettings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deschide Setări"
+          }
+        }
+      }
     }
   }
 }

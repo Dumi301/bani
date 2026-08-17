@@ -9,12 +9,14 @@ import SwiftData
 @MainActor
 final class ScheduledItemLifecycleTests: XCTestCase {
 
-    private func makeContext() throws -> ModelContext {
-        let container = try ModelContainer(
+    /// Returns the container (NOT just its context) so the caller retains it for
+    /// the test's lifetime — a `ModelContext` whose container has deallocated is
+    /// dangling and crashes on insert/save.
+    private func makeContainer() throws -> ModelContainer {
+        try ModelContainer(
             for: Transaction.self, ScheduledItem.self, Project.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-        return container.mainContext
     }
 
     func testOverdueComputation() {
@@ -32,7 +34,8 @@ final class ScheduledItemLifecycleTests: XCTestCase {
     }
 
     func testMarkDoneCreatesLinkedTransactionWithMappedDirectionAndProject() throws {
-        let ctx = try makeContext()
+        let container = try makeContainer()
+        let ctx = container.mainContext
         let projectID = UUID()
         let outgoing = ScheduledItem(direction: .outgoing, amount: 6000, currency: .ron,
                                      title: "Plată Ion", counterparty: "Ion", dueDate: Date(), projectID: projectID)
@@ -56,7 +59,8 @@ final class ScheduledItemLifecycleTests: XCTestCase {
     }
 
     func testUndoDoneRestoresPendingAndDeletesTransaction() throws {
-        let ctx = try makeContext()
+        let container = try makeContainer()
+        let ctx = container.mainContext
         let item = ScheduledItem(direction: .outgoing, amount: 500, currency: .ron, title: "t", dueDate: Date())
         ctx.insert(item)
         try ctx.save()

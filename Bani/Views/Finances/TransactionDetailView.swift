@@ -9,6 +9,8 @@ struct TransactionDetailView: View {
     @Environment(RateService.self) private var rates
     @Environment(\.metrics) private var metrics
     @Query private var customCategories: [CustomCategory]
+    /// v1.2a — resolve the transaction's project (if any) for the project tag.
+    @Query private var projects: [Project]
 
     let transaction: Transaction
 
@@ -27,6 +29,7 @@ struct TransactionDetailView: View {
                     categoryChip
                     contextTag
                     directionTag
+                    projectTag
                     Spacer()
                 }
 
@@ -144,6 +147,24 @@ struct TransactionDetailView: View {
         .foregroundStyle(style.color)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("detail.categoryChip")
+    }
+
+    /// v1.2a — the assigned project as a small colored tag (shown only when set).
+    @ViewBuilder
+    private var projectTag: some View {
+        if let projectID = transaction.projectID,
+           let project = projects.first(where: { $0.id == projectID }) {
+            HStack(spacing: 4) {
+                Circle().fill(project.color).frame(width: 8, height: 8)
+                Text(project.name).lineLimit(1)
+            }
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(project.color.opacity(0.16), in: Capsule())
+            .foregroundStyle(project.color)
+            .accessibilityIdentifier("detail.projectTag")
+        }
     }
 
     private var contextTag: some View {
