@@ -25,6 +25,11 @@ enum BaniModelContainer {
         Transaction.self, CategoryRule.self,
         DecisionRecord.self, ContextRule.self, CorrectionMemory.self,
         CustomCategory.self, ImportBatch.self,
+        // v1.2a "Projects Core": two new entities + Transaction.projectID. All
+        // additive → lightweight migration, existing default.store preserved
+        // (proven in ProjectMigrationTests). Loans/rate-splits are v1.2b — nothing
+        // loan-shaped registers here.
+        Project.self, ScheduledItem.self,
     ])
 
     static func make(inMemory: Bool) throws -> ModelContainer {
