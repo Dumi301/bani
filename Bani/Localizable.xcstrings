@@ -5146,6 +5146,86 @@
         }
       }
     },
+    "receivables.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who owes me"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cine îmi datorează"
+          }
+        }
+      }
+    },
+    "receivables.grandTotal.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total receivable"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total de încasat"
+          }
+        }
+      }
+    },
+    "receivables.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No one owes you anything pending right now."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimeni nu îți datorează nimic momentan."
+          }
+        }
+      }
+    },
+    "people.addPerson.cta": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to people"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă la persoane"
+          }
+        }
+      }
+    },
+    "people.addPerson.added": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adăugat"
+          }
+        }
+      }
+    },
     "import.report.summary %lld %lld": {
       "localizations": {
         "en": {
@@ -6058,6 +6138,120 @@
         }
       }
     },
+    "reconcile.cta": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reconcile" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Reconciliază" } }
+      }
+    },
+    "reconcile.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reconcile balance" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Reconciliază soldul" } }
+      }
+    },
+    "reconcile.section.actual": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Actual balance" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Sold real" } }
+      }
+    },
+    "reconcile.section.actual.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter the real balance from your bank right now." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Introdu soldul real din bancă chiar acum." } }
+      }
+    },
+    "reconcile.section.result": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Result" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Rezultat" } }
+      }
+    },
+    "reconcile.expected": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expected" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Așteptat" } }
+      }
+    },
+    "reconcile.actual": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Actual" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Real" } }
+      }
+    },
+    "reconcile.drift": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Drift" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Diferență" } }
+      }
+    },
+    "reconcile.excludedCurrency %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld flow(s) in another currency excluded" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "%lld tranzacții în altă monedă excluse" } }
+      }
+    },
+    "reconcile.balanced": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balanced — nothing to adjust" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Echilibrat — nimic de ajustat" } }
+      }
+    },
+    "reconcile.action.createAdjustment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Create adjustment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Creează ajustare" } }
+      }
+    },
+    "reconcile.action.justAnchor": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Just anchor" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Doar ancorează" } }
+      }
+    },
+    "reconcile.action.help": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Adjust writes a correcting transaction and anchors. Anchor only records the balance and resets the baseline." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ajustarea scrie o tranzacție de corecție și ancorează. Ancorarea doar înregistrează soldul și resetează baza." } }
+      }
+    },
+    "reconcile.note.placeholder": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Note (optional)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Notă (opțional)" } }
+      }
+    },
+    "reconcile.history.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Anchor history" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Istoric ancore" } }
+      }
+    },
+    "reconcile.history.empty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No anchors yet" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Nicio ancoră încă" } }
+      }
+    },
+    "reconcile.history.drift %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Drift %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Diferență %@" } }
+      }
+    },
+    "reconcile.tx.note %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reconciliation vs anchor %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Reconciliere față de ancora %@" } }
+      }
+    },
+    "reconcile.category.adjustment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance adjustment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ajustare sold" } }
+      }
+    },
     "project.action.rename": {
       "localizations": {
         "en": {
@@ -6390,6 +6584,166 @@
           "stringUnit": {
             "state": "translated",
             "value": "Numele proiectului"
+          }
+        }
+      }
+    },
+    "project.interview.next": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Următorul"
+          }
+        }
+      }
+    },
+    "project.interview.skip": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Omite"
+          }
+        }
+      }
+    },
+    "project.interview.back": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Înapoi"
+          }
+        }
+      }
+    },
+    "project.interview.create": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create project"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creează proiectul"
+          }
+        }
+      }
+    },
+    "project.interview.addItem": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă"
+          }
+        }
+      }
+    },
+    "project.interview.money.header": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expected money (optional)"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bani așteptați (opțional)"
+          }
+        }
+      }
+    },
+    "project.interview.money.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add expected incoming or outgoing payments for this project. You can skip this and add them later."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adaugă plăți așteptate (încasări sau plăți) pentru acest proiect. Poți omite acest pas și le adaugi mai târziu."
+          }
+        }
+      }
+    },
+    "project.interview.money.added %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added (%lld)"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adăugate (%lld)"
+          }
+        }
+      }
+    },
+    "project.interview.summary.identity": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proiect"
+          }
+        }
+      }
+    },
+    "project.interview.summary.noMoney": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No expected money added."
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nu ai adăugat bani așteptați."
           }
         }
       }

@@ -28,7 +28,17 @@ enum BaniModelContainer {
         // v1.2a "Projects Core": two new entities + Transaction.projectID. All
         // additive → lightweight migration, existing default.store preserved
         // (proven in ProjectMigrationTests).
-        Project.self, ScheduledItem.self,
+        Project.self,
+        // v1.3 "People registry": one new entity, zero field additions on any
+        // existing entity — Transaction/ScheduledItem.counterparty stay plain
+        // strings, matched by normalized name only (never an FK). Lightweight
+        // migration, existing default.store preserved (proven in
+        // PersonMigrationTests).
+        Person.self, ScheduledItem.self,
+        // v2 "Balance anchoring / reconciliation": one new entity (BalanceAnchor).
+        // Additive → lightweight migration, existing default.store preserved
+        // (proven in BalanceAnchorMigrationTests). Registered AFTER ScheduledItem.self.
+        BalanceAnchor.self,
         // v1.2b "Loans + rate-splits": one new entity + additive Transaction.loanID
         // / ScheduledItem.loanID (both optional → lightweight migration, existing
         // default.store preserved, proven in LoanMigrationTests).
