@@ -54,11 +54,12 @@ final class QueryCompilerTests: XCTestCase {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(
             relativeDate: .lastSpring, projectName: "Crângași", personName: "Electrician", remainderText: "electrician"
         ))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "what did I pay the electrician at the Crângași site last spring",
             now: fixedNow, calendar: calendar, projects: [crangasi], people: [],
             historicalCounterparties: ["Electrician"], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.projectIDs, [crangasi.id])
         XCTAssertEqual(filter.personNames, ["Electrician"])
         XCTAssertEqual(filter.freeTextTerms, ["electrician"])
@@ -70,9 +71,10 @@ final class QueryCompilerTests: XCTestCase {
     func testRomanianLastMonthPhrase() async throws {
         // "chirie luna trecută" — rent, last month.
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(relativeDate: .lastMonth, remainderText: "chirie"))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "chirie luna trecută", now: fixedNow, calendar: calendar, projects: [], people: [], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.dateRange, DateInterval(start: date(2026, 7, 1), end: date(2026, 8, 1)))
         XCTAssertEqual(filter.freeTextTerms, ["chirie"])
     }
@@ -80,9 +82,10 @@ final class QueryCompilerTests: XCTestCase {
     func testRomanianNamedMonthPhrase() async throws {
         // "cheltuieli în aprilie" — spending in April.
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(relativeDate: .april))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "cheltuieli în aprilie", now: fixedNow, calendar: calendar, projects: [], people: [], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.dateRange, DateInterval(start: date(2026, 4, 1), end: date(2026, 5, 1)))
     }
 
@@ -90,9 +93,10 @@ final class QueryCompilerTests: XCTestCase {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(
             amountMin: 200, amountMax: 500, currency: .ron, direction: .expense
         ))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "expenses between 200 and 500 RON", now: fixedNow, calendar: calendar, projects: [], people: [], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.amountMin, 200)
         XCTAssertEqual(filter.amountMax, 500)
         XCTAssertEqual(filter.currency, .ron)
@@ -101,27 +105,30 @@ final class QueryCompilerTests: XCTestCase {
 
     func testExactAmountCompiles() async throws {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(exactAmount: Decimal(string: "1200")))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "the 1200 lei payment", now: fixedNow, calendar: calendar, projects: [], people: [], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.exactAmount, Decimal(string: "1200"))
     }
 
     func testPresetCategoryCompiles() async throws {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(presetCategory: .fuel))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "fuel spending", now: fixedNow, calendar: calendar, projects: [], people: [], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.categoryRefs, [.preset(.fuel)])
     }
 
     func testVerifiedCustomCategoryCompiles() async throws {
         let sport = CustomCategorySnapshot(id: UUID(), name: "Sport", symbolName: "figure.run", colorIndex: 0)
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(customCategoryName: "Sport"))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "sport spending", now: fixedNow, calendar: calendar, projects: [], people: [],
             customCategories: [sport], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.categoryRefs, [.custom(sport.id)])
     }
 
@@ -157,19 +164,21 @@ final class QueryCompilerTests: XCTestCase {
 
     func testPersonVerifiedAgainstRegistry() async throws {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(personName: "ion popescu"))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "payments to Ion", now: fixedNow, calendar: calendar,
             projects: [], people: [person("Ion Popescu")], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.personNames, ["Ion Popescu"], "resolves to the registry's canonical casing")
     }
 
     func testPersonVerifiedAgainstHistoricalCounterpartyWhenUnregistered() async throws {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(personName: "Bolt"))
-        let filter = try XCTUnwrap(await QueryCompiler.compile(
+        let compiled = await QueryCompiler.compile(
             query: "rides with Bolt", now: fixedNow, calendar: calendar,
             projects: [], people: [], historicalCounterparties: ["Bolt"], compiler: mock
-        ))
+        )
+        let filter = try XCTUnwrap(compiled)
         XCTAssertEqual(filter.personNames, ["Bolt"], "a real counterparty string is a valid verification pool even when never registered")
     }
 
