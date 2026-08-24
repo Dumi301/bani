@@ -29,26 +29,38 @@ enum DedupConfidence: String, Sendable, Equatable, CaseIterable {
 
 /// The dedup-relevant "who logged this" identity — finer-grained than the raw
 /// `TransactionSource` alone. `.autoLogged` is ONE frozen-seam `TransactionSource`
-/// value shared by BOTH the Apple Pay intent AND a shared bank-notification
-/// capture (origin distinguished only by the `rawTranscript` prefix — see
-/// `AutoLogPayload.Origin`); those two ARE meant to collide with each other (the
-/// same real payment commonly arrives via both), so dedup's "different source"
-/// rule must key off this finer origin, not the raw enum case.
+/// value shared by the Apple Pay intent, a shared bank-notification capture, AND
+/// (P9) a GoCardless bank-feed pull (origin distinguished only by the
+/// `rawTranscript` prefix — see `AutoLogPayload.Origin` / `BankSyncMapper.originPrefix`).
+/// Intent, share, and bank are each meant to collide with EACH OTHER (the same
+/// real card payment commonly arrives via more than one of the three), so
+/// dedup's "different source" rule must key off this finer origin, not the raw
+/// enum case. `.bank` vs `.bank` stays same-origin and unflagged — P9's own
+/// bank-native key (embedded in `rawTranscript`, checked before this even runs)
+/// is what guards a re-pull from double-inserting; P8 only judges CROSS-surface
+/// collisions.
 enum DedupOrigin: Equatable, Sendable {
     case voice
     case manual
     case imported
     case autoLoggedIntent
     case autoLoggedShare
+    case bank
 
     /// Derives the dedup origin from a transaction's stored `source` +
-    /// `rawTranscript` prefix (the ONLY place intent vs. share is recorded).
+    /// `rawTranscript` prefix (the ONLY place intent vs. share vs. bank is
+    /// recorded). Bank is checked FIRST since `[bank]` and `[share]` are
+    /// distinct, mutually-exclusive literal prefixes — order doesn't change the
+    /// result, but reads bank-first to match its P9 provenance.
     static func of(source: TransactionSource, rawTranscript: String?) -> DedupOrigin {
         switch source {
         case .voice: return .voice
         case .manual: return .manual
         case .imported: return .imported
         case .autoLogged:
+            if let rawTranscript, rawTranscript.hasPrefix(BankSyncMapper.originPrefix) {
+                return .bank
+            }
             if let rawTranscript, rawTranscript.hasPrefix(AutoLogPayload.Origin.share.prefix) {
                 return .autoLoggedShare
             }

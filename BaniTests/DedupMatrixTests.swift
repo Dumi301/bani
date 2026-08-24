@@ -114,6 +114,24 @@ final class DedupMatrixTests: XCTestCase {
         (try? ctx.fetch(FetchDescriptor<DecisionRecord>())) ?? []
     }
 
+    /// A bank-feed row shaped EXACTLY like `BankSyncService.sync()`'s insert:
+    /// `source == .autoLogged`, `rawTranscript` built by the real
+    /// `BankSyncMapper.rawTranscript(for:)` (so the `[bank]` prefix + embedded
+    /// bank-key marker come from the actual P9 mapper, not a hand-rolled guess).
+    @discardableResult
+    private func saveBank(amount: Decimal, currency: Currency = .ron, description: String, counterparty: String? = nil,
+                           date: Date, direction: TransactionDirection = .expense, bankKey: String, in ctx: ModelContext) -> Transaction {
+        let draft = BankDraft(amount: amount, direction: direction, currency: currency, counterparty: counterparty,
+                              descriptionText: description, date: date, bankKey: bankKey, rawText: description)
+        let tx = Transaction(amount: amount, currency: currency, context: .personal, descriptionText: description,
+                             date: date, rawTranscript: BankSyncMapper.rawTranscript(for: draft), source: .autoLogged,
+                             direction: direction, counterparty: counterparty)
+        ctx.insert(tx)
+        try? ctx.save()
+        DedupService.flagIfDuplicate(tx, in: ctx)
+        return tx
+    }
+
     // MARK: - Pairwise collision matrix (voice × autolog-intent × autolog-share × import)
 
     func testVoiceCollidesWithAutoLogIntent() throws {
@@ -339,5 +357,94 @@ final class DedupMatrixTests: XCTestCase {
         let fresh = try XCTUnwrap(importedTxs.first { $0.descriptionText == "Something new" })
         XCTAssertEqual(matched.duplicateOfID, voiceTx.id, "the colliding row is flagged")
         XCTAssertNil(fresh.duplicateOfID, "a genuinely new row is never flagged")
+    }
+
+    // MARK: - P9 bank feed × DedupOrigin.bank (fix cycle: was missing, silently
+    // collapsed into .autoLoggedIntent — the SINGLE most likely real-world
+    // duplicate pair, Apple Pay auto-capture vs. the bank feed for the same card
+    // payment, was never flagged)
+
+    func testBankCollidesWithAutoLogIntent() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        let intentTx = try AutoLogWriter.log(
+            AutoLogPayload(amountText: "45", currencyCode: "RON", merchant: "Mega Image", date: now, origin: .intent),
+            in: ctx
+        )
+        let bankTx = saveBank(amount: 45, description: "Mega Image", counterparty: "Mega Image", date: now, bankKey: "bk-intent", in: ctx)
+        XCTAssertEqual(bankTx.duplicateOfID, intentTx.id,
+                       "an Apple Pay auto-capture and the bank-feed row for the SAME card payment must collide — the single most likely real-world duplicate pair")
+    }
+
+    func testBankCollidesWithAutoLogShare() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        let shareTx = AutoLogWriter.logShared(
+            amount: 45, currency: .ron, descriptionText: "Mega Image", merchant: "Mega Image",
+            direction: .expense, rawText: "notificare Mega Image 45 RON", in: ctx
+        )
+        let bankTx = saveBank(amount: 45, description: "Mega Image", counterparty: "Mega Image", date: now, bankKey: "bk-share", in: ctx)
+        XCTAssertEqual(bankTx.duplicateOfID, shareTx.id, "a shared bank-notification capture and the bank-feed row for the same payment must collide")
+    }
+
+    func testBankCollidesWithVoice() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        let voiceTx = saveVoice(amount: 61, description: "OMV Benzina", date: now, in: ctx)
+        let bankTx = saveBank(amount: 61, description: "OMV Benzina", counterparty: "OMV", date: now, bankKey: "bk-voice", in: ctx)
+        XCTAssertEqual(bankTx.duplicateOfID, voiceTx.id, "a voice log and the bank-feed row for the same payment must collide")
+    }
+
+    func testBankCollidesWithManual() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        let manualTx = saveManual(amount: 15, description: "Taxi", date: now, in: ctx)
+        let bankTx = saveBank(amount: 15, description: "Taxi", counterparty: "Taxi", date: now, bankKey: "bk-manual", in: ctx)
+        XCTAssertEqual(bankTx.duplicateOfID, manualTx.id, "a manual entry and the bank-feed row for the same payment must collide")
+    }
+
+    func testBankCollidesWithImport() async throws {
+        let container = try makeContainer()
+        let ctx = ModelContext(container)
+        let now = Date()
+        let bankTx = saveBank(amount: 61, description: "OMV Benzina", counterparty: "OMV", date: now, bankKey: "bk-import", in: ctx)
+        let importedTx = try await commitImportRow(amount: 61, description: "OMV Benzina", date: now, in: container)
+        XCTAssertEqual(importedTx.duplicateOfID, bankTx.id, "an imported row matching an existing bank-feed row must be flagged")
+    }
+
+    /// Bank×bank stays same-origin and is NEVER P8-flagged — P9's own bank-native
+    /// key (embedded in `rawTranscript`, checked before insert even happens) is
+    /// the ONLY thing guarding a re-pull from double-inserting; that mechanism is
+    /// untouched by this fix (this test only proves P8's origin comparison, not
+    /// the bank-key guard itself, which lives in `BankSyncService`/its own tests).
+    func testBankBankNotFlagged() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        saveBank(amount: 61, description: "OMV Benzina", counterparty: "OMV", date: now, bankKey: "bk-a", in: ctx)
+        let second = saveBank(amount: 61, description: "OMV Benzina", counterparty: "OMV", date: now, bankKey: "bk-b", in: ctx)
+        XCTAssertNil(second.duplicateOfID, "bank+bank (same origin) is never P8-flagged, even with an identical shape and a different bank key")
+    }
+
+    /// Exclusion rules (P4 adjustments, P3 loan slices) are unchanged for bank
+    /// rows: a bank-feed row is never matched against either, even with a
+    /// perfectly matching shape.
+    func testBankRowNeverCollidesWithLoanSliceOrReconciliationAdjustment() throws {
+        let ctx = try makeContext()
+        let now = Date()
+        let loanTx = Transaction(amount: 200, currency: .ron, context: .work, descriptionText: "Loan interest",
+                                 date: now, source: .manual, direction: .expense, loanID: UUID())
+        ctx.insert(loanTx)
+        let adjustmentTx = Transaction(amount: 88, currency: .ron, context: .personal,
+                                       customCategoryID: ReconciliationCategories.adjustmentCategoryID,
+                                       descriptionText: "Balance adjustment", date: now, source: .manual, direction: .income)
+        ctx.insert(adjustmentTx)
+        try ctx.save()
+
+        let bankLoanShaped = saveBank(amount: 200, description: "Loan interest", counterparty: "Loan interest", date: now, bankKey: "bk-loan", in: ctx)
+        XCTAssertNil(bankLoanShaped.duplicateOfID, "a bank row is never matched against a loan slice, even with a matching shape")
+
+        let bankAdjustmentShaped = saveBank(amount: 88, description: "Balance adjustment", counterparty: "Balance adjustment",
+                                            date: now, direction: .income, bankKey: "bk-adj", in: ctx)
+        XCTAssertNil(bankAdjustmentShaped.duplicateOfID, "a bank row is never matched against a reconciliation adjustment, even with a matching shape")
     }
 }
