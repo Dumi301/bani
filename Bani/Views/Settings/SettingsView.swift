@@ -282,6 +282,24 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Bank sync (v2 P9 — open banking / GoCardless)
+                Section {
+                    NavigationLink {
+                        BankLinkView()
+                    } label: {
+                        Label("bank.settings.title", systemImage: "building.columns.fill")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.bankSyncRow")
+                } header: {
+                    Text("bank.settings.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    Text("bank.settings.footer")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
                 // MARK: Data & Decisions
                 Section {
                     VStack(alignment: .leading, spacing: metrics.elementSpacing) {

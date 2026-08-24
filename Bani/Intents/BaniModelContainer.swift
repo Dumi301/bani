@@ -43,6 +43,13 @@ enum BaniModelContainer {
         // / ScheduledItem.loanID (both optional → lightweight migration, existing
         // default.store preserved, proven in LoanMigrationTests).
         Loan.self,
+        // v2 P9 "Open banking / GoCardless": one new entity (BankLink) holding ONLY
+        // non-secret link metadata — secrets live in the Keychain, never the store.
+        // Additive → lightweight migration, existing default.store preserved
+        // (proven in the BankLink-carrying in-memory container used by BankLinkStore
+        // / BankSync tests). Registered AFTER Loan.self (the additive tail, itself
+        // after BalanceAnchor.self).
+        BankLink.self,
     ])
 
     static func make(inMemory: Bool) throws -> ModelContainer {

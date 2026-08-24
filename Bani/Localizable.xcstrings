@@ -2,6 +2,126 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "bank.accounts.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Accounts" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conturi" } }
+      }
+    },
+    "bank.checkLink": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "I've finished — check the link" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Am terminat — verifică conexiunea" } }
+      }
+    },
+    "bank.connect": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Connect bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conectează banca" } }
+      }
+    },
+    "bank.institution.select": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Choose your bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Alege-ți banca" } }
+      }
+    },
+    "bank.keys.save": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Save keys" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Salvează cheile" } }
+      }
+    },
+    "bank.keys.secretID": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Secret ID" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "ID secret" } }
+      }
+    },
+    "bank.keys.secretKey": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Secret key" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Cheie secretă" } }
+      }
+    },
+    "bank.keys.section": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "GoCardless keys" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Chei GoCardless" } }
+      }
+    },
+    "bank.keys.stored": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Keys stored securely" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Chei stocate în siguranță" } }
+      }
+    },
+    "bank.settings.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Connect your bank to import transactions automatically. Your keys stay in the device Keychain." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conectează-ți banca pentru a importa tranzacțiile automat. Cheile rămân în Keychain-ul dispozitivului." } }
+      }
+    },
+    "bank.settings.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank sync" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Sincronizare bancară" } }
+      }
+    },
+    "bank.status.expired": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Link expired — reconnect" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conexiune expirată — reconectează" } }
+      }
+    },
+    "bank.status.linked": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Linked" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conectat" } }
+      }
+    },
+    "bank.status.none": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Not connected" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Neconectat" } }
+      }
+    },
+    "bank.status.pending": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Awaiting bank authentication" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Se așteaptă autentificarea la bancă" } }
+      }
+    },
+    "bank.status.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Stare" } }
+      }
+    },
+    "bank.sync.done %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Imported %lld transactions" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "S-au importat %lld tranzacții" } }
+      }
+    },
+    "bank.sync.now": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sync now" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Sincronizează acum" } }
+      }
+    },
+    "bank.tx.fallback": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank transaction" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Tranzacție bancară" } }
+      }
+    },
+    "bank.unlink": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unlink & wipe keys" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Deconectează și șterge cheile" } }
+      }
+    },
     "loan.action.close": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Close loan" } },
@@ -7794,6 +7914,24 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Export Centralizator (.xlsx)" } },
         "ro": { "stringUnit": { "state": "translated", "value": "Export Centralizator (.xlsx)" } }
+      }
+    },
+    "raport.search.prompt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search anything — try \"electrician at Crângași last spring\"" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Caută orice — încearcă „electrician la Crângași primăvara trecută”" } }
+      }
+    },
+    "raport.search.resultsTitle": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Search results" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Rezultate căutare" } }
+      }
+    },
+    "raport.search.empty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No matches" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun rezultat" } }
       }
     }
   }
