@@ -97,6 +97,15 @@ final class MockHTTPSession: HTTPSession, @unchecked Sendable {
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        // Swift 6 forbids `NSLock.lock()/unlock()` directly in an async body, so the
+        // lock-guarded resolution lives in a synchronous helper the async func calls.
+        respond(to: request)
+    }
+
+    /// Synchronous, lock-guarded stub resolution. Behavior is identical to the
+    /// former inline body: log the request, return the first unconsumed matching
+    /// stub (consuming non-`reusable` ones), else a 404.
+    private func respond(to request: URLRequest) -> (Data, URLResponse) {
         lock.lock(); defer { lock.unlock() }
         let method = request.httpMethod ?? "GET"
         let path = request.url?.path ?? ""
