@@ -43,6 +43,10 @@ struct CorrectedFields: OptionSet, Hashable, Sendable {
     /// project). Additive bit; `correctedFieldsRaw` is a plain stored `Int`, so
     /// this widens the set with no migration surface.
     static let project     = CorrectedFields(rawValue: 1 << 6)
+    /// v2 P8 — a cross-source dedup review resolved as a MERGE (the richer of
+    /// two flagged transactions was kept, the other deleted). Additive bit,
+    /// same widen-with-no-migration discipline as `.project`.
+    static let merge       = CorrectedFields(rawValue: 1 << 7)
 }
 
 /// The feedback ledger's one row per card resolution (B1). A NEW, separate

@@ -34,6 +34,12 @@ actor ImportCommitRunner {
         let total = items.count
         let resolution = PresetSeeding.ensureCustoms(in: modelContext)   // token → custom id
         let snapshots = ruleSnapshots()
+        // P8 — batch-level cross-source dedup: fetch the EXISTING store once (pre
+        // this batch) so every row is checked against prior voice/manual/share/
+        // auto-log/import rows without a per-row fetch. Matches are flagged
+        // (`duplicateOfID`), never blocked and never a row-by-row prompt — the
+        // batch-advisory treatment, discoverable later in the same review surface.
+        let existingForDedup = (try? modelContext.fetch(FetchDescriptor<Transaction>())) ?? []
 
         var savedAttachments: [UUID] = []
         var inserted = 0
@@ -67,6 +73,18 @@ actor ImportCommitRunner {
                 projectID: item.projectID
             )
             tx.categoryRef = resolve(item.draft.category, resolution: resolution, snapshots: snapshots, description: item.draft.descriptionText)
+            // P8 — flag against the pre-batch store snapshot (never against rows
+            // inserted earlier in THIS batch — those are all `.imported` too, and
+            // same-source pairs are never flagged).
+            let draft = item.draft
+            let key = TransactionFingerprint.Key(
+                amount: draft.amount, currency: draft.currency, direction: draft.direction,
+                date: draft.date,
+                counterparty: TransactionFingerprint.counterpartySignal(
+                    counterparty: draft.counterparty, merchant: nil, description: draft.descriptionText
+                )
+            )
+            tx.duplicateOfID = DedupService.batchMatch(for: key, excludingID: nil, existing: existingForDedup)
             modelContext.insert(tx)
             inserted += 1
 

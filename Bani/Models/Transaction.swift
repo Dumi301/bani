@@ -218,6 +218,17 @@ final class Transaction {
     /// investor cost-of-capital by resolving `loanID → Loan.kind`; a `neutral`
     /// principal slice never counts as an expense anywhere.
     var loanID: UUID?
+    /// v2 P8 — cross-source dedup (`Bani/Dedup/DedupService`). Set when this
+    /// transaction was flagged as a possible duplicate of another (different
+    /// source, matching amount/currency/direction within the fingerprint's
+    /// date-window). Optional + additive, the proven-safe pattern (mirrors
+    /// `projectID` / `loanID` / `customCategoryID`): existing rows migrate to
+    /// `nil` and survive untouched — NO non-optional additions (the
+    /// direction-crash law is absolute). `nil` = not flagged, or already
+    /// resolved (merge/keep-both both clear it back to `nil`). Never gates a
+    /// save — the never-drop law: a flagged transaction is already a real,
+    /// fully-saved row the instant it lands here.
+    var duplicateOfID: UUID?
     var createdAt: Date
 
     init(
@@ -238,6 +249,7 @@ final class Transaction {
         importBatchID: UUID? = nil,
         projectID: UUID? = nil,
         loanID: UUID? = nil,
+        duplicateOfID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -257,6 +269,7 @@ final class Transaction {
         self.importBatchID = importBatchID
         self.projectID = projectID
         self.loanID = loanID
+        self.duplicateOfID = duplicateOfID
         self.createdAt = createdAt
     }
 }

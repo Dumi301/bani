@@ -5914,6 +5914,102 @@
         }
       }
     },
+    "dedup.review.chip %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld possible duplicates — review"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld posibile duplicate — verifică"
+          }
+        }
+      }
+    },
+    "dedup.review.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Possible duplicates"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posibile duplicate"
+          }
+        }
+      }
+    },
+    "dedup.review.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No duplicates found"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niciun duplicat găsit"
+          }
+        }
+      }
+    },
+    "dedup.review.possibleDuplicateOf %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "possible duplicate of “%@”"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "posibil duplicat al „%@”"
+          }
+        }
+      }
+    },
+    "dedup.review.keepBoth": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep both"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Păstrează ambele"
+          }
+        }
+      }
+    },
+    "dedup.review.merge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Combină"
+          }
+        }
+      }
+    },
     "share.card.title": {
       "localizations": {
         "en": {

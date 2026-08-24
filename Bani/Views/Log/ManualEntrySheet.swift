@@ -164,6 +164,9 @@ struct ManualEntrySheet: View {
         )
         modelContext.insert(transaction)
         try? modelContext.save()
+        // P8 — never silently double-count: flag (never drop) a cross-source
+        // possible duplicate for the review surface.
+        DedupService.flagIfDuplicate(transaction, in: modelContext)
         if let projectID { lastUsedProjectRaw = projectID.uuidString }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
