@@ -682,23 +682,30 @@ jobs:
             --latest
 
       - name: Update AltStore source.json
+        env:
+          # Passed via env (not interpolated into the script body) — commit
+          # messages are attacker-influenceable content; direct interpolation
+          # into a run: block is a GitHub Actions script-injection vector.
+          COMMIT_SUBJECT_RAW: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
           ICON_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/docs/icon.png"
+          # First line of the triggering commit message, JSON-escaped by jq --arg below.
+          COMMIT_SUBJECT="$(printf '%s\n' "${COMMIT_SUBJECT_RAW:-Automated release.}" | head -1)"
           jq \
-            --arg version "${{ steps.facts.outputs.version }}" \
             --arg build "${{ steps.facts.outputs.run }}" \
             --arg date "${{ steps.facts.outputs.date }}" \
             --arg url "${{ steps.facts.outputs.download_url }}" \
             --argjson size ${{ steps.facts.outputs.size }} \
             --arg icon "$ICON_URL" \
+            --arg desc "$COMMIT_SUBJECT" \
             '.iconURL = $icon
              | .apps[0].iconURL = $icon
              | .apps[0].versions[0] = {
-                 version: $version,
+                 version: ("1.0." + $build),
                  buildVersion: $build,
                  date: $date,
-                 localizedDescription: ("Build " + $build + " — voice pipeline fix: recorded entries are never silently dropped; failed transcriptions stay editable."),
+                 localizedDescription: $desc,
                  downloadURL: $url,
                  size: $size,
                  minOSVersion: "26.0"
