@@ -2,6 +2,282 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "loan.action.close": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Close loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Închide creditul" } }
+      }
+    },
+    "loan.action.edit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Editează" } }
+      }
+    },
+    "loan.card.due %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Due %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Scadent %@" } }
+      }
+    },
+    "loan.card.percentLeft %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%@ left" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "%@ rămas" } }
+      }
+    },
+    "loan.category.interest": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loan interest" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobândă credit" } }
+      }
+    },
+    "loan.close.confirm.message": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remaining scheduled payments are cancelled. Booked payments stay." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plățile programate rămase sunt anulate. Plățile înregistrate rămân." } }
+      }
+    },
+    "loan.close.confirm.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Close this loan?" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Închizi acest credit?" } }
+      }
+    },
+    "loan.create.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Credit nou" } }
+      }
+    },
+    "loan.detail.nextPayment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Next payment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plata următoare" } }
+      }
+    },
+    "loan.detail.percentLeft": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Percent left" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Procent rămas" } }
+      }
+    },
+    "loan.detail.principal": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Principal" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Principal" } }
+      }
+    },
+    "loan.detail.status": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Stare" } }
+      }
+    },
+    "loan.edit.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Editează creditul" } }
+      }
+    },
+    "loan.field.fixedPayment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fixed monthly payment (optional)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plată lunară fixă (opțional)" } }
+      }
+    },
+    "loan.field.kind": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Kind" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Tip" } }
+      }
+    },
+    "loan.field.lender": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Lender" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Creditor" } }
+      }
+    },
+    "loan.field.name": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Name" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Nume" } }
+      }
+    },
+    "loan.field.notes": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Notes" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Note" } }
+      }
+    },
+    "loan.field.rate": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Annual rate %" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Rată anuală %" } }
+      }
+    },
+    "loan.field.start": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Start date" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Data începerii" } }
+      }
+    },
+    "loan.field.term": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Term (months)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Durată (luni)" } }
+      }
+    },
+    "loan.investor.noProject": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Investor interest is cost-of-capital — outside every project's P&L." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobânda investitorului este cost al capitalului — în afara P&L-ului oricărui proiect." } }
+      }
+    },
+    "loan.kind.bank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Bancă" } }
+      }
+    },
+    "loan.kind.investor": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Investor" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Investitor" } }
+      }
+    },
+    "loan.recordPayment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Record payment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Înregistrează plata" } }
+      }
+    },
+    "loan.schedule.col.balance": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Sold" } }
+      }
+    },
+    "loan.schedule.col.interest": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Interest" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobândă" } }
+      }
+    },
+    "loan.schedule.col.payment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Payment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plată" } }
+      }
+    },
+    "loan.schedule.col.principal": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Principal" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Principal" } }
+      }
+    },
+    "loan.schedule.empty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No schedule — add a term or fixed payment." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Fără grafic — adaugă o durată sau o plată fixă." } }
+      }
+    },
+    "loan.schedule.payment %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Payment %lld" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plata %lld" } }
+      }
+    },
+    "loan.schedule.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Amortization schedule" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Grafic de amortizare" } }
+      }
+    },
+    "loan.section.assignment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Assignment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Alocare" } }
+      }
+    },
+    "loan.section.identity": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Credit" } }
+      }
+    },
+    "loan.section.terms": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Terms" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Condiții" } }
+      }
+    },
+    "loan.section.terms.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Provide a term or a fixed monthly payment to generate the schedule." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Introdu o durată sau o plată lunară fixă pentru a genera graficul." } }
+      }
+    },
+    "loan.status.active": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Active" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Activ" } }
+      }
+    },
+    "loan.status.closed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Closed" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Închis" } }
+      }
+    },
+    "loan.tx.interest %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Interest — %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobândă — %@" } }
+      }
+    },
+    "loan.tx.principal %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Principal — %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Principal — %@" } }
+      }
+    },
+    "loans.closed %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Closed (%lld)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Închise (%lld)" } }
+      }
+    },
+    "loans.create": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Credit nou" } }
+      }
+    },
+    "loans.empty.body": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Track bank loans and investor money — sum owed, % left, and each payment." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Urmărește credite bancare și bani de la investitori — sumă datorată, % rămas și fiecare plată." } }
+      }
+    },
+    "loans.empty.cta": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add a loan" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă un credit" } }
+      }
+    },
+    "loans.empty.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No loans yet" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun credit încă" } }
+      }
+    },
+    "loans.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loans" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Credite" } }
+      }
+    },
     "%@ model": {
       "localizations": {
         "en": {

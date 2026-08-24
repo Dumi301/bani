@@ -208,6 +208,16 @@ final class Transaction {
     /// resolved by id-lookup, never a SwiftData relationship. Cash is ONE pot;
     /// this pointer never moves money, it only labels which lens sees the row.
     var projectID: UUID?
+    /// v1.2b "Loans" — the `Loan` this transaction belongs to (`Loan.id`), set on
+    /// the two split transactions a loan payment books (interest slice + principal
+    /// slice). Optional + additive, the proven-safe pattern (mirrors `projectID` /
+    /// `customCategoryID` / `importBatchID`): existing rows migrate to `nil` and
+    /// survive untouched (proven in `LoanMigrationTests`). NO non-optional
+    /// additions — the direction-crash law is absolute. `nil` = not a loan
+    /// transaction. Consumers distinguish bank-interest (project P&L) from
+    /// investor cost-of-capital by resolving `loanID → Loan.kind`; a `neutral`
+    /// principal slice never counts as an expense anywhere.
+    var loanID: UUID?
     var createdAt: Date
 
     init(
@@ -227,6 +237,7 @@ final class Transaction {
         attachmentID: UUID? = nil,
         importBatchID: UUID? = nil,
         projectID: UUID? = nil,
+        loanID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -245,6 +256,7 @@ final class Transaction {
         self.attachmentID = attachmentID
         self.importBatchID = importBatchID
         self.projectID = projectID
+        self.loanID = loanID
         self.createdAt = createdAt
     }
 }

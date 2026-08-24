@@ -125,6 +125,17 @@ final class ScheduledItem {
     /// use by `ScheduledItemStore` when a recurring item is marked done; deleting
     /// one occurrence never cascades to the rest of its series.
     var seriesID: UUID?
+    /// v1.2b "Loans" — the `Loan` whose payment series this item belongs to
+    /// (`Loan.id`), set on every generated loan-payment occurrence. Optional +
+    /// additive, the same lightweight-migration discipline as `projectID` /
+    /// `seriesID`: legacy rows decode to `nil` (a legal Optional decode, zero data
+    /// loss — the `Bani-2026-08-02` law), and read as "not a loan payment". `nil`
+    /// for every ordinary scheduled item. Loan-payment items MUST be completed
+    /// through `LoanStore.bookPayment` (which books the interest/principal split
+    /// and advances the series), never the generic `ScheduledItemStore.markDone`;
+    /// they carry `projectID == nil` so they never surface in a per-project
+    /// mark-done pane (their project attribution lives on `Loan.projectID`).
+    var loanID: UUID?
     var createdAt: Date
 
     init(
@@ -141,6 +152,7 @@ final class ScheduledItem {
         linkedTransactionID: UUID? = nil,
         recurrence: RecurrenceRule = .none,
         seriesID: UUID? = nil,
+        loanID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -156,6 +168,7 @@ final class ScheduledItem {
         self.linkedTransactionID = linkedTransactionID
         self.recurrenceRaw = recurrence.rawValue
         self.seriesID = seriesID
+        self.loanID = loanID
         self.createdAt = createdAt
     }
 
