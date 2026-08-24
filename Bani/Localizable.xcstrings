@@ -6582,6 +6582,102 @@
         }
       }
     },
+    "scheduled.recurrence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repetare"
+          }
+        }
+      }
+    },
+    "scheduled.recurrence.monthly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunar"
+          }
+        }
+      }
+    },
+    "scheduled.recurrence.none": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fără"
+          }
+        }
+      }
+    },
+    "scheduled.recurrence.quarterly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quarterly"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trimestrial"
+          }
+        }
+      }
+    },
+    "scheduled.recurrence.weekly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Săptămânal"
+          }
+        }
+      }
+    },
+    "scheduled.recurrence.yearly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anual"
+          }
+        }
+      }
+    },
     "scheduled.section.details": {
       "localizations": {
         "en": {

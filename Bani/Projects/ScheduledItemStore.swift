@@ -5,13 +5,20 @@ import SwiftData
 /// directly by tests (no UI, no real notifications). Marking an item done is the
 /// card contract's terminal state: it ALWAYS ends in a persisted `Transaction`,
 /// linked back via `linkedTransactionID`, with the item flipped to `.done`. Undo
-/// deletes that transaction and restores the item to `.pending`.
+/// deletes that transaction and restores the item to `.pending`. Recurring items
+/// (v2 "Recurring ScheduledItems") also mint their next pending occurrence here -
+/// see `generateNextRecurrenceIfNeeded` below, the ONE hook location for the
+/// mark-done -> recurrence flow.
 enum ScheduledItemStore {
 
     /// Fulfil a scheduled item: create a real `Transaction` from it (edited values
     /// may be supplied by the mark-done card) and link it. Direction maps
-    /// incoming → .income, outgoing → .expense. Projects are the business side, so
-    /// the created transaction defaults to the Work context.
+    /// incoming → .income, outgoing → .expense. Projects are the business side,
+    /// so the created transaction defaults to the Work context. When `item`
+    /// recurs, also mints its next pending occurrence (idempotent - see
+    /// `generateNextRecurrenceIfNeeded`). `calendar` drives that recurrence math
+    /// (DST-safe Calendar date math, never raw 86400-second arithmetic); defaults
+    /// to the device calendar, tests inject an explicit one for determinism.
     @MainActor
     @discardableResult
     static func markDone(
@@ -22,6 +29,7 @@ enum ScheduledItemStore {
         context: TransactionContext = .work,
         category: TransactionCategory? = nil,
         date: Date = .now,
+        calendar: Calendar = .current,
         in modelContext: ModelContext
     ) -> Transaction {
         let resolvedDescription = descriptionText ?? (item.title.isEmpty ? item.descriptionText : item.title)
@@ -40,8 +48,41 @@ enum ScheduledItemStore {
         modelContext.insert(transaction)
         item.status = .done
         item.linkedTransactionID = transaction.id
+
+        generateNextRecurrenceIfNeeded(for: item, calendar: calendar, in: modelContext)
+
         try? modelContext.save()
         return transaction
+    }
+
+    /// After a recurring item completes, mint its next pending occurrence -
+    /// unless a pending item already carries the same `seriesID` (the
+    /// no-duplicate guard: marking the same origin item done twice, or any
+    /// re-entrant call, never creates a second occurrence). The next `dueDate` is
+    /// computed from the ORIGIN item's `dueDate` (via `RecurrenceEngine`), never
+    /// from "now" - an overdue recurring item marked done late still recurs on
+    /// its original schedule. Deleting an item never cascades to the rest of its
+    /// series (no cleanup happens here or anywhere else).
+    ///
+    /// Fetches all `ScheduledItem` rows and filters in memory (mirrors the
+    /// codebase's convention of never putting enum/optional comparisons into a
+    /// `#Predicate` keypath - see `ScheduledItem.isOverdue` / `.direction`).
+    @MainActor
+    private static func generateNextRecurrenceIfNeeded(for item: ScheduledItem, calendar: Calendar, in modelContext: ModelContext) {
+        guard item.recurrence != .none else { return }
+
+        // Resolve (and persist) the series id BEFORE the duplicate check, so a
+        // second call on the same origin item finds the occurrence it already
+        // created and skips making another one.
+        let seriesID = item.seriesID ?? UUID()
+        item.seriesID = seriesID
+
+        let allItems = (try? modelContext.fetch(FetchDescriptor<ScheduledItem>())) ?? []
+        let alreadyHasPendingOccurrence = allItems.contains { $0.seriesID == seriesID && $0.status == .pending }
+        guard !alreadyHasPendingOccurrence else { return }
+
+        guard let next = RecurrenceEngine.makeNextOccurrence(from: item, calendar: calendar) else { return }
+        modelContext.insert(next)
     }
 
     /// Undo a mark-done: delete the linked transaction (if it still exists) and
@@ -61,6 +102,7 @@ enum ScheduledItemStore {
 
     /// Delete a scheduled item outright (with any linked transaction left intact —
     /// deleting the plan does not delete a real, already-logged transaction).
+    /// Never cascades to the rest of a recurring item's series.
     @MainActor
     static func delete(_ item: ScheduledItem, in modelContext: ModelContext) {
         modelContext.delete(item)
