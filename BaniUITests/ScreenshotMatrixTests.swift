@@ -1,10 +1,13 @@
 import XCTest
 
-/// Extra design-review screenshots (A4 + B5), graded visually and non-blocking
-/// (not `ManualEntryUITests`):
+/// Extra design-review screenshots (graded visually, non-blocking — NOT
+/// `ManualEntryUITests`):
+///   • the v2 Raport hub (dark + light) — the flagship teardown surface,
 ///   • the interactive bar chart with a selected bar + annotation (light + dark),
-///   • the app in Romanian (Log + Finances), checked for truncation/overflow.
-/// Tabs are selected by index so the capture is locale-agnostic.
+///   • the app in Romanian (Log + Raport hub + Finances drill-down),
+///   • Projects tab + dashboard, and the B1 density matrix.
+/// Tabs are selected by INDEX so capture is locale-agnostic. v2 tab order:
+/// 0 = Raport, 1 = Log, 2 = Projects, 3 = Settings (Log is the launch tab).
 final class ScreenshotMatrixTests: XCTestCase {
 
     override func setUpWithError() throws { continueAfterFailure = false }
@@ -18,22 +21,43 @@ final class ScreenshotMatrixTests: XCTestCase {
         add(attachment)
     }
 
-    private func selectFinancesTab(_ app: XCUIApplication) {
+    private func selectTab(_ app: XCUIApplication, index: Int) {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
-        // v1.2a order: 0 = Log, 1 = Projects, 2 = Finances, 3 = Settings.
-        // Index is stable across languages.
-        tabBar.buttons.element(boundBy: 2).tap()
+        tabBar.buttons.element(boundBy: index).tap()
     }
 
-    /// Select the v1.2a Projects tab (index 1) for the Projects screenshot matrix.
-    private func selectProjectsTab(_ app: XCUIApplication) {
-        let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
-        tabBar.buttons.element(boundBy: 1).tap()
+    /// The demoted Finances surface is now a drill-down inside the Raport hub:
+    /// Raport tab (index 0) → the "All transactions" row.
+    private func openFinances(_ app: XCUIApplication) {
+        selectTab(app, index: 0)
+        let allTx = app.descendants(matching: .any)["raport.allTransactions"]
+        XCTAssertTrue(allTx.waitForExistence(timeout: 10), "the All transactions drill-down should exist")
+        var swipes = 0
+        while !allTx.isHittable && swipes < 8 { app.swipeUp(); swipes += 1 }
+        allTx.tap()
     }
 
-    // MARK: - A4: interactive bar chart (selected bar + annotation)
+    // MARK: - v2 flagship: the Raport hub (dark + light)
+
+    func testRaportHub_Light() { captureRaportHub(appearance: "light") }
+    func testRaportHub_Dark() { captureRaportHub(appearance: "dark") }
+
+    private func captureRaportHub(appearance: String) {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser",
+            "-modelAbsent", "-appearance", appearance,
+        ]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+        selectTab(app, index: 0)   // Raport
+        XCTAssertTrue(app.descendants(matching: .any)["raport.hub.root"].waitForExistence(timeout: 10),
+                      "the Raport hub should be visible")
+        snapshot(app, name: "\(appearance)-raport-hub")
+    }
+
+    // MARK: - Interactive bar chart (selected bar + annotation)
 
     func testBarsChartAnnotation_Light() { captureBars(appearance: "light") }
     func testBarsChartAnnotation_Dark() { captureBars(appearance: "dark") }
@@ -46,16 +70,16 @@ final class ScreenshotMatrixTests: XCTestCase {
         ]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
-        selectFinancesTab(app)
+        openFinances(app)
         // The bars chart opens pre-selected with its annotation shown (-uiTestBars).
         XCTAssertTrue(app.descendants(matching: .any)["finances.barsChart"].waitForExistence(timeout: 10),
                       "the bar chart should be visible")
         snapshot(app, name: "\(appearance)-finances-bars-annotation")
     }
 
-    // MARK: - B5: Romanian (Log + Finances, light)
+    // MARK: - Romanian (Log + Raport hub + Finances drill-down, light)
 
-    func testRomanian_LogAndFinances() {
+    func testRomanian_LogRaportFinances() {
         let app = XCUIApplication()
         app.launchArguments = [
             "-uiTesting", "-seedSampleData", "-seedRate", "-forceRuleParser",
@@ -64,11 +88,17 @@ final class ScreenshotMatrixTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         snapshot(app, name: "ro-log")
-        selectFinancesTab(app)
+        selectTab(app, index: 0)
+        XCTAssertTrue(app.descendants(matching: .any)["raport.hub.root"].waitForExistence(timeout: 10))
+        snapshot(app, name: "ro-raport")
+        let allTx = app.descendants(matching: .any)["raport.allTransactions"]
+        var swipes = 0
+        while !allTx.isHittable && swipes < 8 { app.swipeUp(); swipes += 1 }
+        if allTx.exists { allTx.tap() }
         snapshot(app, name: "ro-finances")
     }
 
-    // MARK: - v1.2a Projects tab + project dashboard (non-blocking grade)
+    // MARK: - Projects tab + project dashboard (non-blocking grade)
 
     func testProjects_Light() { captureProjects(appearance: "light") }
     func testProjects_Dark() { captureProjects(appearance: "dark") }
@@ -81,13 +111,11 @@ final class ScreenshotMatrixTests: XCTestCase {
         ]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
-        selectProjectsTab(app)
-        // The portfolio header + project cards (seeded projects: Manhattan, Renovare).
+        selectTab(app, index: 2)   // Projects (v2: index 2)
         XCTAssertTrue(app.descendants(matching: .any)["portfolio.netPosition"].waitForExistence(timeout: 10),
                       "the portfolio header should be visible")
         snapshot(app, name: "\(appearance)-projects")
 
-        // Into the first project's dashboard (donut scoped by projectID).
         let card = app.descendants(matching: .any).matching(identifier: "project.card").firstMatch
         if card.waitForExistence(timeout: 8) {
             card.tap()
@@ -95,7 +123,7 @@ final class ScreenshotMatrixTests: XCTestCase {
         }
     }
 
-    // MARK: - B1 density (Log + Finances donut at Airy and Dense, light)
+    // MARK: - B1 density (Log + Finances drill-down at Airy and Dense, light)
 
     func testDensity_Airy() { captureDensity("airy") }
     func testDensity_Dense() { captureDensity("dense") }
@@ -109,7 +137,7 @@ final class ScreenshotMatrixTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
         snapshot(app, name: "light-log-\(scale)")
-        selectFinancesTab(app)
+        openFinances(app)
         snapshot(app, name: "light-finances-\(scale)")
     }
 }

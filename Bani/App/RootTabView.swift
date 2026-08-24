@@ -1,12 +1,35 @@
 import SwiftUI
 import SwiftData
 
-/// Four-tab shell: Log / Projects / Finances / Settings. The Projects tab (v1.2a)
-/// sits between Log and Finances and carries a subtle overdue badge whenever any
-/// pending scheduled item is past due — this in-app flag works REGARDLESS of the
-/// payment-reminders toggle (the toggle only governs local notifications).
+/// The v2-teardown tab identity, in tab-bar order. Extracted as a `CaseIterable`
+/// enum so the structure ("4 tabs, Raport first, no Finances tab") is asserted in
+/// `RootTabNavigationTests` without instantiating SwiftUI. `Finances` is DELIBERATELY
+/// absent — it is now a drill-down inside the Raport hub, not a tab.
+enum RootTab: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case raport   // the app's face (VISION §2): the living report
+    case log      // capture — the launch tab (Bani's "absorb reality as it comes")
+    case projects // the analytical spine
+    case settings
+
+    var id: String { rawValue }
+}
+
+/// Four-tab shell (v2 teardown): **Raport · Log · Projects · Settings**. The Raport
+/// hub is the leftmost face; the old Finances tab is removed and lives on as a
+/// drill-down inside the hub ("All transactions"). Capture (Log) stays the launch
+/// tab so the zero-friction logging path is unchanged — Raport is one tap away.
+///
+/// The Projects tab carries a subtle overdue badge whenever any pending scheduled
+/// item is past due; this in-app flag works REGARDLESS of the payment-reminders
+/// toggle (the toggle only governs local notifications).
 struct RootTabView: View {
     @Query private var scheduledItems: [ScheduledItem]
+
+    /// Launch on Log (capture-first). Raport is the leftmost tab in order but not
+    /// the default selection, so the existing capture-on-launch behaviour — and the
+    /// blocking `ManualEntryUITests` / `RecordingCrashRegressionUITests`, which
+    /// expect the Log screen at launch — are unchanged.
+    @State private var selection: RootTab = .log
 
     /// Count of pending, past-due scheduled items — the tab-icon badge.
     private var overdueCount: Int {
@@ -14,18 +37,22 @@ struct RootTabView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
+            RaportHubView()
+                .tag(RootTab.raport)
+                .tabItem { Label("raport.tab.title", systemImage: "doc.text.below.ecg") }
+
             LogView()
+                .tag(RootTab.log)
                 .tabItem { Label("Log", systemImage: "mic.fill") }
 
             ProjectsView()
+                .tag(RootTab.projects)
                 .tabItem { Label("projects.title", systemImage: "folder.fill") }
                 .badge(overdueCount)
 
-            FinancesView()
-                .tabItem { Label("Finances", systemImage: "chart.pie.fill") }
-
             SettingsView()
+                .tag(RootTab.settings)
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
     }

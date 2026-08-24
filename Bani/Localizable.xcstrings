@@ -7531,6 +7531,174 @@
           }
         }
       }
+    },
+    "raport.tab.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Report" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Raport" } }
+      }
+    },
+    "raport.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Report" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Raport" } }
+      }
+    },
+    "raport.section.position": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Position" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Poziție" } }
+      }
+    },
+    "raport.section.owed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Owed to me" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Îmi datorează" } }
+      }
+    },
+    "raport.section.debtBank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Debt — bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Datorii — bancă" } }
+      }
+    },
+    "raport.section.debtInvestors": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Debt — investors" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Datorii — investitori" } }
+      }
+    },
+    "raport.section.projects": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Projects" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Proiecte" } }
+      }
+    },
+    "raport.cashflow.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cash flow" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Flux de numerar" } }
+      }
+    },
+    "raport.cashflow.in": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "In" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Intrări" } }
+      }
+    },
+    "raport.cashflow.out": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Out" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ieșiri" } }
+      }
+    },
+    "raport.cashflow.net": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Net" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Net" } }
+      }
+    },
+    "raport.allTransactions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "All transactions" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Toate tranzacțiile" } }
+      }
+    },
+    "raport.costOfCapital": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cost of capital" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Cost de capital" } }
+      }
+    },
+    "raport.debt.costOfCapitalNote": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Outside every project P&L" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "În afara P&L-ului proiectelor" } }
+      }
+    },
+    "raport.debt.interest": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Interest" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobândă" } }
+      }
+    },
+    "raport.debt.principal": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Principal" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Principal" } }
+      }
+    },
+    "raport.debt.bookedTo %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Interest booked to %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dobânda se trece la %@" } }
+      }
+    },
+    "raport.projects.invested": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Invested" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Investit" } }
+      }
+    },
+    "raport.projects.paid": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paid" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plătit" } }
+      }
+    },
+    "raport.projects.due": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Due" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "De plată" } }
+      }
+    },
+    "raport.projects.nextDue %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Next %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Următoarea %@" } }
+      }
+    },
+    "raport.empty.owed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No one owes you yet." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Nimeni nu îți datorează încă." } }
+      }
+    },
+    "raport.empty.debtBank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No bank loans." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun credit bancar." } }
+      }
+    },
+    "raport.empty.debtInvestors": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No investor capital." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun capital de la investitori." } }
+      }
+    },
+    "raport.empty.projects": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No projects yet." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun proiect încă." } }
+      }
+    },
+    "raport.export.menu": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Export" } }
+      }
+    },
+    "raport.export.raport": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export Report (.xlsx)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Export Raport (.xlsx)" } }
+      }
+    },
+    "raport.export.centralizator": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export Centralizator (.xlsx)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Export Centralizator (.xlsx)" } }
+      }
     }
   }
 }

@@ -27,10 +27,16 @@ final class TransactionDetailUITests: XCTestCase {
     func testRowTapOpensDetailThenEditIsPrefilled() throws {
         let app = launchApp()
 
-        // Go to Finances.
+        // Go to the Finances drill-down inside the Raport hub (v2 teardown): the
+        // transaction list is reached from the hub's "All transactions" row.
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
-        tabBar.buttons["Finances"].tap()
+        tabBar.buttons.element(boundBy: 0).tap()   // Raport (index 0)
+        let allTx = app.descendants(matching: .any)["raport.allTransactions"]
+        XCTAssertTrue(allTx.waitForExistence(timeout: 10), "the All transactions drill-down should exist")
+        var toAllTx = 0
+        while !allTx.isHittable && toAllTx < 8 { app.swipeUp(); toAllTx += 1 }
+        allTx.tap()
 
         // Tap the first seeded transaction by its description text — robust against
         // `cells.firstMatch` matching a category section-header cell. The list now

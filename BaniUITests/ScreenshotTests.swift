@@ -1,10 +1,12 @@
 import XCTest
 
-/// Captures the full design-review matrix: Log / Finances / Settings in BOTH
-/// light and dark (3 × 2 = 6 screenshots). Launches with seeded in-memory
-/// sample data + a forced RuleBasedParser + the Whisper model absent, so the
-/// run is deterministic and the first-launch download screen never appears.
+/// Captures the design-review matrix in BOTH light and dark. Launches with seeded
+/// in-memory sample data + a forced RuleBasedParser + the Whisper model absent, so
+/// the run is deterministic and the first-launch download screen never appears.
 /// CI exports the attachments as the `screenshots` artifact.
+///
+/// v2 teardown tab order: 0 = Raport, 1 = Log, 2 = Projects, 3 = Settings. Log is
+/// the launch tab; the old Finances screen is a drill-down inside the Raport hub.
 final class ScreenshotTests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -38,19 +40,28 @@ final class ScreenshotTests: XCTestCase {
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
 
-        // Select tabs by INDEX, not localized label — the shared simulator can
-        // carry a non-English language over from an earlier test, which would make
-        // a label lookup ("Finances") silently miss and snapshot the wrong screen.
-        // v1.2a order: 0 = Log, 1 = Projects, 2 = Finances, 3 = Settings
-        // (stable across languages).
-        tabBar.buttons.element(boundBy: 1).tap()
-        snapshot(app, name: "\(appearance)-projects")
+        // Select tabs by INDEX, not localized label — the shared simulator can carry
+        // a non-English language over from an earlier test, which would make a label
+        // lookup silently miss. v2 order: 0 = Raport, 1 = Log, 2 = Projects, 3 = Settings.
+        tabBar.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.descendants(matching: .any)["raport.hub.root"].waitForExistence(timeout: 10))
+        snapshot(app, name: "\(appearance)-raport")
 
         tabBar.buttons.element(boundBy: 2).tap()
-        snapshot(app, name: "\(appearance)-finances")
+        snapshot(app, name: "\(appearance)-projects")
 
         tabBar.buttons.element(boundBy: 3).tap()
         snapshot(app, name: "\(appearance)-settings")
+
+        // The demoted Finances screen — reached as a drill-down from the Raport hub.
+        tabBar.buttons.element(boundBy: 0).tap()
+        let allTx = app.descendants(matching: .any)["raport.allTransactions"]
+        var swipes = 0
+        while !allTx.isHittable && swipes < 8 { app.swipeUp(); swipes += 1 }
+        if allTx.exists {
+            allTx.tap()
+            snapshot(app, name: "\(appearance)-finances")
+        }
     }
 
     private func snapshot(_ app: XCUIApplication, name: String) {

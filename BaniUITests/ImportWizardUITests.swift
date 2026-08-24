@@ -30,7 +30,7 @@ final class ImportWizardUITests: XCTestCase {
             app.launch()
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
 
-            // Settings (v1.2a: 4th tab, index 3 — Log/Projects/Finances/Settings,
+            // Settings (v2: 4th tab, index 3 — Raport/Log/Projects/Settings,
             // locale-agnostic) auto-presents the import flow, which — under
             // -importReportUITest — loads the synthetic files straight to the report.
             let tabBar = app.tabBars.firstMatch
@@ -50,9 +50,15 @@ final class ImportWizardUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
 
+        // The Finances surface is now a drill-down inside the Raport hub (v2):
+        // Raport tab (index 0) → "All transactions".
         let tabBar = app.tabBars.firstMatch
         XCTAssertTrue(tabBar.waitForExistence(timeout: 10))
-        tabBar.buttons.element(boundBy: 2).tap()   // Finances (v1.2a: index 2)
+        tabBar.buttons.element(boundBy: 0).tap()
+        let allTx = app.descendants(matching: .any)["raport.allTransactions"]
+        XCTAssertTrue(allTx.waitForExistence(timeout: 10), "the All transactions drill-down should exist")
+        scrollToHittable(allTx, in: app)
+        allTx.tap()
 
         let grouping = app.segmentedControls["financesGroupingPicker"]
         if !grouping.waitForExistence(timeout: 8) { app.swipeUp() }
