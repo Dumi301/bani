@@ -9,8 +9,11 @@ struct TransactionEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query private var customCategories: [CustomCategory]
-    /// Existing parties → counterparty-field suggestions (B2).
+    /// Existing parties → counterparty-field suggestions (B2/v1.3).
     @Query private var allTransactions: [Transaction]
+    /// v1.3 — the People registry + scheduled items feed the same suggestions.
+    @Query private var people: [Person]
+    @Query private var allScheduledItems: [ScheduledItem]
     /// v1.2a — projects for the assignment field.
     @Query private var projects: [Project]
 
@@ -49,16 +52,12 @@ struct TransactionEditSheet: View {
 
     private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
-    /// Distinct existing counterparties, most-recent-first, for the suggestions.
+    /// v1.3 — registered people's names (registry-first suggestions).
+    private var registeredPeopleNames: [String] { people.map(\.name) }
+
+    /// Distinct historical counterparty strings (Transaction + ScheduledItem).
     private var counterpartySuggestions: [String] {
-        var seen = Set<String>()
-        var out: [String] = []
-        for tx in allTransactions.sorted(by: { $0.date > $1.date }) {
-            guard let cp = tx.counterparty?.trimmingCharacters(in: .whitespaces), !cp.isEmpty else { continue }
-            let key = Categorizer.normalize(cp)
-            if seen.insert(key).inserted { out.append(cp) }
-        }
-        return out
+        PersonStore.historicalCounterparties(transactions: allTransactions, scheduledItems: allScheduledItems)
     }
 
     var body: some View {
@@ -87,7 +86,7 @@ struct TransactionEditSheet: View {
                 Section("Details") {
                     TextField("Description", text: $descriptionText)
                     TextField("Merchant (optional)", text: $merchant)
-                    CounterpartyField(text: $counterparty, suggestions: counterpartySuggestions)
+                    PersonCounterpartyField(text: $counterparty, people: registeredPeopleNames, historicalCounterparties: counterpartySuggestions)
                     // C3: editable, locale-aware date+time picker (pre-filled).
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .accessibilityIdentifier("editDatePicker")

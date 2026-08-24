@@ -9,6 +9,11 @@ struct ScheduledItemEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: [SortDescriptor(\Project.sortOrder), SortDescriptor(\Project.createdAt, order: .reverse)])
     private var projects: [Project]
+    /// v1.3 — the People registry + historical parties feed the counterparty
+    /// suggestions (B3).
+    @Query private var people: [Person]
+    @Query private var allTransactions: [Transaction]
+    @Query private var allScheduledItems: [ScheduledItem]
 
     /// `nil` → create; non-nil → edit that item.
     let item: ScheduledItem?
@@ -52,6 +57,10 @@ struct ScheduledItemEditSheet: View {
     private var activeProjects: [ProjectSnapshot] {
         projects.filter { !$0.archived }.map(\.snapshot)
     }
+    private var registeredPeopleNames: [String] { people.map(\.name) }
+    private var counterpartySuggestions: [String] {
+        PersonStore.historicalCounterparties(transactions: allTransactions, scheduledItems: allScheduledItems)
+    }
 
     var body: some View {
         NavigationStack {
@@ -85,8 +94,13 @@ struct ScheduledItemEditSheet: View {
                 Section {
                     TextField("scheduled.title.placeholder", text: $title)
                         .accessibilityIdentifier("scheduled.titleField")
-                    TextField("scheduled.counterparty.placeholder", text: $counterparty)
-                        .accessibilityIdentifier("scheduled.counterpartyField")
+                    PersonCounterpartyField(
+                        text: $counterparty,
+                        people: registeredPeopleNames,
+                        historicalCounterparties: counterpartySuggestions,
+                        placeholderKey: "scheduled.counterparty.placeholder"
+                    )
+                    .accessibilityIdentifier("scheduled.counterpartyField")
                     TextField("scheduled.notes.placeholder", text: $descriptionText, axis: .vertical)
                     DatePicker("scheduled.dueDate", selection: $dueDate, displayedComponents: .date)
                         .accessibilityIdentifier("scheduled.dueDatePicker")

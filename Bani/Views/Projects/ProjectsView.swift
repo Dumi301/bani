@@ -89,7 +89,9 @@ struct ProjectsView: View {
                 LoansListView()
             }
             .sheet(isPresented: $creatingProject) {
-                ProjectEditSheet(project: nil)
+                // v1.3 "People registry" run — the guided interview replaces bare
+                // creation; ProjectEditSheet stays the rename/recolor path below.
+                ProjectCreationInterviewSheet()
             }
             .sheet(item: $renamingProject) { project in
                 ProjectEditSheet(project: project)
