@@ -5,12 +5,15 @@ import SwiftData
 /// launch date (not a fixed epoch) and spread across ~4 months so the Finances
 /// analytics view (D) always has data in the default Month timeframe — a rich
 /// donut, non-empty bars, and a previous-period line — regardless of when CI
-/// runs. Seeds via a fresh `ModelContext` (not `mainContext`) so it is safe to
-/// call from `App.init` under Swift 6 strict concurrency.
+/// runs. Seeds via a fresh `ModelContext` (not `mainContext`) — `@MainActor`
+/// because the v2 SEAL loan seed below drives `LoanStore` (itself
+/// `@MainActor`); its only caller (`BaniApp.init`) is already `@MainActor`, so
+/// this stays safe to call from `App.init` under Swift 6 strict concurrency.
 ///
 /// A current-month `benzină` / Personal entry is always present: the detail-view
 /// UI test taps it to open the read-first detail screen.
 enum SampleData {
+    @MainActor
     static func seed(into container: ModelContainer) {
         let ctx = ModelContext(container)
 
@@ -125,6 +128,66 @@ enum SampleData {
                           dueDate: daysAhead(20), projectID: renovare.id),
         ]
         for s in scheduled { ctx.insert(s) }
+
+        // ── v2 SEAL: loans + a balance anchor + more receivables, so the
+        //    Raport hub's bank Debt, investor Debt, and Owed-to-me sections all
+        //    render populated in the screenshot matrix. Loans go through
+        //    `LoanStore` (not hand-inserted) so the payment series and the
+        //    booked interest/principal split are generated exactly as the real
+        //    feature would.
+        let bankLoan = Loan(
+            name: "Credit ipotecar",
+            lender: "Banca Transilvania",
+            kind: .bank,
+            principal: 250_000,
+            currency: .ron,
+            annualRatePercent: 7.9,
+            startDate: calendar.date(byAdding: .month, value: -6, to: now) ?? now,
+            termMonths: 240,
+            projectID: manhattan.id
+        )
+        let bankPaymentItems = LoanStore.createLoan(bankLoan, calendar: calendar, in: ctx)
+        // Book the first few payments so "sum owed left" / "% left" show real
+        // progress instead of a fresh, untouched 100% loan.
+        for item in bankPaymentItems.sorted(by: { $0.dueDate < $1.dueDate }).prefix(3) {
+            LoanStore.bookPayment(item, loan: bankLoan, date: item.dueDate, calendar: calendar, in: ctx)
+        }
+
+        let investorLoan = Loan(
+            name: "Capital privat",
+            lender: "Mihai Ionescu",
+            kind: .investor,
+            principal: 80_000,
+            currency: .ron,
+            annualRatePercent: 12,
+            startDate: calendar.date(byAdding: .month, value: -3, to: now) ?? now,
+            termMonths: 36
+        )
+        LoanStore.createLoan(investorLoan, calendar: calendar, in: ctx)
+
+        // Cash-truth anchor so the reconciliation-aware Position block has a
+        // baseline to report against.
+        ctx.insert(BalanceAnchor(
+            amount: 18_450,
+            currency: .ron,
+            anchoredAt: daysAgo(2),
+            note: "Sold verificat cont curent"
+        ))
+
+        // More pending, incoming, counterparty-bearing receivables (on top of
+        // "Avans client" above) so Owed-to-me renders a multi-row list.
+        let moreReceivables: [ScheduledItem] = [
+            ScheduledItem(direction: .incoming, amount: 1500, currency: .ron,
+                          title: "Rest chirie", counterparty: "Maria",
+                          dueDate: daysAhead(5)),
+            ScheduledItem(direction: .incoming, amount: 400, currency: .ron,
+                          title: "Rest împrumut", counterparty: "Andrei",
+                          dueDate: daysAhead(15)),
+            ScheduledItem(direction: .incoming, amount: 950, currency: .ron,
+                          title: "Decont deplasare", counterparty: "Firma ACME",
+                          dueDate: daysAhead(2)),
+        ]
+        for r in moreReceivables { ctx.insert(r) }
 
         try? ctx.save()
     }

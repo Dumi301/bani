@@ -5,7 +5,10 @@ import SwiftData
 /// edit (orchestrator-owned): it injects the two shared `@Observable` services
 /// (`WhisperService`, `RateService`) into the environment, kicks off the
 /// non-blocking first-launch model download, and refreshes the BNR rate on
-/// launch + foreground. Workers never edit this file.
+/// launch + foreground. Workers never edit this file — SEAL (V2 push) is a
+/// one-time, orchestrator-authorized exception adding the opportunistic
+/// bank-sync foreground pull (`syncBankIfNeeded()`) that `BankLinkView`'s
+/// header comment already promises the root wires up.
 ///
 /// Recognised launch arguments (used by ScreenshotTests / UI tests):
 ///   -uiTesting            → in-memory store (no disk persistence)
@@ -117,6 +120,27 @@ struct BaniApp: App {
         )
     }
 
+    /// SEAL (V2 push, orchestrator-authorized addition to this otherwise-frozen
+    /// file): the app-foreground opportunistic pull `BankLinkView`'s own doc
+    /// comment promises ("Pull is manual … the app-foreground opportunistic pull
+    /// is wired by the root"). Mirrors `BankLinkView.syncNow()`'s call shape
+    /// exactly (accountIDs from the persisted `BankLink` row + a fresh
+    /// `GoCardlessClient(secrets:)`), fire-and-forget from `scenePhase`. Inert
+    /// (no network, no work) without stored credentials — `sync` itself is also
+    /// silent-fail, so this never surfaces to the UI.
+    @MainActor
+    private func syncBankIfNeeded() async {
+        let keychain = KeychainStore()
+        guard keychain.hasCredentials else { return }
+        let accountIDs = (try? container.mainContext.fetch(FetchDescriptor<BankLink>()))?
+            .sorted { $0.createdAt > $1.createdAt }
+            .first?
+            .accountIDs ?? []
+        let client = GoCardlessClient(secrets: keychain)
+        let service = BankSyncService(modelContainer: container)
+        _ = await service.sync(accountIDs: accountIDs, client: client)
+    }
+
     var body: some Scene {
         WindowGroup {
             RootTabView()
@@ -156,6 +180,7 @@ struct BaniApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         Task { await rates.refreshIfNeeded() }
+                        Task { await syncBankIfNeeded() }
                     }
                 }
         }
