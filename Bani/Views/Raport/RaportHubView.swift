@@ -25,11 +25,29 @@ struct RaportHubView: View {
     private var projects: [Project]
     @Query private var scheduledItems: [ScheduledItem]
     @Query private var customCategories: [CustomCategory]
+    /// P11 — the People registry (P6) feeds smart-search person verification.
+    @Query private var people: [Person]
+    /// P11 — learned keyword rules feed the free-text leg of smart search, the
+    /// same way `FinancesView.learnedSnapshots` feeds the existing keyword search.
+    @Query private var categoryRules: [CategoryRule]
 
     @AppStorage("raportHorizon") private var horizonRaw: Int = LiquidityHorizon.days30.rawValue
     @AppStorage("raportCashflow") private var cashflowRaw: String = TimeframePreset.month.rawValue
 
     @State private var shareItem: ShareItem?
+
+    // MARK: - P11 smart search state
+
+    /// The live query text bound to `.searchable`.
+    @State private var smartSearchText: String = ""
+    /// The compiled structured filter, or `nil` — either "not searched yet" (see
+    /// `hasSearched`) or the fallback marker (FM unavailable / nothing usable),
+    /// in which case results come from the raw keyword search instead.
+    @State private var smartSearchFilter: SearchFilter?
+    /// Whether a search has actually run for the current `smartSearchText` —
+    /// distinguishes "idle" (hub renders exactly as P7 shipped it) from "FM
+    /// compiled an empty/fallback filter" (both `smartSearchFilter == nil`).
+    @State private var hasSearched = false
 
     private var calendar: Calendar { .current }
 
@@ -37,6 +55,7 @@ struct RaportHubView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: metrics.sectionSpacing) {
+                    if hasSearched { smartSearchSection }
                     let model = self.model
                     positionSection(model.position)
                     owedSection(model.receivables)
@@ -61,6 +80,17 @@ struct RaportHubView: View {
             .toolbar { exportToolbar }
             .sheet(item: $shareItem) { item in
                 ActivityView(url: item.url)
+            }
+            // P11 — natural-language search over the whole history (VISION §1
+            // "search engine (smart)"). A deliberate submit (not live-as-you-type,
+            // since compiling races an async FM pass) triggers `runSmartSearch`.
+            .searchable(text: $smartSearchText, prompt: Text("raport.search.prompt"))
+            .onSubmit(of: .search) { Task { await runSmartSearch() } }
+            .onChange(of: smartSearchText) { _, newValue in
+                if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    hasSearched = false
+                    smartSearchFilter = nil
+                }
             }
         }
     }
@@ -92,6 +122,191 @@ struct RaportHubView: View {
     private var cashflowPreset: TimeframePreset { TimeframePreset(rawValue: cashflowRaw) ?? .month }
     private var cashflowInterval: DateInterval {
         TimeframeRange.current(cashflowPreset, reference: Date(), calendar: calendar, custom: nil)
+    }
+
+    // MARK: - P11 smart search (VISION §1 "search engine (smart)")
+
+    /// Learned rules feed the free-text leg of smart search (mirrors
+    /// `FinancesView.learnedSnapshots`).
+    private var learnedSnapshots: [CategoryRuleSnapshot] {
+        categoryRules
+            .filter { $0.origin == .learned }
+            .map { CategoryRuleSnapshot(keyword: $0.keyword, category: $0.category, customCategoryID: $0.customCategoryID, origin: $0.origin, hitCount: $0.hitCount) }
+    }
+
+    private var smartSearchItems: [SmartSearchService.Item] { transactions.map(SmartSearchService.Item.init) }
+
+    /// id → snapshot lookup for resolving custom categories in the search
+    /// results/chips (mirrors `FinancesView.customLookup`).
+    private var customLookup: CustomCategoryLookup { customCategories.lookup }
+
+    /// Compiles + executes `smartSearchText` (FM compiles, deterministic code
+    /// verifies + executes it — P11). FM unavailable/nothing usable ⇒
+    /// `smartSearchFilter` stays `nil` and `smartSearchResults` falls back to the
+    /// raw keyword search, byte-identical to today.
+    private func runSmartSearch() async {
+        let outcome = await SmartSearchService.search(
+            query: smartSearchText, now: Date(), calendar: calendar, items: smartSearchItems,
+            projects: projects.map(\.snapshot), people: people.map(\.snapshot),
+            historicalCounterparties: PersonStore.historicalCounterparties(transactions: transactions, scheduledItems: scheduledItems),
+            customCategories: customCategories.map(\.snapshot), learnedRules: learnedSnapshots,
+            compiler: FoundationModelsQueryCompiler()
+        )
+        smartSearchFilter = outcome.filter
+        hasSearched = true
+    }
+
+    /// Results as live `Transaction`s (for `TransactionRow` + the shared
+    /// `Transaction` navigation destination). Re-executed synchronously off
+    /// `smartSearchFilter` on every render — pure + cheap — so clearing a chip
+    /// (which mutates one field of the filter) re-filters immediately with no
+    /// second FM round-trip.
+    private var smartSearchResults: [Transaction] {
+        let raw: [SmartSearchService.Item]
+        if let smartSearchFilter {
+            raw = SmartSearchService.execute(smartSearchFilter, items: smartSearchItems, learnedRules: learnedSnapshots, customCategories: customCategories.map(\.snapshot))
+        } else {
+            raw = SmartSearchService.keywordFallback(smartSearchText, items: smartSearchItems, customCategories: customCategories.map(\.snapshot), learnedRules: learnedSnapshots)
+        }
+        let byID = Dictionary(uniqueKeysWithValues: transactions.map { ($0.id, $0) })
+        return raw.compactMap { byID[$0.id] }
+    }
+
+    @ViewBuilder
+    private var smartSearchSection: some View {
+        let results = smartSearchResults
+        sectionCard(title: "raport.search.resultsTitle") {
+            VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+                if !understoodAsChips.isEmpty {
+                    understoodAsChipRow
+                }
+                if results.isEmpty {
+                    emptyRow("raport.search.empty", systemImage: "magnifyingglass", id: "raport.search.empty")
+                } else {
+                    ForEach(results, id: \.id) { transaction in
+                        NavigationLink(value: transaction) {
+                            TransactionRow(transaction: transaction, customs: customLookup)
+                        }
+                        .buttonStyle(.plain)
+                        if transaction.id != results.last?.id {
+                            Divider().background(Palette.hairline)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("raport.search.section")
+    }
+
+    /// One dismissible chip per compiled filter field — the "understood as"
+    /// trust surface. Tapping ✕ clears ONLY that field and re-filters (no
+    /// second FM round-trip, see `smartSearchResults`).
+    private var understoodAsChipRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: metrics.elementSpacing) {
+                ForEach(understoodAsChips) { chip in
+                    filterChip(label: chip.label, systemImage: chip.systemImage, color: Palette.accent, clear: chip.clear)
+                        .accessibilityIdentifier("raport.search.chip.\(chip.id)")
+                }
+            }
+        }
+    }
+
+    private struct SearchChip: Identifiable {
+        let id: String
+        let label: String
+        let systemImage: String
+        let clear: () -> Void
+    }
+
+    private var understoodAsChips: [SearchChip] {
+        guard let filter = smartSearchFilter else { return [] }
+        var chips: [SearchChip] = []
+        if let range = filter.dateRange {
+            chips.append(SearchChip(id: "date", label: dateRangeLabel(range), systemImage: "calendar") {
+                smartSearchFilter?.dateRange = nil
+            })
+        }
+        if !filter.projectIDs.isEmpty {
+            let names = filter.projectIDs.compactMap { id in projects.first { $0.id == id }?.name }
+            if !names.isEmpty {
+                chips.append(SearchChip(id: "project", label: names.joined(separator: ", "), systemImage: "folder") {
+                    smartSearchFilter?.projectIDs = []
+                })
+            }
+        }
+        if !filter.personNames.isEmpty {
+            chips.append(SearchChip(id: "person", label: filter.personNames.joined(separator: ", "), systemImage: "person.fill") {
+                smartSearchFilter?.personNames = []
+            })
+        }
+        if !filter.categoryRefs.isEmpty {
+            let labels = filter.categoryRefs.map { categoryStyle($0, customs: customLookup).label }
+            chips.append(SearchChip(id: "category", label: labels.joined(separator: ", "), systemImage: "tag") {
+                smartSearchFilter?.categoryRefs = []
+            })
+        }
+        if filter.amountMin != nil || filter.amountMax != nil {
+            chips.append(SearchChip(id: "amount", label: amountRangeLabel(filter), systemImage: "banknote") {
+                smartSearchFilter?.amountMin = nil
+                smartSearchFilter?.amountMax = nil
+            })
+        }
+        if let direction = filter.direction {
+            chips.append(SearchChip(id: "direction", label: direction.label, systemImage: direction.systemImage) {
+                smartSearchFilter?.direction = nil
+            })
+        }
+        if let currency = filter.currency {
+            chips.append(SearchChip(id: "currency", label: currency.displayCode, systemImage: "coloncurrencysign.circle") {
+                smartSearchFilter?.currency = nil
+            })
+        }
+        return chips
+    }
+
+    private func dateRangeLabel(_ range: DateInterval) -> String {
+        let start = range.start.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+        // The stored end is exclusive; show the inclusive last day.
+        let lastDay = calendar.date(byAdding: .day, value: -1, to: range.end) ?? range.end
+        let end = lastDay.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
+        return "\(start) – \(end)"
+    }
+
+    private func amountRangeLabel(_ filter: SearchFilter) -> String {
+        switch (filter.amountMin, filter.amountMax) {
+        case let (min?, max?):
+            return "\(min.formatted(.number.precision(.fractionLength(0...0)))) – \(max.formatted(.number.precision(.fractionLength(0...0))))"
+        case let (min?, nil):
+            return "≥ \(min.formatted(.number.precision(.fractionLength(0...0))))"
+        case let (nil, max?):
+            return "≤ \(max.formatted(.number.precision(.fractionLength(0...0))))"
+        default:
+            return ""
+        }
+    }
+
+    /// A dismissible chip (mirrors `FinancesView`'s filter chip): a brushed-metal
+    /// chip whose accent-colored border + text signal one live filter field; the
+    /// ✕ clears it.
+    private func filterChip(label: String, systemImage: String, color: Color, clear: @escaping () -> Void) -> some View {
+        Button(action: clear) {
+            HStack(spacing: 5) {
+                Image(systemName: systemImage)
+                Text(label).lineLimit(1)
+                Image(systemName: "xmark.circle.fill").opacity(0.7)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, metrics.elementSpacing)
+            .padding(.vertical, 5)
+            .metalSurface(cornerRadius: Radius.chip)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                    .strokeBorder(color.opacity(0.55), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Position
