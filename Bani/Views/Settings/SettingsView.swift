@@ -345,6 +345,24 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.secondaryInk)
                 }
 
+                // MARK: Backup (v2 — export/restore, P1)
+                Section {
+                    NavigationLink {
+                        BackupView()
+                    } label: {
+                        Label("backup.title", systemImage: "arrow.down.doc.fill")
+                            .foregroundStyle(Palette.ink)
+                    }
+                    .listRowBackground(Palette.surface)
+                    .accessibilityIdentifier("settings.backupRow")
+                } header: {
+                    Text("backup.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    Text("backup.footer")
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+
                 // MARK: About
                 Section {
                     LabeledContent("Version") {

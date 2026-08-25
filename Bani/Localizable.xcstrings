@@ -7933,6 +7933,186 @@
         "en": { "stringUnit": { "state": "translated", "value": "No matches" } },
         "ro": { "stringUnit": { "state": "translated", "value": "Niciun rezultat" } }
       }
+    },
+    "backup.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Backup" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Backup" } }
+      }
+    },
+    "backup.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export a full backup of everything in Bani, or restore from a previous one. Backups never leave your device unless you share them yourself." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Exportă un backup complet cu tot ce ai în Bani sau restaurează dintr-unul anterior. Backup-urile nu părăsesc telefonul decât dacă le trimiți tu însuți." } }
+      }
+    },
+    "backup.export.button": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export backup" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Exportă backup" } }
+      }
+    },
+    "backup.export.progress": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Exporting…" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Se exportă…" } }
+      }
+    },
+    "backup.export.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Creates a single file with every transaction, project, loan, and photo receipt." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Creează un singur fișier cu fiecare tranzacție, proiect, credit și bon foto." } }
+      }
+    },
+    "backup.restore.button": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore backup" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Restaurează backup" } }
+      }
+    },
+    "backup.restore.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Pick a previously exported .bani-backup file." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Alege un fișier .bani-backup exportat anterior." } }
+      }
+    },
+    "backup.restore.confirm.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore this backup?" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Restaurezi acest backup?" } }
+      }
+    },
+    "backup.restore.confirm.message %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This will add %lld rows to your empty store." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Se vor adăuga %lld rânduri în baza ta goală." } }
+      }
+    },
+    "backup.restore.summary.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore complete" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Restaurare finalizată" } }
+      }
+    },
+    "backup.restore.erase.button": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Erase and restore" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Șterge și restaurează" } }
+      }
+    },
+    "backup.restore.erase.confirm.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This device already has data" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acest telefon are deja date" } }
+      }
+    },
+    "backup.restore.erase.confirm.message %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restoring will permanently erase %lld existing rows and replace them with the backup. This can't be undone." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Restaurarea va șterge definitiv %lld rânduri existente și le va înlocui cu cele din backup. Această acțiune nu poate fi anulată." } }
+      }
+    },
+    "backup.error.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Something went wrong" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "A apărut o problemă" } }
+      }
+    },
+    "backup.error.storeNotEmpty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This device already has data — use erase and restore to replace it." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acest telefon are deja date — folosește șterge și restaurează pentru a le înlocui." } }
+      }
+    },
+    "backup.error.corrupt": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This backup file couldn't be read. It may be corrupted or incomplete." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acest fișier de backup nu a putut fi citit. Poate fi corupt sau incomplet." } }
+      }
+    },
+    "backup.error.unsupportedVersion": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This backup was made by a newer version of Bani and can't be restored here." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acest backup a fost creat cu o versiune mai nouă de Bani și nu poate fi restaurat aici." } }
+      }
+    },
+    "backup.entity.transaction": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Transactions" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Tranzacții" } }
+      }
+    },
+    "backup.entity.categoryRule": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Category rules" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Reguli de categorie" } }
+      }
+    },
+    "backup.entity.decisionRecord": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Decisions" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Decizii" } }
+      }
+    },
+    "backup.entity.contextRule": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Context rules" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Reguli de context" } }
+      }
+    },
+    "backup.entity.correctionMemory": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Corrections" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Corecții" } }
+      }
+    },
+    "backup.entity.customCategory": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Custom categories" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Categorii personalizate" } }
+      }
+    },
+    "backup.entity.importBatch": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Imports" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Importuri" } }
+      }
+    },
+    "backup.entity.project": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Projects" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Proiecte" } }
+      }
+    },
+    "backup.entity.person": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "People" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Persoane" } }
+      }
+    },
+    "backup.entity.scheduledItem": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Scheduled items" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Elemente programate" } }
+      }
+    },
+    "backup.entity.balanceAnchor": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Balance anchors" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ancore de sold" } }
+      }
+    },
+    "backup.entity.loan": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loans" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Credite" } }
+      }
+    },
+    "backup.entity.bankLink": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank links" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conexiuni bancare" } }
+      }
     }
   }
 }
