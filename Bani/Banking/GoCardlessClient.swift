@@ -331,15 +331,18 @@ struct GoCardlessClient: Sendable {
         body: [String: Any]? = nil,
         authorized: Bool = true
     ) throws -> URLRequest {
-        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
-        // appendingPathComponent percent-encodes the trailing slash away; rebuild the
-        // path verbatim so `/api/v2/.../` (GoCardless requires the trailing slash) is
-        // preserved.
-        components?.path = path
+        // Build the absolute URL by string composition. `URL.appendingPathComponent`
+        // strips/encodes the trailing slash, and setting `URLComponents.path` after
+        // the fact does not reliably restore it in the final `.url` — so the exact
+        // path, INCLUDING the trailing slash GoCardless requires (`/api/v2/.../`), is
+        // composed verbatim from the base host and used directly.
+        var base = baseURL.absoluteString
+        while base.hasSuffix("/") { base.removeLast() }
+        guard var components = URLComponents(string: base + path) else { throw GoCardlessError.transport }
         if !query.isEmpty {
-            components?.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
-        guard let url = components?.url else { throw GoCardlessError.transport }
+        guard let url = components.url else { throw GoCardlessError.transport }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")

@@ -110,9 +110,13 @@ final class MockHTTPSession: HTTPSession, @unchecked Sendable {
         let method = request.httpMethod ?? "GET"
         let path = request.url?.path ?? ""
         log.append((method, path))
+        // Match on the path with any single trailing slash normalized away, so a
+        // trailing-slash discrepancy on EITHER side can never cause a false 404.
+        func trimSlash(_ s: String) -> String { s.hasSuffix("/") ? String(s.dropLast()) : s }
+        let normPath = trimSlash(path)
         for index in stubs.indices where !consumed[index] {
             let stub = stubs[index]
-            guard stub.method == method, path.contains(stub.pathContains) else { continue }
+            guard stub.method == method, normPath.contains(trimSlash(stub.pathContains)) else { continue }
             if !stub.reusable { consumed[index] = true }
             let response = HTTPURLResponse(url: request.url!, statusCode: stub.status, httpVersion: nil, headerFields: nil)!
             return (stub.body, response)
