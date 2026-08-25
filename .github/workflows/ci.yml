@@ -654,7 +654,7 @@ jobs:
           set -euo pipefail
           cp dist/Bani-unsigned.ipa Bani.ipa
           RUN="${{ github.run_number }}"
-          VERSION="2.0"
+          VERSION="2.1"
           TAG="v${VERSION}.${RUN}"
           DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           SIZE="$(stat -f%z Bani.ipa)"
@@ -702,7 +702,7 @@ jobs:
             '.iconURL = $icon
              | .apps[0].iconURL = $icon
              | .apps[0].versions[0] = {
-                 version: ("2.0." + $build),
+                 version: ("2.1." + $build),
                  buildVersion: $build,
                  date: $date,
                  localizedDescription: $desc,
