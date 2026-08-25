@@ -14,6 +14,13 @@ env:
   # Runner image carrying Xcode 26 / iOS 26 SDK. If this label is invalid on the
   # account, the first run fails fast at queue time — flip to macos-15/macos-latest.
   MACOS_IMAGE: macos-26
+  # Single source of truth for the marketing version. The ipa job stamps this
+  # (as "<value>.<run number>") into the built app's CFBundleShortVersionString,
+  # and the release job writes the identical string into docs/source.json's
+  # `version` field. AltStore requires CFBundleShortVersionString == the
+  # source.json version EXACTLY or it refuses the install/update — never
+  # hardcode "2.1" anywhere else, or the two can drift again.
+  BANI_MARKETING_VERSION: "2.1"
 
 jobs:
   # ── STAGE 1 — GATE ──────────────────────────────────────────────────────────
@@ -373,6 +380,11 @@ jobs:
           set -o pipefail
           # CI_BUILD_NUMBER (command-line, highest precedence) overrides the
           # project.yml default of 1, so CFBundleVersion == the CI run number.
+          # MARKETING_VERSION (same command-line precedence) overrides the
+          # project.yml default of "1.0", so CFBundleShortVersionString ==
+          # "<BANI_MARKETING_VERSION>.<run number>" — the exact string the
+          # release job writes into docs/source.json's `version` field.
+          # AltStore requires these to match exactly or it refuses to install.
           xcodebuild archive \
             -project Bani.xcodeproj \
             -scheme Bani \
@@ -381,6 +393,7 @@ jobs:
             -archivePath build/Bani.xcarchive \
             -derivedDataPath build/DerivedData \
             CI_BUILD_NUMBER=${{ github.run_number }} \
+            MARKETING_VERSION=${{ env.BANI_MARKETING_VERSION }}.${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
       - name: Package unsigned IPA
         run: |
@@ -654,7 +667,7 @@ jobs:
           set -euo pipefail
           cp dist/Bani-unsigned.ipa Bani.ipa
           RUN="${{ github.run_number }}"
-          VERSION="2.1"
+          VERSION="${{ env.BANI_MARKETING_VERSION }}"
           TAG="v${VERSION}.${RUN}"
           DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           SIZE="$(stat -f%z Bani.ipa)"
@@ -694,6 +707,7 @@ jobs:
           COMMIT_SUBJECT="$(printf '%s\n' "${COMMIT_SUBJECT_RAW:-Automated release.}" | head -1)"
           jq \
             --arg build "${{ steps.facts.outputs.run }}" \
+            --arg marketing "${{ env.BANI_MARKETING_VERSION }}" \
             --arg date "${{ steps.facts.outputs.date }}" \
             --arg url "${{ steps.facts.outputs.download_url }}" \
             --argjson size ${{ steps.facts.outputs.size }} \
@@ -702,7 +716,7 @@ jobs:
             '.iconURL = $icon
              | .apps[0].iconURL = $icon
              | .apps[0].versions[0] = {
-                 version: ("2.1." + $build),
+                 version: ($marketing + "." + $build),
                  buildVersion: $build,
                  date: $date,
                  localizedDescription: $desc,
