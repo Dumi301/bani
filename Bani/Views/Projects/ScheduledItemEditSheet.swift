@@ -9,6 +9,11 @@ struct ScheduledItemEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: [SortDescriptor(\Project.sortOrder), SortDescriptor(\Project.createdAt, order: .reverse)])
     private var projects: [Project]
+    /// v1.3 — the People registry + historical parties feed the counterparty
+    /// suggestions (B3).
+    @Query private var people: [Person]
+    @Query private var allTransactions: [Transaction]
+    @Query private var allScheduledItems: [ScheduledItem]
 
     /// `nil` → create; non-nil → edit that item.
     let item: ScheduledItem?
@@ -25,6 +30,7 @@ struct ScheduledItemEditSheet: View {
     @State private var counterparty: String
     @State private var dueDate: Date
     @State private var selectedProjectID: UUID?
+    @State private var recurrence: RecurrenceRule
 
     init(item: ScheduledItem?, defaultProjectID: UUID? = nil, onChange: (() -> Void)? = nil) {
         self.item = item
@@ -38,6 +44,7 @@ struct ScheduledItemEditSheet: View {
         _counterparty = State(initialValue: item?.counterparty ?? "")
         _dueDate = State(initialValue: item?.dueDate ?? Date())
         _selectedProjectID = State(initialValue: item?.projectID ?? defaultProjectID)
+        _recurrence = State(initialValue: item?.recurrence ?? .none)
     }
 
     private var parsedAmount: Decimal? {
@@ -49,6 +56,10 @@ struct ScheduledItemEditSheet: View {
     }
     private var activeProjects: [ProjectSnapshot] {
         projects.filter { !$0.archived }.map(\.snapshot)
+    }
+    private var registeredPeopleNames: [String] { people.map(\.name) }
+    private var counterpartySuggestions: [String] {
+        PersonStore.historicalCounterparties(transactions: allTransactions, scheduledItems: allScheduledItems)
     }
 
     var body: some View {
@@ -83,11 +94,22 @@ struct ScheduledItemEditSheet: View {
                 Section {
                     TextField("scheduled.title.placeholder", text: $title)
                         .accessibilityIdentifier("scheduled.titleField")
-                    TextField("scheduled.counterparty.placeholder", text: $counterparty)
-                        .accessibilityIdentifier("scheduled.counterpartyField")
+                    PersonCounterpartyField(
+                        text: $counterparty,
+                        people: registeredPeopleNames,
+                        historicalCounterparties: counterpartySuggestions,
+                        placeholderKey: "scheduled.counterparty.placeholder"
+                    )
+                    .accessibilityIdentifier("scheduled.counterpartyField")
                     TextField("scheduled.notes.placeholder", text: $descriptionText, axis: .vertical)
                     DatePicker("scheduled.dueDate", selection: $dueDate, displayedComponents: .date)
                         .accessibilityIdentifier("scheduled.dueDatePicker")
+                    Picker("scheduled.recurrence", selection: $recurrence) {
+                        ForEach(RecurrenceRule.allCases, id: \.self) { r in
+                            Text(r.label).tag(r)
+                        }
+                    }
+                    .accessibilityIdentifier("scheduled.recurrencePicker")
                     ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
                 } header: {
                     Text("scheduled.section.details")
@@ -127,12 +149,14 @@ struct ScheduledItemEditSheet: View {
             item.counterparty = cleanParty.isEmpty ? nil : cleanParty
             item.dueDate = dueDate
             item.projectID = selectedProjectID
+            item.recurrence = recurrence
         } else {
             let created = ScheduledItem(
                 direction: direction, amount: amount, currency: currency,
                 title: cleanTitle, descriptionText: descriptionText,
                 counterparty: cleanParty.isEmpty ? nil : cleanParty,
-                dueDate: dueDate, projectID: selectedProjectID
+                dueDate: dueDate, projectID: selectedProjectID,
+                recurrence: recurrence
             )
             modelContext.insert(created)
         }

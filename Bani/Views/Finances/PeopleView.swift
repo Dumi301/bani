@@ -1,9 +1,20 @@
 import SwiftUI
 import SwiftData
 
-/// Column header for the People list (B1): Paid / Received / Net.
+/// Column header for the People list (B1): Paid / Received / Net. Also the
+/// entry point into the v1.3 receivables surface ("who owes ME") — a self-
+/// contained `NavigationLink` row (needs no ancestor `.navigationDestination`,
+/// so it stays reachable without any change to `FinancesView`, which embeds
+/// this header as the People section's `header:`).
 struct PeopleColumnHeader: View {
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ReceivablesEntryRow()
+            columnLabels
+        }
+    }
+
+    private var columnLabels: some View {
         HStack(spacing: 8) {
             Text("people.person")
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -14,6 +25,43 @@ struct PeopleColumnHeader: View {
         .font(.caption2.weight(.semibold))
         .foregroundStyle(Palette.secondaryInk)
         .textCase(nil)
+    }
+}
+
+/// Compact "who owes me" teaser + entry point (v1.3), rendered above the
+/// column labels. Pushes `ReceivablesView`; the grand total is the same
+/// `ReceivablesRollup` aggregation that view renders in full.
+private struct ReceivablesEntryRow: View {
+    @Environment(RateService.self) private var rates
+    @Query private var scheduledItems: [ScheduledItem]
+
+    private var summary: ReceivablesSummary {
+        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rate)
+    }
+
+    var body: some View {
+        NavigationLink {
+            ReceivablesView()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.badge.clock")
+                    .font(.caption)
+                    .foregroundStyle(Palette.accent)
+                Text("receivables.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 6)
+                Text("\(summary.grandTotal.formatted(.number.precision(.fractionLength(0...0)))) RON")
+                    .font(Typography.mono(.caption).weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryInk)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("receivables.entryRow")
     }
 }
 
@@ -137,5 +185,115 @@ struct PersonDetailView: View {
                 .foregroundStyle(Palette.secondaryInk)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// v1.3 "People registry" — "who owes ME" (VISION §2 Position): every pending
+/// `ScheduledItem` with direction incoming, grouped by counterparty. Pure
+/// aggregation lives in `ReceivablesRollup` (pure, testable) so P7's Raport
+/// line can reuse it unchanged — this view is just its render. Reached from
+/// `PeopleColumnHeader`'s `ReceivablesEntryRow`.
+struct ReceivablesView: View {
+    @Environment(RateService.self) private var rates
+    @Environment(\.metrics) private var metrics
+    @Environment(\.locale) private var locale
+    @Query private var scheduledItems: [ScheduledItem]
+
+    private var summary: ReceivablesSummary {
+        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rate)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: metrics.sectionSpacing) {
+                grandTotalHeader
+                if summary.people.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(summary.people) { person in
+                        personSection(person)
+                    }
+                }
+            }
+            .padding(metrics.screenPadding)
+        }
+        .background(Palette.canvas.ignoresSafeArea())
+        .navigationTitle("receivables.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("receivables.view")
+    }
+
+    private var grandTotalHeader: some View {
+        VStack(spacing: 4) {
+            Text("receivables.grandTotal.label")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryInk)
+            Text("\(summary.grandTotal.formatted(.number.precision(.fractionLength(0...2)))) RON")
+                .font(Typography.amount(.title2, weight: .bold))
+                .foregroundStyle(Palette.accent)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card, elevated: true)
+        .accessibilityIdentifier("receivables.grandTotal")
+    }
+
+    private func personSection(_ person: PersonReceivables) -> some View {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+            HStack {
+                Text(person.counterparty)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 6)
+                Text("\(person.total.formatted(.number.precision(.fractionLength(0...2)))) RON")
+                    .font(Typography.amount(.subheadline, weight: .semibold))
+                    .foregroundStyle(Palette.accent)
+            }
+            ForEach(person.items, id: \.id) { item in
+                receivableRow(item)
+            }
+        }
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
+        .accessibilityIdentifier("receivables.personSection")
+    }
+
+    private func receivableRow(_ item: ScheduledItemSnapshot) -> some View {
+        let overdue = item.isOverdue()
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Palette.ink)
+                Text(dueText(item, overdue: overdue))
+                    .font(.caption2)
+                    .foregroundStyle(overdue ? Color("BaniTagWork") : Palette.secondaryInk)
+            }
+            Spacer(minLength: 6)
+            Text("\(item.amount.formatted(.number.precision(.fractionLength(0...2)))) \(item.currency.displayCode)")
+                .font(Typography.mono(.caption))
+                .foregroundStyle(Palette.ink)
+        }
+        .accessibilityIdentifier("receivables.itemRow")
+    }
+
+    private func dueText(_ item: ScheduledItemSnapshot, overdue: Bool) -> String {
+        let day = item.dueDate.formatted(.dateTime.day().month(.abbreviated).year().locale(locale))
+        return overdue ? String(localized: "scheduled.overdue \(day)") : String(localized: "scheduled.due \(day)")
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "person.2.slash")
+                .font(.system(size: 32))
+                .foregroundStyle(Palette.secondaryInk)
+            Text("receivables.empty")
+                .font(.subheadline)
+                .foregroundStyle(Palette.secondaryInk)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .accessibilityIdentifier("receivables.emptyState")
     }
 }

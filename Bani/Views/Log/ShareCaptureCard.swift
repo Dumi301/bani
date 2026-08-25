@@ -137,6 +137,14 @@ struct ShareCaptureCard: View {
                     categoryRef = CategoryRuleStore.guessRef(description: descriptionText, merchant: capture.parse.merchant, in: modelContext)
                 }
                 if selectedProjectID == nil { selectedProjectID = UUID(uuidString: lastUsedProjectRaw) }
+                // P10 — if there is still no project, pre-fill one the captured text
+                // names (deterministic on-device containment against the live
+                // registry). Never overwrites the last-used default or a user pick.
+                if selectedProjectID == nil,
+                   let match = InterpretationService.inferProject(text: capture.rawText, projects: activeProjects),
+                   match.confidence >= Interpretation.preFillThreshold {
+                    selectedProjectID = match.id
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

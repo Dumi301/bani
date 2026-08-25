@@ -54,61 +54,73 @@ struct FinancesView: View {
     @State private var recentlyDeleted: DeletedTransactionSnapshot?
     @State private var isCustomRangePresented = false
 
-    init() {
+    /// v2 teardown: when `false`, this view is being PUSHED inside an ancestor
+    /// `NavigationStack` (the Raport hub) rather than rooting its own tab. It then
+    /// drops its own `NavigationStack` AND its `Transaction`/`PersonRoute`
+    /// destinations, relying on the ancestor's single registration — the surgical
+    /// change that turns the old tab-root Finances view into a reusable drill-down.
+    /// Defaults to `true` so any standalone use is unchanged.
+    let embedInNavigationStack: Bool
+
+    init(embedInNavigationStack: Bool = true) {
+        self.embedInNavigationStack = embedInNavigationStack
         let last = UserDefaults.standard.string(forKey: "financesLastContext") ?? TransactionContext.personal.rawValue
         let context = TransactionContext(rawValue: last) ?? .personal
         _selectedFilter = State(initialValue: context == .work ? .work : .personal)
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if transactions.isEmpty {
-                    noDataView
-                } else {
-                    analyticsList
-                }
-            }
-            .background(Palette.canvas.ignoresSafeArea())
-            .navigationTitle("Finances")
-            .navigationDestination(for: Transaction.self) { transaction in
-                TransactionDetailView(transaction: transaction)
-            }
-            .navigationDestination(for: PersonRoute.self) { route in
-                PersonDetailView(counterparty: route.name)
-            }
-            .searchable(text: $searchText, prompt: Text("finances.searchPrompt"))
-            .overlay(alignment: .bottom) {
-                if let recentlyDeleted {
-                    undoToast(for: recentlyDeleted)
-                }
-            }
-            .sheet(isPresented: $isCustomRangePresented) {
-                CustomRangeSheet(
-                    start: customStart > 0 ? Date(timeIntervalSince1970: customStart) : defaultCustomStart,
-                    end: customEnd > 0 ? Date(timeIntervalSince1970: customEnd) : Date(),
-                    onCancel: {
-                        // Reverting an unconfigured custom pick lands back on Month.
-                        if customInterval == nil { timeframeRaw = TimeframePreset.month.rawValue }
-                    },
-                    onApply: { start, end in
-                        customStart = start.timeIntervalSince1970
-                        customEnd = end.timeIntervalSince1970
-                        timeframeRaw = TimeframePreset.custom.rawValue
-                    }
-                )
-            }
-            .animation(Motion.card, value: recentlyDeleted?.id)
-            .animation(Motion.spring, value: selectedRef)
-            .animation(Motion.spring, value: selectedBucket?.start)
-            // A stale bucket filter can't survive a change of window / segment /
-            // search — its date range would no longer line up with any bar.
-            .onChange(of: timeframeRaw) { _, _ in selectedBucket = nil }
-            .onChange(of: selectedFilter) { _, _ in selectedBucket = nil }
-            .onChange(of: searchText) { _, _ in selectedBucket = nil }
-            .onChange(of: customStart) { _, _ in selectedBucket = nil }
-            .onChange(of: customEnd) { _, _ in selectedBucket = nil }
+        if embedInNavigationStack {
+            NavigationStack { financesContent }
+        } else {
+            financesContent
         }
+    }
+
+    private var financesContent: some View {
+        Group {
+            if transactions.isEmpty {
+                noDataView
+            } else {
+                analyticsList
+            }
+        }
+        .background(Palette.canvas.ignoresSafeArea())
+        .navigationTitle("Finances")
+        // Registered here ONLY when this view roots its own stack; when embedded the
+        // Raport hub provides the shared Transaction/PersonRoute destinations.
+        .modifier(FinancesNavigationDestinations(enabled: embedInNavigationStack))
+        .searchable(text: $searchText, prompt: Text("finances.searchPrompt"))
+        .overlay(alignment: .bottom) {
+            if let recentlyDeleted {
+                undoToast(for: recentlyDeleted)
+            }
+        }
+        .sheet(isPresented: $isCustomRangePresented) {
+            CustomRangeSheet(
+                start: customStart > 0 ? Date(timeIntervalSince1970: customStart) : defaultCustomStart,
+                end: customEnd > 0 ? Date(timeIntervalSince1970: customEnd) : Date(),
+                onCancel: {
+                    // Reverting an unconfigured custom pick lands back on Month.
+                    if customInterval == nil { timeframeRaw = TimeframePreset.month.rawValue }
+                },
+                onApply: { start, end in
+                    customStart = start.timeIntervalSince1970
+                    customEnd = end.timeIntervalSince1970
+                    timeframeRaw = TimeframePreset.custom.rawValue
+                }
+            )
+        }
+        .animation(Motion.card, value: recentlyDeleted?.id)
+        .animation(Motion.spring, value: selectedRef)
+        .animation(Motion.spring, value: selectedBucket?.start)
+        // A stale bucket filter can't survive a change of window / segment /
+        // search — its date range would no longer line up with any bar.
+        .onChange(of: timeframeRaw) { _, _ in selectedBucket = nil }
+        .onChange(of: selectedFilter) { _, _ in selectedBucket = nil }
+        .onChange(of: searchText) { _, _ in selectedBucket = nil }
+        .onChange(of: customStart) { _, _ in selectedBucket = nil }
+        .onChange(of: customEnd) { _, _ in selectedBucket = nil }
     }
 
     /// id → snapshot lookup for resolving custom categories in this render.
@@ -908,6 +920,29 @@ struct FinancesView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
         .accessibilityIdentifier("finances.peopleEmpty")
+    }
+}
+
+// MARK: - Navigation destinations (push-safety seam)
+
+/// Registers the `Transaction` + `PersonRoute` navigation destinations ONLY when
+/// FinancesView roots its own `NavigationStack`. When embedded as a drill-down in
+/// the Raport hub (`enabled == false`), the hub owns the single shared registration
+/// for the whole stack, so re-declaring them here would duplicate it.
+private struct FinancesNavigationDestinations: ViewModifier {
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .navigationDestination(for: Transaction.self) { transaction in
+                    TransactionDetailView(transaction: transaction)
+                }
+                .navigationDestination(for: PersonRoute.self) { route in
+                    PersonDetailView(counterparty: route.name)
+                }
+        } else {
+            content
+        }
     }
 }
 

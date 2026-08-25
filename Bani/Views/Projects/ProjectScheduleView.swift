@@ -104,10 +104,18 @@ struct ProjectScheduleView: View {
                 .background(Palette.canvas, in: Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(item.status == .done ? Palette.secondaryInk : Palette.ink)
-                    .strikethrough(item.status == .done)
+                HStack(spacing: 4) {
+                    Text(item.title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(item.status == .done ? Palette.secondaryInk : Palette.ink)
+                        .strikethrough(item.status == .done)
+                    if item.recurrence != .none {
+                        Image(systemName: "repeat")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryInk)
+                            .accessibilityIdentifier("scheduled.recurrenceIndicator")
+                    }
+                }
                 Text(dueText(item, overdue: overdue))
                     .font(.caption2)
                     .foregroundStyle(overdue ? warningColor : Palette.secondaryInk)

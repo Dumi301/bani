@@ -137,7 +137,8 @@ enum AutoLogReview {
             descriptionText: tx.descriptionText, merchant: tx.merchant, date: tx.date,
             rawTranscript: tx.rawTranscript, source: tx.source, direction: tx.direction,
             counterparty: tx.counterparty, attachmentID: tx.attachmentID,
-            importBatchID: tx.importBatchID, createdAt: tx.createdAt
+            importBatchID: tx.importBatchID, projectID: tx.projectID, loanID: tx.loanID,
+            duplicateOfID: tx.duplicateOfID, createdAt: tx.createdAt
         )
         let record = DecisionLedger.record(
             outcome: .discarded,

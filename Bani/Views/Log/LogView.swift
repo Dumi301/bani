@@ -31,6 +31,11 @@ struct LogView: View {
     /// and after the sheet closes, so background-logged payments surface promptly.
     @State private var autoLogCount = 0
     @State private var showAutoLogReview = false
+    /// Cross-source dedup (P8): count of flagged possible duplicates driving the
+    /// "N possible duplicates — review" chip, and the presented review sheet —
+    /// the SAME chip+sheet pattern as auto-log review, refreshed the same way.
+    @State private var dedupCount = 0
+    @State private var showDedupReview = false
     /// Share-sheet capture (Part B): the queue of drained captures awaiting the
     /// pre-filled confirmation card, and the one currently presented.
     @State private var shareQueue: [SharePickup.Capture] = []
@@ -76,6 +81,7 @@ struct LogView: View {
             VStack(spacing: metrics.sectionSpacing) {
                 header
                 if autoLogCount > 0 { reviewChip }
+                if dedupCount > 0 { dedupReviewChip }
                 Spacer(minLength: 12)
                 recordButton(for: .personal)
                 recordButton(for: .work)
@@ -138,6 +144,9 @@ struct LogView: View {
         .sheet(isPresented: $showAutoLogReview, onDismiss: refreshAutoLogCount) {
             AutoLogReviewView()
         }
+        .sheet(isPresented: $showDedupReview, onDismiss: refreshDedupCount) {
+            DedupReviewView()
+        }
         .sheet(item: $currentShare, onDismiss: advanceShareQueue) { capture in
             ShareCaptureCard(capture: capture) { resolveShare(capture) }
         }
@@ -151,6 +160,7 @@ struct LogView: View {
     /// the auto-log review count AND drain any share-sheet captures.
     private func onForeground() {
         refreshAutoLogCount()
+        refreshDedupCount()
         drainShares()
     }
 
@@ -159,6 +169,13 @@ struct LogView: View {
     /// tab appears / the app returns to the foreground / the review sheet closes.
     private func refreshAutoLogCount() {
         autoLogCount = AutoLogReview.unreviewedCount(in: modelContext)
+    }
+
+    /// P8 — the count of flagged possible duplicates. Recomputed on the same
+    /// cadence as the auto-log count (a batch import or a background auto-log
+    /// can flag one without the Log tab having been visible).
+    private func refreshDedupCount() {
+        dedupCount = DedupService.flaggedCount(in: modelContext)
     }
 
     /// Part B: drain the App Group captures the share extension wrote, parse them
@@ -179,6 +196,7 @@ struct LogView: View {
     private func resolveShare(_ capture: SharePickup.Capture) {
         shareQueue.removeAll { $0.id == capture.id }
         refreshAutoLogCount()
+        refreshDedupCount()
     }
 
     // MARK: - Subviews
@@ -227,6 +245,33 @@ struct LogView: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("logView.autoLogReviewChip")
         .accessibilityLabel(Text("autolog.review.chip \(autoLogCount)"))
+    }
+
+    /// "N possible duplicates — review" chip (P8): the same real payment logged
+    /// twice through two different surfaces. Never blocks a save — this only
+    /// surfaces the unreviewed flags and opens the keep-both/merge review sheet.
+    private var dedupReviewChip: some View {
+        Button {
+            showDedupReview = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.merge")
+                Text("dedup.review.chip \(dedupCount)")
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .opacity(0.6)
+            }
+            .font(.system(.subheadline).weight(.semibold))
+            .foregroundStyle(Palette.accent)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .metalSurface(cornerRadius: Radius.chip)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("logView.dedupReviewChip")
+        .accessibilityLabel(Text("dedup.review.chip \(dedupCount)"))
     }
 
     private func recordButton(for ctx: TransactionContext) -> some View {

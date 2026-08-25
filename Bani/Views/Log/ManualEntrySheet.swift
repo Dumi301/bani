@@ -24,8 +24,17 @@ struct ManualEntrySheet: View {
     @Query private var projects: [Project]
     @AppStorage("lastUsedProjectID") private var lastUsedProjectRaw: String = ""
     @State private var selectedProjectID: UUID?
+    /// v1.3 — the other party (People registry, B3), optional everywhere.
+    @State private var counterparty = ""
+    @Query private var people: [Person]
+    @Query private var allTransactions: [Transaction]
+    @Query private var allScheduledItems: [ScheduledItem]
 
     private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
+    private var registeredPeopleNames: [String] { people.map(\.name) }
+    private var counterpartySuggestions: [String] {
+        PersonStore.historicalCounterparties(transactions: allTransactions, scheduledItems: allScheduledItems)
+    }
 
     private var parsedAmount: Decimal? {
         Decimal(string: amountText.replacingOccurrences(of: ",", with: "."))
@@ -85,6 +94,10 @@ struct ManualEntrySheet: View {
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
                         .accessibilityIdentifier("manualEntry.datePicker")
 
+                    // v1.3 — optional counterparty with People-registry autocomplete (B3).
+                    PersonCounterpartyField(text: $counterparty, people: registeredPeopleNames, historicalCounterparties: counterpartySuggestions)
+                        .accessibilityIdentifier("manualEntry.counterpartyField")
+
                     // v1.2a: project assignment, Work context only.
                     if context == .work {
                         ProjectPickerRow(projects: activeProjects, selectedID: $selectedProjectID)
@@ -135,6 +148,7 @@ struct ManualEntrySheet: View {
         let projectID: UUID? = (context == .work)
             ? activeProjects.first(where: { $0.id == selectedProjectID })?.id
             : nil
+        let cleanCounterparty = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
         let transaction = Transaction(
             amount: amount,
             currency: currency,
@@ -145,10 +159,14 @@ struct ManualEntrySheet: View {
             rawTranscript: nil,
             source: .manual,
             direction: direction,
+            counterparty: cleanCounterparty.isEmpty ? nil : cleanCounterparty,
             projectID: projectID
         )
         modelContext.insert(transaction)
         try? modelContext.save()
+        // P8 — never silently double-count: flag (never drop) a cross-source
+        // possible duplicate for the review surface.
+        DedupService.flagIfDuplicate(transaction, in: modelContext)
         if let projectID { lastUsedProjectRaw = projectID.uuidString }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

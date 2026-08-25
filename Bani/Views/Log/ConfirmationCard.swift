@@ -215,6 +215,18 @@ struct ConfirmationCard: View {
     /// v1.2a — active projects for the Work-context chip (archived hidden).
     private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
 
+    /// P10 — pre-fill an EMPTY project chip from a project the transcript names,
+    /// via on-device deterministic containment against the live registry. ANNOTATES,
+    /// never gates: does nothing unless the field is empty AND a real project is
+    /// referenced above the pre-fill confidence bar, so a user pick / the last-used
+    /// smart-default is never overwritten and the save flow is unchanged.
+    private func preFillProjectSuggestion() {
+        guard selectedProjectID == nil,
+              let match = InterpretationService.inferProject(text: transcript, projects: activeProjects),
+              match.confidence >= Interpretation.preFillThreshold else { return }
+        selectedProjectID = match.id
+    }
+
     /// The Work-only project chip (smart-default last-used). Hidden for Personal.
     @ViewBuilder
     private var projectChipRow: some View {
@@ -267,6 +279,9 @@ struct ConfirmationCard: View {
         }
         .task {
             await runCountdownLoop()
+        }
+        .onAppear {
+            preFillProjectSuggestion()
         }
         .task(id: showTrustedToast) {
             await autoDismissTrustedToast()
@@ -907,5 +922,8 @@ func saveVoiceTransaction(
     }
     modelContext.insert(transaction)
     try? modelContext.save()
+    // P8 — never silently double-count: flag (never drop) a cross-source
+    // possible duplicate for the review surface. Saving already happened above.
+    DedupService.flagIfDuplicate(transaction, in: modelContext)
     return transaction
 }

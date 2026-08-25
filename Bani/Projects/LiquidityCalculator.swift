@@ -24,7 +24,19 @@ enum LiquidityHorizon: Int, CaseIterable, Identifiable, Sendable {
 /// `freeLiquidity` is the client's decision number ("can I enter another
 /// investment?"): what's logged, plus what's expected in, minus what's expected
 /// out, over the chosen horizon. `loanAdjustment` is the **v1.2b extension seam**
-/// (see `LiquidityCalculator.result`) — always `.zero` in v1.2a.
+/// (see `LiquidityCalculator.result`).
+///
+/// **v1.2b loan decision (no double-count).** Loan payments are modelled as
+/// outgoing `ScheduledItem`s (see `LoanStore`), so they are ALREADY counted once
+/// in `expectedOut` over the horizon. `loanAdjustment` therefore stays `.zero` on
+/// every horizon path: adding a loan's outstanding balance here on top of the
+/// payment items would double-count the same debt. The debt-position figures the
+/// report needs ("sum owed left", "% left") are a SEPARATE balance-sheet
+/// computation (`LoanStore.position`) that is never summed into `freeLiquidity`.
+/// The seam is retained (non-zero-capable) only for a hypothetical surface that
+/// represents a loan as a lump balance INSTEAD OF its payment items — the two
+/// representations are mutually exclusive and must never both be active. Proven by
+/// `LoanLiquidityTests`.
 struct LiquidityResult: Equatable, Sendable {
     /// All-time income − expenses across everything, already converted to RON by
     /// the caller (the existing Finances totals logic, reused).
@@ -58,9 +70,14 @@ struct LiquidityResult: Equatable, Sendable {
 /// position and the pending scheduled items. Deterministic (window is measured in
 /// seconds from `now`, so it is timezone-independent and unit-testable).
 ///
-/// **v1.2b extension seam:** the `loanAdjustment` parameter is where the next run
-/// injects net loan balances into `freeLiquidity`. It defaults to `.zero`; v1.2a
-/// never passes a non-zero value and computes no loan logic. Do not pre-build it.
+/// **v1.2b extension seam:** the `loanAdjustment` parameter can inject a net loan
+/// balance into `freeLiquidity`. It defaults to `.zero` and STAYS `.zero` in
+/// production: loan payments already flow through `pendingItems` → `expectedOut`
+/// (they are ordinary outgoing `ScheduledItem`s minted by `LoanStore`), so each
+/// payment is counted exactly once. Passing a loan's outstanding balance here as
+/// well would double-count it. Debt-position numbers ("sum owed left" / "% left")
+/// are computed separately by `LoanStore.position` and never added into
+/// `freeLiquidity`. See `LoanLiquidityTests` for the no-double-count proof.
 enum LiquidityCalculator {
 
     /// Assemble the liquidity result for one horizon.
@@ -72,7 +89,10 @@ enum LiquidityCalculator {
     ///   overdue incoming is still expected.
     /// - `rate`: EUR→RON (BNR), or `nil` if none has ever been fetched. EUR items
     ///   that cannot be converted are skipped and flag `hasUnconvertibleCurrency`.
-    /// - `loanAdjustment`: v1.2b seam (see type doc); leave at `.zero`.
+    /// - `loanAdjustment`: v1.2b seam (see type doc); leave at `.zero` — loan
+    ///   payments are already counted via their `ScheduledItem`s in `expectedOut`,
+    ///   so injecting a balance here would double-count (proven no-double-count in
+    ///   `LoanLiquidityTests`).
     static func result(
         netLoggedPosition: Decimal,
         pendingItems: [ScheduledItemSnapshot],

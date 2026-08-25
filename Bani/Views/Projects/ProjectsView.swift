@@ -24,6 +24,8 @@ struct ProjectsView: View {
     @State private var eurCardIDs: Set<UUID> = []
     @State private var creatingProject = false
     @State private var renamingProject: Project?
+    /// v1.2b — presents the Loans surface (bank + investor debt) from this tab.
+    @State private var showingLoans = false
 
     var body: some View {
         NavigationStack {
@@ -62,6 +64,16 @@ struct ProjectsView: View {
                 TransactionDetailView(transaction: transaction)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingLoans = true
+                    } label: {
+                        Image(systemName: "banknote")
+                    }
+                    .tint(Palette.accent)
+                    .accessibilityIdentifier("projects.loansButton")
+                    .accessibilityLabel(Text("loans.title"))
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         creatingProject = true
@@ -73,8 +85,13 @@ struct ProjectsView: View {
                     .accessibilityLabel(Text("projects.create"))
                 }
             }
+            .sheet(isPresented: $showingLoans) {
+                LoansListView()
+            }
             .sheet(isPresented: $creatingProject) {
-                ProjectEditSheet(project: nil)
+                // v1.3 "People registry" run — the guided interview replaces bare
+                // creation; ProjectEditSheet stays the rename/recolor path below.
+                ProjectCreationInterviewSheet()
             }
             .sheet(item: $renamingProject) { project in
                 ProjectEditSheet(project: project)

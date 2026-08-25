@@ -94,6 +94,13 @@ final class ClientFixtureOracleTests: XCTestCase {
         // Counterparties extracted from the Nume/Denumire column (B2).
         let parties = Set(drafts.compactMap(\.counterparty))
         XCTAssertTrue(parties.isSuperset(of: ["FirmaA", "PersoanaB", "FirmaC", "PersoanaD"]))
+
+        // 'comision' → BANK FEE in the bank-statement family (the other half of the
+        // comision split, C3): "COMISION ADMINISTRARE" is bank-ish context.
+        let comision = try XCTUnwrap(draft(drafts, desc: "COMISION ADMINISTRARE"))
+        XCTAssertEqual(comision.category, .seededCustom(.comisioaneBancare))
+        XCTAssertEqual(comision.direction, .expense)
+        XCTAssertEqual(comision.amount, Decimal(string: "6.9"))
     }
 
     // MARK: - Family C — Centralizator (mixed RON+EUR, H3) + multi-sheet skip
@@ -138,6 +145,14 @@ final class ClientFixtureOracleTests: XCTestCase {
         XCTAssertTrue(parties.isSuperset(of: ["PersoanaA", "PersoanaB", "PersoanaC", "FirmaA"]))
         // Loans are neutral.
         XCTAssertTrue(drafts.contains { $0.counterparty == "FirmaA" && $0.direction == .neutral })
+
+        // 'COMISION' CATEGORIE rows → BANK FEE (the other half of the comision
+        // split, C3): Family C is a bank-statement ledger, so 'comision' with no
+        // agency/real-estate context reads as a bank fee, not the agency commission
+        // Family A resolves it to.
+        let bankComision = drafts.filter { $0.category == .seededCustom(.comisioaneBancare) }
+        XCTAssertEqual(bankComision.count, 2, "both plain COMISION rows resolve to the bank-fee custom")
+        XCTAssertTrue(bankComision.allSatisfy { $0.direction == .expense })
     }
 
     // MARK: - Family D — monthly detail imports; yearly matrix skipped

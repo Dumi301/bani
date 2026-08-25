@@ -48,6 +48,30 @@ enum ScheduledStatus: String, Codable, CaseIterable, Hashable, Sendable {
     }
 }
 
+/// How often a `ScheduledItem` recurs (v1.2a follow-up "Recurring ScheduledItems").
+/// Persisted as its raw `String` via `ScheduledItem.recurrenceRaw` - additive-safe,
+/// same discipline as `ScheduledDirection` / `ScheduledStatus`. `.none` is the
+/// default: a one-shot item, unchanged behaviour. Mark-done on a recurring item
+/// generates its next occurrence (see `RecurrenceEngine` + `ScheduledItemStore`).
+enum RecurrenceRule: String, Codable, CaseIterable, Hashable, Sendable {
+    case none
+    case weekly
+    case monthly
+    case quarterly
+    case yearly
+
+    /// Localized display name (ro + en) for the edit-sheet picker.
+    var label: String {
+        switch self {
+        case .none: String(localized: "scheduled.recurrence.none")
+        case .weekly: String(localized: "scheduled.recurrence.weekly")
+        case .monthly: String(localized: "scheduled.recurrence.monthly")
+        case .quarterly: String(localized: "scheduled.recurrence.quarterly")
+        case .yearly: String(localized: "scheduled.recurrence.yearly")
+        }
+    }
+}
+
 // MARK: - SwiftData model
 
 /// v1.2a "Projects Core" — a piece of *scheduled money*: an expected incoming or
@@ -76,6 +100,42 @@ final class ScheduledItem {
     var projectID: UUID?
     var status: ScheduledStatus
     var linkedTransactionID: UUID?
+    /// Recurring ScheduledItems (v2) - STORED as an **Optional** `String` raw
+    /// value. `Bani-2026-08-02` law: a non-optional additive column left legacy
+    /// `Transaction` rows NULL -> dynamic-cast SIGABRT the moment they faulted.
+    /// Every `ScheduledItem` row written before this run has no such column at
+    /// all, so it decodes to `nil` here - a legal Optional decode, zero data
+    /// loss - and reads as `.none` through the `recurrence` accessor below. This
+    /// is a NEW column (never previously named under any other name), so unlike
+    /// `Transaction.directionStored` it needs no `@Attribute(originalName:)`.
+    /// Copies the exact optional-backed discipline of `Transaction.direction`.
+    var recurrenceRaw: String?
+    /// Non-optional public accessor: legacy/nil rows read `.none`; writes go
+    /// through to the optional backing store. Kept a plain computed property
+    /// (never used in a `#Predicate`/`SortDescriptor` keypath - all recurrence
+    /// filtering is in-memory), matching `Transaction.direction`.
+    var recurrence: RecurrenceRule {
+        get { recurrenceRaw.flatMap(RecurrenceRule.init(rawValue:)) ?? .none }
+        set { recurrenceRaw = newValue.rawValue }
+    }
+    /// Links every occurrence generated from one recurring item together (the v2
+    /// Loans payment-series seam builds on this). `nil` for a one-shot item AND
+    /// for every pre-recurrence row - additive + optional, same lightweight-
+    /// migration discipline as `projectID` / `customCategoryID`. Minted on first
+    /// use by `ScheduledItemStore` when a recurring item is marked done; deleting
+    /// one occurrence never cascades to the rest of its series.
+    var seriesID: UUID?
+    /// v1.2b "Loans" — the `Loan` whose payment series this item belongs to
+    /// (`Loan.id`), set on every generated loan-payment occurrence. Optional +
+    /// additive, the same lightweight-migration discipline as `projectID` /
+    /// `seriesID`: legacy rows decode to `nil` (a legal Optional decode, zero data
+    /// loss — the `Bani-2026-08-02` law), and read as "not a loan payment". `nil`
+    /// for every ordinary scheduled item. Loan-payment items MUST be completed
+    /// through `LoanStore.bookPayment` (which books the interest/principal split
+    /// and advances the series), never the generic `ScheduledItemStore.markDone`;
+    /// they carry `projectID == nil` so they never surface in a per-project
+    /// mark-done pane (their project attribution lives on `Loan.projectID`).
+    var loanID: UUID?
     var createdAt: Date
 
     init(
@@ -90,6 +150,9 @@ final class ScheduledItem {
         projectID: UUID? = nil,
         status: ScheduledStatus = .pending,
         linkedTransactionID: UUID? = nil,
+        recurrence: RecurrenceRule = .none,
+        seriesID: UUID? = nil,
+        loanID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -103,6 +166,9 @@ final class ScheduledItem {
         self.projectID = projectID
         self.status = status
         self.linkedTransactionID = linkedTransactionID
+        self.recurrenceRaw = recurrence.rawValue
+        self.seriesID = seriesID
+        self.loanID = loanID
         self.createdAt = createdAt
     }
 

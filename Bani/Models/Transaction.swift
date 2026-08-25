@@ -208,6 +208,27 @@ final class Transaction {
     /// resolved by id-lookup, never a SwiftData relationship. Cash is ONE pot;
     /// this pointer never moves money, it only labels which lens sees the row.
     var projectID: UUID?
+    /// v1.2b "Loans" — the `Loan` this transaction belongs to (`Loan.id`), set on
+    /// the two split transactions a loan payment books (interest slice + principal
+    /// slice). Optional + additive, the proven-safe pattern (mirrors `projectID` /
+    /// `customCategoryID` / `importBatchID`): existing rows migrate to `nil` and
+    /// survive untouched (proven in `LoanMigrationTests`). NO non-optional
+    /// additions — the direction-crash law is absolute. `nil` = not a loan
+    /// transaction. Consumers distinguish bank-interest (project P&L) from
+    /// investor cost-of-capital by resolving `loanID → Loan.kind`; a `neutral`
+    /// principal slice never counts as an expense anywhere.
+    var loanID: UUID?
+    /// v2 P8 — cross-source dedup (`Bani/Dedup/DedupService`). Set when this
+    /// transaction was flagged as a possible duplicate of another (different
+    /// source, matching amount/currency/direction within the fingerprint's
+    /// date-window). Optional + additive, the proven-safe pattern (mirrors
+    /// `projectID` / `loanID` / `customCategoryID`): existing rows migrate to
+    /// `nil` and survive untouched — NO non-optional additions (the
+    /// direction-crash law is absolute). `nil` = not flagged, or already
+    /// resolved (merge/keep-both both clear it back to `nil`). Never gates a
+    /// save — the never-drop law: a flagged transaction is already a real,
+    /// fully-saved row the instant it lands here.
+    var duplicateOfID: UUID?
     var createdAt: Date
 
     init(
@@ -227,6 +248,8 @@ final class Transaction {
         attachmentID: UUID? = nil,
         importBatchID: UUID? = nil,
         projectID: UUID? = nil,
+        loanID: UUID? = nil,
+        duplicateOfID: UUID? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -245,6 +268,8 @@ final class Transaction {
         self.attachmentID = attachmentID
         self.importBatchID = importBatchID
         self.projectID = projectID
+        self.loanID = loanID
+        self.duplicateOfID = duplicateOfID
         self.createdAt = createdAt
     }
 }

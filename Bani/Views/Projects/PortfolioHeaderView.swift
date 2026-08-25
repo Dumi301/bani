@@ -13,6 +13,10 @@ struct PortfolioHeaderView: View {
     let bnrDate: String?
     let rate: Double?
 
+    /// v2 — presents the balance-reconciliation sheet (enter real balance → drift →
+    /// adjust / anchor). Self-contained here so no shared surface is touched.
+    @State private var showingReconcile = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: metrics.rowSpacing) {
             Text("portfolio.netPosition")
@@ -51,10 +55,30 @@ struct PortfolioHeaderView: View {
             .accessibilityIdentifier("portfolio.freeLiquidity")
 
             captionLine
+
+            reconcileButton
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(metrics.cardPadding)
         .metalSurface(cornerRadius: Radius.card, elevated: true)
+        .sheet(isPresented: $showingReconcile) {
+            ReconciliationSheet()
+        }
+    }
+
+    /// Entry point to the reconciliation flow — "my actual balance is…" resets the
+    /// drift baseline so a missed expense can never corrupt the number forever.
+    private var reconcileButton: some View {
+        Button {
+            showingReconcile = true
+        } label: {
+            Label("reconcile.cta", systemImage: "scalemass")
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: DesignMetrics.minTapTarget)
+        }
+        .buttonStyle(MetalPlateButtonStyle(cornerRadius: Radius.button))
+        .foregroundStyle(Palette.accent)
+        .accessibilityIdentifier("portfolio.reconcileButton")
     }
 
     private var horizonPicker: some View {

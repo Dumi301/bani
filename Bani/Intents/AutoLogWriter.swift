@@ -143,6 +143,9 @@ enum AutoLogWriter {
         transaction.categoryRef = categoryRef
         context.insert(transaction)
         try? context.save()
+        // P8 — never silently double-count: flag (never drop) a cross-source
+        // possible duplicate for the review surface.
+        DedupService.flagIfDuplicate(transaction, in: context)
         return transaction
     }
 
@@ -182,6 +185,9 @@ enum AutoLogWriter {
         transaction.categoryRef = categoryRef
         context.insert(transaction)
         try? context.save()
+        // P8 — never silently double-count: flag (never drop) a cross-source
+        // possible duplicate for the review surface.
+        DedupService.flagIfDuplicate(transaction, in: context)
         return transaction
     }
 }
