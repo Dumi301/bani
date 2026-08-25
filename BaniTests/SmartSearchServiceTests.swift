@@ -82,7 +82,7 @@ final class SmartSearchServiceTests: XCTestCase {
     func testDateRangeFilterExecutes() async throws {
         let (items, _, _) = try await Self.seededCorpus()
         var filter = SearchFilter.empty
-        filter.dateRange = DateInterval(start: date(2026, 4, 1), end: date(2026, 6, 1))
+        filter.dateRange = DateInterval(start: Self.date(2026, 4, 1), end: Self.date(2026, 6, 1))
 
         let results = SmartSearchService.execute(filter, items: items)
         XCTAssertEqual(Set(results.map(\.descriptionText)),
@@ -191,10 +191,10 @@ final class SmartSearchServiceTests: XCTestCase {
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(
             relativeDate: .lastSpring, projectName: "Crângași", personName: "Electrician"
         ))
-        let now = date(2026, 8, 24) // spring (Mar–May) already ended this year
+        let now = Self.date(2026, 8, 24) // spring (Mar–May) already ended this year
         let outcome = await SmartSearchService.search(
             query: "what did I pay the electrician at the Crângași site last spring",
-            now: now, calendar: calendar, items: items, projects: projects, people: [],
+            now: now, calendar: Self.calendar, items: items, projects: projects, people: [],
             historicalCounterparties: ["Electrician"], compiler: mock
         )
 
@@ -209,7 +209,7 @@ final class SmartSearchServiceTests: XCTestCase {
         let (items, _, _) = try await Self.seededCorpus()
 
         let outcome = await SmartSearchService.search(
-            query: "electrician", now: date(2026, 8, 24), calendar: calendar,
+            query: "electrician", now: Self.date(2026, 8, 24), calendar: Self.calendar,
             items: items, projects: [], people: [], compiler: UnavailableQueryCompiler()
         )
 
