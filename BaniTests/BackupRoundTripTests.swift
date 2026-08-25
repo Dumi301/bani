@@ -290,7 +290,7 @@ enum BackupTestFixtures {
                                        recurrence: .monthly, loanID: loan.id)
         ctx.insert(scheduled)
 
-        let scheduledMinimal = ScheduledItem(direction: .incoming, amount: 42, currency: .eur, title: "Plată client")
+        let scheduledMinimal = ScheduledItem(direction: .incoming, amount: 42, currency: .eur, title: "Plată client", dueDate: .now)
         ctx.insert(scheduledMinimal)
 
         let anchor = BalanceAnchor(amount: 12_345.67, currency: .eur, driftAtAnchor: -0.01, note: "notă ancoră")
