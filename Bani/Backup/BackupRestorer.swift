@@ -96,10 +96,18 @@ actor BackupRestorer {
 
     private func jsonDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        // Must mirror `BackupArchiver`'s `.secondsSince1970` exactly (NOT
-        // `.iso8601` — see the comment there on the fractional-seconds
-        // truncation bug that strategy has).
-        decoder.dateDecodingStrategy = .secondsSince1970
+        // Must mirror `BackupArchiver`'s custom strategy exactly. NOT `.iso8601`
+        // (truncates fractional seconds) and NOT `.secondsSince1970` (round-trips
+        // through the 1970 epoch even though `Date` natively stores its interval
+        // since the 2001 reference date — that extra offset add/subtract loses a
+        // ULP on recent dates, so a restored `Date` fails exact `Equatable`
+        // comparison despite printing identically to the original; see
+        // `BackupArchiver`'s encoder comment). Decoding the native
+        // `timeIntervalSinceReferenceDate` directly is bit-exact, zero-conversion.
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            return Date(timeIntervalSinceReferenceDate: try container.decode(Double.self))
+        }
         return decoder
     }
 

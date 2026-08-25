@@ -45,9 +45,20 @@ actor BackupArchiver {
         // without fractional seconds by default, silently truncating every `Date`
         // to whole-second precision — a real round-trip bug for full-fidelity
         // backup (every `createdAt`/`updatedAt`/timestamp would drift by up to
-        // ~1s after restore). `.secondsSince1970` encodes the same `Double`
-        // `Date` already stores internally, so it round-trips exactly.
-        encoder.dateEncodingStrategy = .secondsSince1970
+        // ~1s after restore).
+        // NOT `.secondsSince1970` either: `Date` natively stores a `TimeInterval`
+        // SINCE THE 2001 REFERENCE DATE, not 1970 — `.secondsSince1970` round-trips
+        // through `timeIntervalSince1970` (adds the 978307200.0 epoch offset on
+        // encode, subtracts it on decode), and that double arithmetic loses a ULP
+        // on recent dates. `Date`'s `Equatable` compares exact `Double`s, so a
+        // restored row's `Date` silently fails `==` against the original despite
+        // printing identically — exactly the `testFullFidelityRoundTrip` failure
+        // (CI run 32853750114). Encoding the native `timeIntervalSinceReferenceDate`
+        // directly is a bit-exact, zero-conversion round trip.
+        encoder.dateEncodingStrategy = .custom { date, enc in
+            var container = enc.singleValueContainer()
+            try container.encode(date.timeIntervalSinceReferenceDate)
+        }
 
         var entries: [StoreZipWriter.Entry] = []
         func add<T: Encodable>(_ fileName: String, _ value: T) throws {
