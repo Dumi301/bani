@@ -7,12 +7,28 @@ import SwiftData
 /// `SearchFilter` field as an in-memory predicate, intersection with free-text
 /// terms via the existing `TransactionSearch`, ranking (date desc; exact-amount
 /// boosted), and the Crângași-style query end-to-end through a mock compiler.
+///
+/// Isolation shape (fix for the CI hang — see build-notes / P11 fix cycle 2):
+/// SwiftData construction is confined to a narrow, SYNCHRONOUS `@MainActor`
+/// helper (`seededCorpus`) that returns ONLY `Sendable` plain values (`Item`,
+/// `UUID`) — never a live `Transaction`/`ModelContainer` reference. Every test
+/// function is a plain (non-`@MainActor`) `async throws` function that crosses
+/// into MainActor ONCE via `await seededCorpus()` and immediately comes back —
+/// so `SmartSearchService.search`'s `withTaskGroup`/timeout-race machinery is
+/// ALWAYS invoked from a nonisolated context, exactly like `QueryCompilerTests`
+/// / `SearchFallbackTests` (both pass). The previous version marked the async
+/// end-to-end tests `@MainActor async throws`, which — unlike this codebase's
+/// only existing precedent (`PersonStoreTests`, whose `@MainActor` tests are
+/// never `async`) — held MainActor isolation across an `await` into a
+/// `withTaskGroup` call, hanging the whole suite (Foundation Models' seam is
+/// non-blocking by contract, but MainActor + task-group interleaving under
+/// XCTest's async bridging is not something this codebase had exercised before).
 final class SmartSearchServiceTests: XCTestCase {
 
-    // MARK: - Seeded container
+    // MARK: - Seeded corpus (SwiftData confined to MainActor; only Sendable values escape)
 
     @MainActor
-    private func seededContainer() throws -> (ModelContainer, [Transaction]) {
+    private func seededCorpus() throws -> (items: [SmartSearchService.Item], crangasiID: UUID, villaID: UUID) {
         let container = try ModelContainer(for: Transaction.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let ctx = container.mainContext
 
@@ -47,7 +63,9 @@ final class SmartSearchServiceTests: XCTestCase {
         ]
         rows.forEach { ctx.insert($0) }
         try ctx.save()
-        return (container, rows)
+        // Convert to plain Sendable values BEFORE returning — the live `Transaction`
+        // (`@Model`, not Sendable) never crosses back out of MainActor.
+        return (rows.map(SmartSearchService.Item.init), crangasiID, villaID)
     }
 
     private let calendar = Calendar(identifier: .gregorian)
@@ -57,10 +75,8 @@ final class SmartSearchServiceTests: XCTestCase {
 
     // MARK: - Structured filter execution
 
-    @MainActor
-    func testDateRangeFilterExecutes() throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+    func testDateRangeFilterExecutes() async throws {
+        let (items, _, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.dateRange = DateInterval(start: date(2026, 4, 1), end: date(2026, 6, 1))
 
@@ -69,10 +85,8 @@ final class SmartSearchServiceTests: XCTestCase {
                         ["materiale electrician", "plata electrician", "vopsea", "salariu"])
     }
 
-    @MainActor
-    func testAmountRangeFilterExecutes() throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+    func testAmountRangeFilterExecutes() async throws {
+        let (items, _, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.amountMin = 500
         filter.amountMax = 1000
@@ -81,10 +95,8 @@ final class SmartSearchServiceTests: XCTestCase {
         XCTAssertEqual(Set(results.map(\.descriptionText)), ["materiale electrician", "instalatie sanitara"])
     }
 
-    @MainActor
-    func testDirectionAndCurrencyFilterExecute() throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+    func testDirectionAndCurrencyFilterExecute() async throws {
+        let (items, _, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.direction = .income
 
@@ -95,11 +107,8 @@ final class SmartSearchServiceTests: XCTestCase {
         XCTAssertEqual(SmartSearchService.execute(eurFilter, items: items).map(\.descriptionText), ["vopsea"])
     }
 
-    @MainActor
-    func testProjectFilterExecutes() throws {
-        let (_, rows) = try seededContainer()
-        let crangasiID = rows[0].projectID!
-        let items = rows.map(SmartSearchService.Item.init)
+    func testProjectFilterExecutes() async throws {
+        let (items, crangasiID, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.projectIDs = [crangasiID]
 
@@ -108,10 +117,8 @@ final class SmartSearchServiceTests: XCTestCase {
         XCTAssertTrue(results.allSatisfy { $0.projectID == crangasiID })
     }
 
-    @MainActor
-    func testPersonNamesFilterExecutes() throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+    func testPersonNamesFilterExecutes() async throws {
+        let (items, _, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.personNames = ["Electrician"]
 
@@ -122,11 +129,8 @@ final class SmartSearchServiceTests: XCTestCase {
 
     // MARK: - Intersection with free text
 
-    @MainActor
-    func testFreeTextIntersectsWithStructuredFilter() throws {
-        let (_, rows) = try seededContainer()
-        let crangasiID = rows[0].projectID!
-        let items = rows.map(SmartSearchService.Item.init)
+    func testFreeTextIntersectsWithStructuredFilter() async throws {
+        let (items, crangasiID, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.projectIDs = [crangasiID]
         filter.freeTextTerms = ["vopsea"]
@@ -135,10 +139,8 @@ final class SmartSearchServiceTests: XCTestCase {
         XCTAssertEqual(results.map(\.descriptionText), ["vopsea"], "structured + free text intersect, not union")
     }
 
-    @MainActor
-    func testFreeTextAloneMatchesLikeExistingKeywordSearch() throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+    func testFreeTextAloneMatchesLikeExistingKeywordSearch() async throws {
+        let (items, _, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.freeTextTerms = ["benzina"] // un-accented — diacritic folding still applies
 
@@ -148,11 +150,8 @@ final class SmartSearchServiceTests: XCTestCase {
 
     // MARK: - Ranking (date desc; exact-amount boosted)
 
-    @MainActor
-    func testRanksDateDescendingByDefault() throws {
-        let (_, rows) = try seededContainer()
-        let crangasiID = rows[0].projectID!
-        let items = rows.map(SmartSearchService.Item.init)
+    func testRanksDateDescendingByDefault() async throws {
+        let (items, crangasiID, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.projectIDs = [crangasiID]
 
@@ -161,11 +160,8 @@ final class SmartSearchServiceTests: XCTestCase {
         XCTAssertEqual(dates, dates.sorted(by: >), "results are date-descending")
     }
 
-    @MainActor
-    func testExactAmountHitIsBoostedAboveNewerNonMatches() throws {
-        let (_, rows) = try seededContainer()
-        let crangasiID = rows[0].projectID!
-        let items = rows.map(SmartSearchService.Item.init)
+    func testExactAmountHitIsBoostedAboveNewerNonMatches() async throws {
+        let (items, crangasiID, _) = try await seededCorpus()
         var filter = SearchFilter.empty
         filter.projectIDs = [crangasiID]
         filter.exactAmount = 500 // the OLDEST of the three Crângași rows
@@ -183,13 +179,10 @@ final class SmartSearchServiceTests: XCTestCase {
         func compile(_ request: SearchQueryRequest) async -> SearchQueryProposal? { proposal }
     }
 
-    @MainActor
     func testCrangasiStyleQueryEndToEnd() async throws {
         // "what did I pay the electrician at the Crângași site last spring"
-        let (_, rows) = try seededContainer()
-        let crangasi = rows[0].projectID!
-        let items = rows.map(SmartSearchService.Item.init)
-        let projects = [ProjectSnapshot(id: crangasi, name: "Crângași", status: .active, colorIndex: 0, sortOrder: 0, archived: false, createdAt: Date())]
+        let (items, crangasiID, _) = try await seededCorpus()
+        let projects = [ProjectSnapshot(id: crangasiID, name: "Crângași", status: .active, colorIndex: 0, sortOrder: 0, archived: false, createdAt: Date())]
 
         let mock = MockQueryCompiler(proposal: SearchQueryProposal(
             relativeDate: .lastSpring, projectName: "Crângași", personName: "Electrician"
@@ -208,10 +201,8 @@ final class SmartSearchServiceTests: XCTestCase {
 
     // MARK: - Fallback: unavailable compiler ⇒ raw keyword search, order-preserving
 
-    @MainActor
     func testUnavailableCompilerFallsBackToRawKeywordSearch() async throws {
-        let (_, rows) = try seededContainer()
-        let items = rows.map(SmartSearchService.Item.init)
+        let (items, _, _) = try await seededCorpus()
 
         let outcome = await SmartSearchService.search(
             query: "electrician", now: date(2026, 8, 24), calendar: calendar,
