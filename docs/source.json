@@ -22,12 +22,12 @@
       },
       "versions": [
         {
-          "version": "1.0.43",
-          "buildVersion": "43",
-          "date": "2026-08-24T12:03:18Z",
-          "localizedDescription": "v1.2a — Projects tab, portfolio liquidity, scheduled money; update detection fixed",
-          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v1.0.43/Bani.ipa",
-          "size": 2457152,
+          "version": "2.0.56",
+          "buildVersion": "56",
+          "date": "2026-08-25T11:36:03Z",
+          "localizedDescription": "Bani 2.0 — Raport hub, loans & investors, open banking, reconciliation, people, smart search",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.0.56/Bani.ipa",
+          "size": 3012766,
           "minOSVersion": "26.0"
         }
       ]
