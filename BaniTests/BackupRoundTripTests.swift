@@ -88,8 +88,14 @@ final class BackupRoundTripTests: XCTestCase {
     // MARK: - Guard rails
 
     func testRestoreIntoNonEmptyStoreThrows() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        // Plain in-memory source — this test only needs SOME valid, non-empty
+        // archive; it doesn't touch the on-disk legacy-nil replica at all.
+        let sourceContainer = try BaniModelContainer.make(inMemory: true)
+        let sourceContext = ModelContext(sourceContainer)
+        sourceContext.insert(Transaction(amount: 25, currency: .ron, context: .personal, descriptionText: "sursă", source: .manual))
+        try sourceContext.save()
+
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive()
 
         let targetContainer = try BaniModelContainer.make(inMemory: true)
@@ -111,10 +117,17 @@ final class BackupRoundTripTests: XCTestCase {
     }
 
     func testEraseAndRestoreReplacesExistingData() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        // Plain in-memory source — only the KNOWN transaction count matters here,
+        // not multi-entity coverage or the on-disk legacy-nil replica.
+        let sourceContainer = try BaniModelContainer.make(inMemory: true)
+        let sourceContext = ModelContext(sourceContainer)
+        sourceContext.insert(Transaction(amount: 25, currency: .ron, context: .personal, descriptionText: "restaurat unu", source: .manual))
+        sourceContext.insert(Transaction(amount: 30, currency: .ron, context: .work, descriptionText: "restaurat doi", source: .manual))
+        try sourceContext.save()
+        let sourceTransactionCount = try sourceContext.fetchCount(FetchDescriptor<Transaction>())
+
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive()
-        let sourceTransactionCount = try ModelContext(seed.container).fetch(FetchDescriptor<Transaction>()).count
 
         let targetContainer = try BaniModelContainer.make(inMemory: true)
         let targetContext = ModelContext(targetContainer)
@@ -148,8 +161,14 @@ final class BackupRoundTripTests: XCTestCase {
     }
 
     func testTruncatedArchiveThrowsAndStoreIsUntouched() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        // Plain in-memory source — just needs ANY valid, non-trivial archive to
+        // truncate; the on-disk legacy-nil replica is irrelevant here.
+        let sourceContainer = try BaniModelContainer.make(inMemory: true)
+        let sourceContext = ModelContext(sourceContainer)
+        sourceContext.insert(Transaction(amount: 25, currency: .ron, context: .personal, descriptionText: "sursă", source: .manual))
+        try sourceContext.save()
+
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive()
         // Chop the archive in half — the end-of-central-directory record (always
         // at the tail) is gone, so the reader can never locate the zip's index.
@@ -232,6 +251,38 @@ enum BackupTestFixtures {
         return dir.appendingPathComponent("store.sqlite")
     }
 
+    /// The current app's full 13-entity model set, built the SAME way the
+    /// PROVEN on-disk close+reopen tests in this repo do
+    /// (`DirectionNullMigrationTests.currentContainer`,
+    /// `ProjectMigrationTests.currentContainer`,
+    /// `PersonMigrationTests.currentContainer`): an explicit variadic type list,
+    /// each call building its OWN fresh `Schema` internally.
+    ///
+    /// NOT `ModelContainer(for: BaniModelContainer.schema, …)` — that passes the
+    /// single, already-constructed `Schema` VALUE `BaniModelContainer` also uses
+    /// to build the app's real `BaniModelContainer.shared` container. Reusing
+    /// that one shared `Schema` instance to open a SECOND, different on-disk
+    /// store (a fresh temp URL, right after a DIFFERENT legacy schema just wrote
+    /// to that same file) is what threw `SwiftDataError.loadIssueModelContainer`
+    /// on the CI simulator (run 32851010135) — every proven migration test
+    /// sidesteps this by never reusing a shared `Schema` object, always building
+    /// one fresh from raw types on each call. Extended here with the 4 v2
+    /// entities (`Person`, `BalanceAnchor`, `Loan`, `BankLink`) none of the
+    /// existing migration tests know about yet.
+    private static func currentSchemaContainer(at url: URL) throws -> ModelContainer {
+        try ModelContainer(
+            for: Transaction.self, CategoryRule.self, DecisionRecord.self, ContextRule.self,
+            CorrectionMemory.self, CustomCategory.self, ImportBatch.self,
+            Project.self, Person.self, ScheduledItem.self,
+            BalanceAnchor.self, Loan.self, BankLink.self,
+            configurations: ModelConfiguration(url: url)
+        )
+    }
+
+    /// ON-DISK ONLY — required by the legacy-nil-`direction` replica trick
+    /// (`testFullFidelityRoundTrip`): a genuine on-disk NULL can only be produced
+    /// by writing under a REALLY older on-disk schema, then reopening under the
+    /// current one; nothing about that step is reproducible in memory.
     @MainActor
     static func makeSeededContainer() throws -> (container: ModelContainer, legacyDirectionID: UUID) {
         let url = try freshOnDiskURL("seed")
@@ -249,11 +300,36 @@ enum BackupTestFixtures {
 
         // 2. Reopen the SAME store URL with the CURRENT 13-entity schema — the
         //    legacy row's `directionStored` faults to a real on-disk NULL.
-        let container = try ModelContainer(for: BaniModelContainer.schema, configurations: ModelConfiguration(url: url))
+        let container = try currentSchemaContainer(at: url)
         let ctx = ModelContext(container)
+        seedRichData(into: ctx)
+        try ctx.save()
+        return (container, legacyID)
+    }
 
-        // 3. Seed one of every other entity, with edge Decimals, nil/non-nil
-        //    optionals, an attachment blob, and RO diacritics throughout.
+    /// Plain IN-MEMORY container carrying the SAME rich, one-of-every-entity
+    /// data as `makeSeededContainer` — for tests that need multi-entity coverage
+    /// but NOT the on-disk legacy-nil replica (only `testFullFidelityRoundTrip`
+    /// needs that). Built on `BaniModelContainer.make(inMemory: true)`, the
+    /// app's own proven in-memory helper (already exercised successfully by
+    /// `testCorruptArchiveThrowsAndStoreIsUntouched`) — deliberately NOT
+    /// `ImportTestSupport.inMemoryContainer()`, which registers only 7 of the 13
+    /// entities and would throw fetching `Person`/`BalanceAnchor`/`Loan`/`BankLink`.
+    @MainActor
+    static func makeInMemorySeededContainer() throws -> ModelContainer {
+        let container = try BaniModelContainer.make(inMemory: true)
+        let ctx = ModelContext(container)
+        seedRichData(into: ctx)
+        try ctx.save()
+        return container
+    }
+
+    /// Seeds one row of every entity EXCEPT the legacy-nil `Transaction` (that
+    /// one is on-disk-only, see `makeSeededContainer`): Decimal edge amounts,
+    /// nil AND non-nil optionals, an attachment blob, RO diacritics. Shared by
+    /// both container flavors above — inserts only, no `save()` (callers save).
+    @MainActor
+    private static func seedRichData(into ctx: ModelContext) {
         let attachmentID = UUID()
         AttachmentStore.save(id: attachmentID, originalData: attachmentBytes, originalFileName: "contract.pdf",
                               extractedText: "extracted text", summary: "rezumat cu diacritice: ăâîșț")
@@ -347,8 +423,5 @@ enum BackupTestFixtures {
                                  descriptionText: "posibil duplicat", source: .imported,
                                  direction: .neutral, duplicateOfID: hugeTx.id)
         ctx.insert(dupTx)
-
-        try ctx.save()
-        return (container, legacyID)
     }
 }

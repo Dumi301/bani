@@ -49,15 +49,18 @@ final class BackupManifestTests: XCTestCase {
 
     @MainActor
     func testManifestCountsMatchSeededCounts() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        // Needs multi-entity coverage (every entity > 0 below) but NOT the
+        // on-disk legacy-nil replica — a plain in-memory container with the same
+        // rich seed data.
+        let sourceContainer = try BackupTestFixtures.makeInMemorySeededContainer()
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive()
 
         let peekContainer = try BaniModelContainer.make(inMemory: true)
         let restorer = BackupRestorer(modelContainer: peekContainer)
         let manifest = try await restorer.peekManifest(archive: archive)
 
-        let ctx = ModelContext(seed.container)
+        let ctx = ModelContext(sourceContainer)
         XCTAssertEqual(manifest[.transaction], try ctx.fetchCount(FetchDescriptor<Transaction>()))
         XCTAssertEqual(manifest[.categoryRule], try ctx.fetchCount(FetchDescriptor<CategoryRule>()))
         XCTAssertEqual(manifest[.decisionRecord], try ctx.fetchCount(FetchDescriptor<DecisionRecord>()))
@@ -108,8 +111,14 @@ final class BackupManifestTests: XCTestCase {
 
     @MainActor
     func testCurrentFormatVersionIsAccepted() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        // Plain in-memory source — just needs a valid archive; the on-disk
+        // legacy-nil replica is irrelevant to the version gate.
+        let sourceContainer = try BaniModelContainer.make(inMemory: true)
+        let sourceContext = ModelContext(sourceContainer)
+        sourceContext.insert(Transaction(amount: 25, currency: .ron, context: .personal, descriptionText: "sursă", source: .manual))
+        try sourceContext.save()
+
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive()
 
         let container = try BaniModelContainer.make(inMemory: true)
