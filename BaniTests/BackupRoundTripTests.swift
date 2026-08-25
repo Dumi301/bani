@@ -2,30 +2,31 @@ import XCTest
 import SwiftData
 @testable import Bani
 
-/// Full-fidelity backup/restore coverage (P1): every entity in the 13-entity v2
-/// schema, Decimal edge amounts (0.01 and a huge value), nil AND non-nil
-/// optionals, a legacy-nil-`direction` row (the `DirectionNullMigrationTests`
-/// parallel-schema trick against a REAL on-disk store — the only way to prove a
-/// genuine on-disk `NULL` round-trips), an attachment blob, and RO diacritics
-/// throughout string fields.
+/// Full-fidelity backup/restore coverage (P1), split across two mechanisms so
+/// each uses proven-safe container mechanics: `testFullFidelityRoundTrip`
+/// covers every entity in the 13-entity v2 schema (Decimal edge amounts, nil
+/// AND non-nil optionals, an attachment blob, RO diacritics) on a rich
+/// IN-MEMORY container; `testLegacyNilDirectionRowBacksUpAsExpense` covers the
+/// legacy-nil-`direction` case on a REAL on-disk store, using
+/// `DirectionNullMigrationTests`' own mechanics verbatim (the only way to prove
+/// a genuine on-disk `NULL` round-trips).
 @MainActor
 final class BackupRoundTripTests: XCTestCase {
 
     // MARK: - Full round trip
 
     func testFullFidelityRoundTrip() async throws {
-        let seed = try BackupTestFixtures.makeSeededContainer()
-        let sourceContext = ModelContext(seed.container)
+        // Rich IN-MEMORY container (all 13 entities) — proven already by
+        // testManifestCountsMatchSeededCounts. The legacy-nil-direction case
+        // needs a REAL on-disk store reopened under a narrower schema and is
+        // covered separately, with `DirectionNullMigrationTests`' own proven
+        // mechanics, by testLegacyNilDirectionRowBacksUpAsExpense below; every
+        // Transaction seeded here instead carries an EXPLICIT direction
+        // (income/expense/neutral).
+        let sourceContainer = try BackupTestFixtures.makeInMemorySeededContainer()
+        let sourceContext = ModelContext(sourceContainer)
 
-        // Sanity: the legacy row really does fault `directionStored` to nil —
-        // proving the round trip below exercises the real legacy path, not a
-        // row that merely happens to hold `.expense`.
-        let legacyBefore = try XCTUnwrap(
-            try sourceContext.fetch(FetchDescriptor<Transaction>()).first { $0.id == seed.legacyDirectionID }
-        )
-        XCTAssertEqual(legacyBefore.direction, .expense, "legacy NULL direction already reads .expense pre-backup")
-
-        let archiver = BackupArchiver(modelContainer: seed.container)
+        let archiver = BackupArchiver(modelContainer: sourceContainer)
         let archive = try await archiver.makeArchive(appBuild: "99")
 
         let targetContainer = try BaniModelContainer.make(inMemory: true)
@@ -67,12 +68,6 @@ final class BackupRoundTripTests: XCTestCase {
         assertRowsMatch(try sourceContext.fetch(FetchDescriptor<BankLink>()), try targetContext.fetch(FetchDescriptor<BankLink>()),
                          id: \.id, dto: BankLinkDTO.init, entity: "BankLink")
 
-        // The legacy-nil row restores reading .expense too (behaviorally lossless).
-        let legacyAfter = try XCTUnwrap(
-            try targetContext.fetch(FetchDescriptor<Transaction>()).first { $0.id == seed.legacyDirectionID }
-        )
-        XCTAssertEqual(legacyAfter.direction, .expense)
-
         // The attachment blob round-trips: bytes + extracted text + summary + filename.
         let hugeTx = try XCTUnwrap(
             try targetContext.fetch(FetchDescriptor<Transaction>()).first { $0.descriptionText == BackupTestFixtures.hugeDescription }
@@ -83,6 +78,61 @@ final class BackupRoundTripTests: XCTestCase {
         XCTAssertEqual(AttachmentStore.summary(id: attachmentID), "rezumat cu diacritice: ăâîșț")
         let originalURL = try XCTUnwrap(AttachmentStore.originalURL(id: attachmentID))
         XCTAssertEqual(try Data(contentsOf: originalURL), BackupTestFixtures.attachmentBytes)
+    }
+
+    // MARK: - Legacy-nil direction (real on-disk store, DirectionNullMigrationTests mechanics)
+
+    /// Mirrors `DirectionNullMigrationTests` mechanics EXACTLY: its legacy
+    /// schema (`BackupLegacyStoreV26`, a verbatim copy), its store URL handling
+    /// (`BackupTestFixtures.freshOnDiskURL`), and — critically — its EXACT
+    /// 7-entity current-container reopen list
+    /// (`BackupTestFixtures.legacyMigrationCurrentContainer`), NOT extended to
+    /// the full 13. Reopening a legacy-schema on-disk store under the full
+    /// 13-entity schema is the untested combination that threw
+    /// `SwiftDataError.loadIssueModelContainer` on the CI simulator (run
+    /// 32852406212); this 7-entity reopen is the one
+    /// `DirectionNullMigrationTests` itself proves safe there.
+    func testLegacyNilDirectionRowBacksUpAsExpense() async throws {
+        let url = try BackupTestFixtures.freshOnDiskURL("legacy-direction")
+        let legacyID = UUID()
+
+        // 1. Write ONE row with the pre-v1.1 shape — this store has NO
+        //    `direction` column at all. Scoped so the container closes before
+        //    reopening.
+        do {
+            let legacyContainer = try ModelContainer(for: BackupLegacyStoreV26.Transaction.self, configurations: ModelConfiguration(url: url))
+            let ctx = legacyContainer.mainContext
+            ctx.insert(BackupLegacyStoreV26.Transaction(id: legacyID, amount: 10, currency: .ron, context: .personal,
+                                                          descriptionText: "legacy expense", source: .manual))
+            try ctx.save()
+        }
+
+        // 2. Reopen under DirectionNullMigrationTests' EXACT 7-entity schema —
+        //    the legacy row's `directionStored` faults to a real on-disk NULL,
+        //    reading `.expense` through the accessor.
+        let container = try BackupTestFixtures.legacyMigrationCurrentContainer(at: url)
+        let legacyRow = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Transaction>()).first { $0.id == legacyID })
+        XCTAssertEqual(legacyRow.direction, .expense, "sanity: legacy NULL direction already reads .expense before backup")
+
+        // 3. Archive from THIS (7-entity — no Project/Person/ScheduledItem/
+        //    BalanceAnchor/Loan/BankLink) container. `BackupArchiver` tolerates
+        //    entities absent from the container's own schema (empty-array
+        //    fallback per entity, never a hard fail — see `BackupArchiver.swift`).
+        let archiver = BackupArchiver(modelContainer: container)
+        let archive = try await archiver.makeArchive()
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970 // matches BackupArchiver's encoder
+
+        let manifestData = try XCTUnwrap(MinimalZip.extract(entrySuffix: "manifest.json", from: archive))
+        let manifest = try decoder.decode(BackupManifest.self, from: manifestData)
+        XCTAssertEqual(manifest[.transaction], 1)
+        XCTAssertEqual(manifest[.project], 0, "an entity absent from this container's schema counts 0, never throws")
+
+        let transactionData = try XCTUnwrap(MinimalZip.extract(entrySuffix: BackupEntity.transaction.fileName, from: archive))
+        let dtos = try decoder.decode([TransactionDTO].self, from: transactionData)
+        let legacyDTO = try XCTUnwrap(dtos.first { $0.id == legacyID })
+        XCTAssertEqual(legacyDTO.direction, .expense, "the legacy-nil row's DTO reads .expense — behaviorally lossless")
     }
 
     // MARK: - Guard rails
@@ -202,32 +252,43 @@ final class BackupRoundTripTests: XCTestCase {
     }
 }
 
-// MARK: - Legacy shape (file scope, ONE level of nesting — mirrors the proven
-// `DirectionNullMigrationTests.LegacyStoreV26` idiom exactly)
+// MARK: - Legacy shape (file scope — an EXACT, field-for-field verbatim copy of
+// `DirectionNullMigrationTests.LegacyStoreV26`, so `legacyMigrationCurrentContainer`
+// reopens it under the identical proven mechanics, not a novel shape/schema pair)
 
-/// The pre-v1.1 `Transaction` shape — no `direction`/`counterparty`/
-/// `attachmentID`/`importBatchID`/`projectID`/`loanID`/`duplicateOfID` columns at
-/// all. Nested in an enum so its SwiftData entity name is still `"Transaction"`
-/// (the same on-disk table as `Bani.Transaction`) while the Swift type stays
-/// distinct — the standard versioned-schema idiom this codebase already uses in
-/// `DirectionNullMigrationTests`.
+/// The pre-v1.1 `Transaction` shape — every column that existed BEFORE
+/// `direction`/`counterparty`/`attachmentID`/`importBatchID` were added. Nested
+/// in an enum so its SwiftData entity name is still `"Transaction"` (the same
+/// on-disk table as `Bani.Transaction`) while the Swift type stays distinct —
+/// the standard versioned-schema idiom, copied verbatim from
+/// `DirectionNullMigrationTests.LegacyStoreV26`.
 private enum BackupLegacyStoreV26 {
     @Model final class Transaction {
         var id: UUID
         var amount: Decimal
         var currency: Currency
         var context: TransactionContext
+        var category: TransactionCategory?
+        var customCategoryID: UUID?
         var descriptionText: String
+        var merchant: String?
+        var date: Date
+        var rawTranscript: String?
         var source: TransactionSource
         var createdAt: Date
 
         init(id: UUID = UUID(), amount: Decimal, currency: Currency, context: TransactionContext,
-             descriptionText: String, source: TransactionSource, createdAt: Date = .now) {
+             descriptionText: String, source: TransactionSource, date: Date = .now, createdAt: Date = .now) {
             self.id = id
             self.amount = amount
             self.currency = currency
             self.context = context
+            self.category = nil
+            self.customCategoryID = nil
             self.descriptionText = descriptionText
+            self.merchant = nil
+            self.date = date
+            self.rawTranscript = nil
             self.source = source
             self.createdAt = createdAt
         }
@@ -236,82 +297,46 @@ private enum BackupLegacyStoreV26 {
 
 // MARK: - Shared fixtures (also used by BackupManifestTests, same target)
 
-/// Seeds one row of every entity in the 13-entity v2 schema, covering: Decimal
-/// edge amounts (0.01 and a huge value), nil AND non-nil optionals, a legacy-nil
-/// `direction` row, an attachment blob, and RO diacritics.
+/// Shared container/URL builders for the backup test suite: the rich
+/// one-row-per-entity in-memory fixture, plus the exact
+/// `DirectionNullMigrationTests` on-disk mechanics for the legacy-nil-direction
+/// case (`legacyMigrationCurrentContainer`, `freshOnDiskURL`).
 enum BackupTestFixtures {
 
     static let hugeDescription = "Tranzacție uriașă"
     static let attachmentBytes = Data("PDF-BYTES-CONTRACT".utf8)
 
-    private static func freshOnDiskURL(_ tag: String) throws -> URL {
+    /// EXACT copy of `DirectionNullMigrationTests`'s `freshStoreURL` mechanics
+    /// (temp dir + UUID subdir, `createDirectory` first). Non-private so
+    /// `testLegacyNilDirectionRowBacksUpAsExpense` can call it directly, the
+    /// same way `DirectionNullMigrationTests` builds its own URL inline.
+    static func freshOnDiskURL(_ tag: String) throws -> URL {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("bani-backup-\(tag)-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("store.sqlite")
     }
 
-    /// The current app's full 13-entity model set, built the SAME way the
-    /// PROVEN on-disk close+reopen tests in this repo do
-    /// (`DirectionNullMigrationTests.currentContainer`,
-    /// `ProjectMigrationTests.currentContainer`,
-    /// `PersonMigrationTests.currentContainer`): an explicit variadic type list,
-    /// each call building its OWN fresh `Schema` internally.
-    ///
-    /// NOT `ModelContainer(for: BaniModelContainer.schema, …)` — that passes the
-    /// single, already-constructed `Schema` VALUE `BaniModelContainer` also uses
-    /// to build the app's real `BaniModelContainer.shared` container. Reusing
-    /// that one shared `Schema` instance to open a SECOND, different on-disk
-    /// store (a fresh temp URL, right after a DIFFERENT legacy schema just wrote
-    /// to that same file) is what threw `SwiftDataError.loadIssueModelContainer`
-    /// on the CI simulator (run 32851010135) — every proven migration test
-    /// sidesteps this by never reusing a shared `Schema` object, always building
-    /// one fresh from raw types on each call. Extended here with the 4 v2
-    /// entities (`Person`, `BalanceAnchor`, `Loan`, `BankLink`) none of the
-    /// existing migration tests know about yet.
-    private static func currentSchemaContainer(at url: URL) throws -> ModelContainer {
+    /// EXACT copy of `DirectionNullMigrationTests.currentContainer`'s variadic
+    /// type list — the SAME 7 entities, in the SAME order, deliberately NOT
+    /// extended to the full 13. Reopening a legacy-schema on-disk store under
+    /// the FULL 13-entity schema is a combination no proven test exercises and
+    /// threw `SwiftDataError.loadIssueModelContainer` on the CI simulator (run
+    /// 32852406212, from what was `currentSchemaContainer` here); THIS exact
+    /// 7-entity reopen is the one `DirectionNullMigrationTests` itself proves
+    /// safe on that same CI, so `testLegacyNilDirectionRowBacksUpAsExpense`
+    /// uses it verbatim instead of inventing a new combination.
+    static func legacyMigrationCurrentContainer(at url: URL) throws -> ModelContainer {
         try ModelContainer(
             for: Transaction.self, CategoryRule.self, DecisionRecord.self, ContextRule.self,
             CorrectionMemory.self, CustomCategory.self, ImportBatch.self,
-            Project.self, Person.self, ScheduledItem.self,
-            BalanceAnchor.self, Loan.self, BankLink.self,
             configurations: ModelConfiguration(url: url)
         )
     }
 
-    /// ON-DISK ONLY — required by the legacy-nil-`direction` replica trick
-    /// (`testFullFidelityRoundTrip`): a genuine on-disk NULL can only be produced
-    /// by writing under a REALLY older on-disk schema, then reopening under the
-    /// current one; nothing about that step is reproducible in memory.
-    @MainActor
-    static func makeSeededContainer() throws -> (container: ModelContainer, legacyDirectionID: UUID) {
-        let url = try freshOnDiskURL("seed")
-        let legacyID = UUID()
-
-        // 1. Write ONE row with the pre-v1.1 shape — this store has NO
-        //    `direction` column at all.
-        do {
-            let legacyContainer = try ModelContainer(for: BackupLegacyStoreV26.Transaction.self, configurations: ModelConfiguration(url: url))
-            let ctx = legacyContainer.mainContext
-            ctx.insert(BackupLegacyStoreV26.Transaction(id: legacyID, amount: 10, currency: .ron, context: .personal,
-                                                          descriptionText: "legacy expense", source: .manual))
-            try ctx.save()
-        }
-
-        // 2. Reopen the SAME store URL with the CURRENT 13-entity schema — the
-        //    legacy row's `directionStored` faults to a real on-disk NULL.
-        let container = try currentSchemaContainer(at: url)
-        let ctx = ModelContext(container)
-        seedRichData(into: ctx)
-        try ctx.save()
-        return (container, legacyID)
-    }
-
-    /// Plain IN-MEMORY container carrying the SAME rich, one-of-every-entity
-    /// data as `makeSeededContainer` — for tests that need multi-entity coverage
-    /// but NOT the on-disk legacy-nil replica (only `testFullFidelityRoundTrip`
-    /// needs that). Built on `BaniModelContainer.make(inMemory: true)`, the
-    /// app's own proven in-memory helper (already exercised successfully by
+    /// Plain IN-MEMORY container with one row of every entity in the 13-entity
+    /// v2 schema. Built on `BaniModelContainer.make(inMemory: true)`, the app's
+    /// own proven in-memory helper (already exercised successfully by
     /// `testCorruptArchiveThrowsAndStoreIsUntouched`) — deliberately NOT
     /// `ImportTestSupport.inMemoryContainer()`, which registers only 7 of the 13
     /// entities and would throw fetching `Person`/`BalanceAnchor`/`Loan`/`BankLink`.
@@ -324,10 +349,11 @@ enum BackupTestFixtures {
         return container
     }
 
-    /// Seeds one row of every entity EXCEPT the legacy-nil `Transaction` (that
-    /// one is on-disk-only, see `makeSeededContainer`): Decimal edge amounts,
-    /// nil AND non-nil optionals, an attachment blob, RO diacritics. Shared by
-    /// both container flavors above — inserts only, no `save()` (callers save).
+    /// Seeds one row of every entity with an EXPLICIT `Transaction.direction`
+    /// (the legacy-nil-direction case is covered separately, on a real on-disk
+    /// store, by `testLegacyNilDirectionRowBacksUpAsExpense`): Decimal edge
+    /// amounts, nil AND non-nil optionals, an attachment blob, RO diacritics.
+    /// Inserts only, no `save()` (the caller saves).
     @MainActor
     private static func seedRichData(into ctx: ModelContext) {
         let attachmentID = UUID()

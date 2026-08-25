@@ -13,20 +13,32 @@ import SwiftData
 actor BackupArchiver {
 
     /// Builds the complete `.bani-backup` archive bytes.
+    ///
+    /// Each entity fetch is TOLERANT (`try?` + empty-array fallback), not
+    /// `try`: the real app container (`BaniModelContainer.shared`) always
+    /// registers all 13 entities, so this never changes behavior in production.
+    /// It exists so `BackupArchiver` also works against a container that
+    /// registers only a SUBSET of the schema — e.g. the exact 7-entity
+    /// container `DirectionNullMigrationTests` proves safe for reopening a
+    /// legacy on-disk store (`BackupTestFixtures.legacyMigrationCurrentContainer`,
+    /// used by `testLegacyNilDirectionRowBacksUpAsExpense`), where fetching an
+    /// entity type the container never registered (`Project`, `Person`, …)
+    /// would otherwise throw before ANY row could be archived. An entity absent
+    /// from the container's schema simply counts 0 in the manifest.
     func makeArchive(appBuild: String = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String) ?? "0") throws -> Data {
-        let transactions = try modelContext.fetch(FetchDescriptor<Transaction>())
-        let categoryRules = try modelContext.fetch(FetchDescriptor<CategoryRule>())
-        let decisionRecords = try modelContext.fetch(FetchDescriptor<DecisionRecord>())
-        let contextRules = try modelContext.fetch(FetchDescriptor<ContextRule>())
-        let correctionMemories = try modelContext.fetch(FetchDescriptor<CorrectionMemory>())
-        let customCategories = try modelContext.fetch(FetchDescriptor<CustomCategory>())
-        let importBatches = try modelContext.fetch(FetchDescriptor<ImportBatch>())
-        let projects = try modelContext.fetch(FetchDescriptor<Project>())
-        let people = try modelContext.fetch(FetchDescriptor<Person>())
-        let scheduledItems = try modelContext.fetch(FetchDescriptor<ScheduledItem>())
-        let balanceAnchors = try modelContext.fetch(FetchDescriptor<BalanceAnchor>())
-        let loans = try modelContext.fetch(FetchDescriptor<Loan>())
-        let bankLinks = try modelContext.fetch(FetchDescriptor<BankLink>())
+        let transactions = (try? modelContext.fetch(FetchDescriptor<Transaction>())) ?? []
+        let categoryRules = (try? modelContext.fetch(FetchDescriptor<CategoryRule>())) ?? []
+        let decisionRecords = (try? modelContext.fetch(FetchDescriptor<DecisionRecord>())) ?? []
+        let contextRules = (try? modelContext.fetch(FetchDescriptor<ContextRule>())) ?? []
+        let correctionMemories = (try? modelContext.fetch(FetchDescriptor<CorrectionMemory>())) ?? []
+        let customCategories = (try? modelContext.fetch(FetchDescriptor<CustomCategory>())) ?? []
+        let importBatches = (try? modelContext.fetch(FetchDescriptor<ImportBatch>())) ?? []
+        let projects = (try? modelContext.fetch(FetchDescriptor<Project>())) ?? []
+        let people = (try? modelContext.fetch(FetchDescriptor<Person>())) ?? []
+        let scheduledItems = (try? modelContext.fetch(FetchDescriptor<ScheduledItem>())) ?? []
+        let balanceAnchors = (try? modelContext.fetch(FetchDescriptor<BalanceAnchor>())) ?? []
+        let loans = (try? modelContext.fetch(FetchDescriptor<Loan>())) ?? []
+        let bankLinks = (try? modelContext.fetch(FetchDescriptor<BankLink>())) ?? []
 
         let encoder = JSONEncoder()
         // NOT `.iso8601`: `JSONEncoder`'s built-in ISO 8601 strategy formats
