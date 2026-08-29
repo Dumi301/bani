@@ -15,6 +15,13 @@ final class ManualEntryUITests: XCTestCase {
         app.launchArguments = ["-uiTesting", "-modelAbsent"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15))
+
+        // E1: the launch tab flipped to Raport — navigate to Log (tab index 1)
+        // to reach the manual-entry flow this suite drives.
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
+        tabBar.buttons.element(boundBy: 1).tap()
+
         return app
     }
 

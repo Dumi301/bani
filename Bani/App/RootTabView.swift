@@ -15,9 +15,9 @@ enum RootTab: String, CaseIterable, Identifiable, Hashable, Sendable {
 }
 
 /// Four-tab shell (v2 teardown): **Raport · Log · Projects · Settings**. The Raport
-/// hub is the leftmost face; the old Finances tab is removed and lives on as a
-/// drill-down inside the hub ("All transactions"). Capture (Log) stays the launch
-/// tab so the zero-friction logging path is unchanged — Raport is one tap away.
+/// hub is the leftmost face AND the launch tab (E1) — the living report is the
+/// app's face (VISION §2). Capture (Log) is one tap away; the old Finances tab
+/// is removed and lives on as a drill-down inside the hub ("All transactions").
 ///
 /// The Projects tab carries a subtle overdue badge whenever any pending scheduled
 /// item is past due; this in-app flag works REGARDLESS of the payment-reminders
@@ -25,11 +25,11 @@ enum RootTab: String, CaseIterable, Identifiable, Hashable, Sendable {
 struct RootTabView: View {
     @Query private var scheduledItems: [ScheduledItem]
 
-    /// Launch on Log (capture-first). Raport is the leftmost tab in order but not
-    /// the default selection, so the existing capture-on-launch behaviour — and the
-    /// blocking `ManualEntryUITests` / `RecordingCrashRegressionUITests`, which
-    /// expect the Log screen at launch — are unchanged.
-    @State private var selection: RootTab = .log
+    /// Launch on Raport (E1 — flips the prior Log-first default per the P7
+    /// review-packet flag). Both `ManualEntryUITests` and
+    /// `RecordingCrashRegressionUITests` navigate to the Log tab themselves
+    /// after launch before driving their respective flows.
+    @State private var selection: RootTab = .raport
 
     /// Count of pending, past-due scheduled items — the tab-icon badge.
     private var overdueCount: Int {

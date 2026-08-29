@@ -126,7 +126,7 @@ struct PersonDetailView: View {
 
     private var summary: PersonSummary? {
         let items = transactions.map { PersonItem(counterparty: counterparty, amount: $0.amount, currency: $0.currency, direction: $0.direction, date: $0.date) }
-        return PeopleAnalytics.summaries(items, rate: rates.rate).first
+        return PeopleAnalytics.summaries(items, rate: rates.rateDecimal).first
     }
 
     var body: some View {

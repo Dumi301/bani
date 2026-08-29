@@ -32,16 +32,19 @@ struct PersonSummary: Identifiable, Equatable, Sendable {
 /// EUR excluded, matching the rest of Finances).
 enum PeopleAnalytics {
 
-    static func ronValue(_ item: PersonItem, rate: Double?) -> Decimal? {
+    /// L5: `rate` is a `Decimal` (see `RateService.rateDecimal`) so this never
+    /// re-derives a `Decimal` from the display `Double` — the source of the FX
+    /// display noise this fix removes.
+    static func ronValue(_ item: PersonItem, rate: Decimal?) -> Decimal? {
         switch item.currency {
         case .ron: return item.amount
-        case .eur: return rate.map { item.amount * Decimal($0) }
+        case .eur: return rate.map { item.amount * $0 }
         }
     }
 
     /// Per-counterparty summaries, sorted by absolute net descending (the people
     /// you have the most outstanding with float to the top).
-    static func summaries(_ items: [PersonItem], rate: Double?) -> [PersonSummary] {
+    static func summaries(_ items: [PersonItem], rate: Decimal?) -> [PersonSummary] {
         var byName: [String: PersonSummary] = [:]
         for item in items {
             let key = item.counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -70,7 +73,7 @@ enum PeopleAnalytics {
         var id: Double { date.timeIntervalSince1970 }
     }
 
-    static func runningBalance(_ items: [PersonItem], rate: Double?) -> [BalancePoint] {
+    static func runningBalance(_ items: [PersonItem], rate: Decimal?) -> [BalancePoint] {
         let sorted = items.sorted { $0.date < $1.date }
         var running = Decimal(0)
         var out: [BalancePoint] = []

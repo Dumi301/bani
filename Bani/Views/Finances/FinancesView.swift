@@ -887,7 +887,7 @@ struct FinancesView: View {
             return PersonItem(counterparty: cp, amount: tx.amount, currency: tx.currency, direction: tx.direction, date: tx.date)
         }
         let scoped = displayRate == nil ? items.filter { $0.currency == currencyToggle } : items
-        return PeopleAnalytics.summaries(scoped, rate: displayRate)
+        return PeopleAnalytics.summaries(scoped, rate: rateDecimal)
     }
 
     @ViewBuilder

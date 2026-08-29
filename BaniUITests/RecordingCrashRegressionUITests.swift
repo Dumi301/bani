@@ -7,10 +7,11 @@ import XCTest
 /// check trapped when AVFAudio invoked it on the realtime audio thread. The fix
 /// makes that tap block `@Sendable` (nonisolated).
 ///
-/// This test drives the real path: launch → tap Personal → grant the mic
-/// permission alert → record start, and asserts the app is STILL ALIVE ~2 s
-/// later — long enough for the tap to fire real buffers on the audio thread,
-/// which is precisely where the pre-fix build SIGTRAP'd.
+/// This test drives the real path: launch → navigate to Log (E1: Raport is
+/// now the launch tab) → tap Personal → grant the mic permission alert →
+/// record start, and asserts the app is STILL ALIVE ~2 s later — long enough
+/// for the tap to fire real buffers on the audio thread, which is precisely
+/// where the pre-fix build SIGTRAP'd.
 ///
 /// NOTE: the iOS Simulator does NOT reliably reproduce realtime-audio-thread
 /// isolation traps — it has no hardware render thread continuously driving the
@@ -47,9 +48,15 @@ final class RecordingCrashRegressionUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
 
+        // E1: the launch tab flipped to Raport — navigate to Log (tab index 1)
+        // to reach the Personal record button this regression guard drives.
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "tab bar should exist")
+        tabBar.buttons.element(boundBy: 1).tap()
+
         let personalButton = app.buttons["logView.personalButton"]
         XCTAssertTrue(personalButton.waitForExistence(timeout: 10),
-                      "Log screen with the Personal record button should be shown on launch")
+                      "Log screen with the Personal record button should be shown after navigating to the Log tab")
         personalButton.tap()
 
         // Grant the permission alert deterministically through Springboard — more

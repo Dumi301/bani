@@ -199,4 +199,22 @@ final class RateServiceTests: XCTestCase {
         let exact = try XCTUnwrap(Decimal(string: "4.9761"))
         XCTAssertEqual(result, 100 * exact, "the fetched-XML rate converts bit-exactly end to end")
     }
+
+    // MARK: - L5 (Phase E / E2): PeopleAnalytics.ronValue exactness
+
+    /// `PeopleAnalytics.ronValue` now consumes the exact `Decimal` rate (mirrors
+    /// `FinancesAnalytics.ronValue` / `ReceivablesRollup.ronValue`, the five L5
+    /// sites already landed) rather than re-deriving a `Decimal` from a `Double`
+    /// rate at the call site. `4.9761` is not exactly representable in binary64,
+    /// so `Decimal(Double(4.9761))` provably differs from the exact decimal text —
+    /// proving the exact source is genuinely what gets multiplied.
+    func testPeopleAnalyticsRonValueIsBitExactWithDecimalRate() throws {
+        let exact = try XCTUnwrap(Decimal(string: "4.9761"))
+        let item = PersonItem(counterparty: "Ana", amount: Decimal(10), currency: .eur, direction: .expense, date: .now)
+
+        let result = try XCTUnwrap(PeopleAnalytics.ronValue(item, rate: exact))
+        XCTAssertEqual(result, Decimal(10) * exact)
+        XCTAssertNotEqual(result, Decimal(10) * Decimal(4.9761),
+                          "must NOT match the noisy Decimal(Double) conversion — the exact rate is genuinely consulted")
+    }
 }
