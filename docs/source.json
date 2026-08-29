@@ -22,12 +22,12 @@
       },
       "versions": [
         {
-          "version": "2.1.64",
-          "buildVersion": "64",
-          "date": "2026-08-25T18:58:43Z",
-          "localizedDescription": "Bani 2.1 — backup & restore; fixed install version match",
-          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.1.64/Bani.ipa",
-          "size": 3138428,
+          "version": "2.2.70",
+          "buildVersion": "70",
+          "date": "2026-08-29T22:02:07Z",
+          "localizedDescription": "Bani 2.2 — trustworthy money: throttled bank sync, atomic restore, exact loan booking, Raport-first launch",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.2.70/Bani.ipa",
+          "size": 3155226,
           "minOSVersion": "26.0"
         }
       ]
