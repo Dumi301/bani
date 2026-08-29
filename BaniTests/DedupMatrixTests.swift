@@ -345,7 +345,7 @@ final class DedupMatrixTests: XCTestCase {
         // A THIRD, unrelated transaction independently flagged as a duplicate of the
         // LOSER — simulating an earlier, separate P8 flag unrelated to this merge.
         let thirdTx = Transaction(amount: 5, currency: .ron, context: .personal,
-                                   descriptionText: "altceva", source: .manual, direction: .expense, date: now)
+                                   descriptionText: "altceva", date: now, source: .manual, direction: .expense)
         ctx.insert(thirdTx)
         thirdTx.duplicateOfID = shareTx.id
         try ctx.save()
