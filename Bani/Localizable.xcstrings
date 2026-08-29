@@ -104,6 +104,24 @@
         "ro": { "stringUnit": { "state": "translated", "value": "S-au importat %lld tranzacții" } }
       }
     },
+    "bank.sync.error": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Last sync failed — will retry automatically" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ultima sincronizare a eșuat — se reia automat" } }
+      }
+    },
+    "bank.sync.lastSync": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Last sync" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Ultima sincronizare" } }
+      }
+    },
+    "bank.sync.never": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Never" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciodată" } }
+      }
+    },
     "bank.sync.now": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Sync now" } },
