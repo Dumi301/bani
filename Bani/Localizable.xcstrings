@@ -218,6 +218,12 @@
         "ro": { "stringUnit": { "state": "translated", "value": "Editează creditul" } }
       }
     },
+    "loan.error.paymentBelowInterest": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The monthly payment must exceed the first month's interest, otherwise the loan is never paid off." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plata lunară trebuie să fie mai mare decât dobânda din prima lună, altfel creditul nu se achită niciodată." } }
+      }
+    },
     "loan.field.fixedPayment": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Fixed monthly payment (optional)" } },
@@ -2985,6 +2991,22 @@
       }
     },
     "import.dateFmt.monthFirst": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month first"
+          }
+        },
+        "ro": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Luna întâi"
+          }
+        }
+      }
+    },
+    "import.dateFmt.monthFirstDot": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -6474,6 +6496,12 @@
         "ro": { "stringUnit": { "state": "translated", "value": "Diferență %@" } }
       }
     },
+    "reconcile.history.residual %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unclosed gap %@ — folded into the new baseline" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Diferență neînchisă %@ — inclusă în noua bază" } }
+      }
+    },
     "reconcile.tx.note %@": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Reconciliation vs anchor %@" } },
@@ -7848,6 +7876,12 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Outside every project P&L" } },
         "ro": { "stringUnit": { "state": "translated", "value": "În afara P&L-ului proiectelor" } }
+      }
+    },
+    "raport.debt.costTruncatedNote": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Minimum estimate — payment doesn't cover interest." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Cost minim estimat — plata nu acoperă dobânda." } }
       }
     },
     "raport.debt.interest": {

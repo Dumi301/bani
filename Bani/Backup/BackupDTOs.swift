@@ -337,6 +337,13 @@ struct ScheduledItemDTO: Codable, Equatable, Sendable {
     var recurrenceRaw: String?
     var seriesID: UUID?
     var loanID: UUID?
+    /// Follow-up 2 (v2.2 phase C): the literal `scheduleIndexRaw` stored Int? —
+    /// additive + optional, same discipline as `recurrenceRaw`: a pre-M3 archive
+    /// has no such key, and Swift's synthesized `Decodable` decodes a missing key
+    /// on an Optional property to `nil` automatically, so old archives round-trip
+    /// with no stamp (falling back to due-date booking order), never a decode
+    /// failure.
+    var scheduleIndex: Int?
     var createdAt: Date
 
     init(_ item: ScheduledItem) {
@@ -354,6 +361,7 @@ struct ScheduledItemDTO: Codable, Equatable, Sendable {
         recurrenceRaw = item.recurrenceRaw
         seriesID = item.seriesID
         loanID = item.loanID
+        scheduleIndex = item.scheduleIndexRaw
         createdAt = item.createdAt
     }
 
@@ -362,7 +370,7 @@ struct ScheduledItemDTO: Codable, Equatable, Sendable {
             id: id, direction: direction, amount: try BackupDecimalCodec.decode(amount), currency: currency,
             title: title, descriptionText: descriptionText, counterparty: counterparty, dueDate: dueDate,
             projectID: projectID, status: status, linkedTransactionID: linkedTransactionID,
-            seriesID: seriesID, loanID: loanID, createdAt: createdAt
+            seriesID: seriesID, loanID: loanID, scheduleIndex: scheduleIndex, createdAt: createdAt
         )
         item.recurrenceRaw = recurrenceRaw
         return item
@@ -377,6 +385,12 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
     var anchoredAt: Date
     var driftAtAnchor: String
     var note: String?
+    /// L3: the literal `unresolvedResidualRaw` stored optional Decimal (encoded
+    /// String, same discipline as `amount`/`driftAtAnchor`) — `nil` for every
+    /// anchor closed by an adjustment and for a pre-L3 archive (a missing key
+    /// decodes to `nil` via Swift's synthesized `Decodable`, matching how
+    /// `ScheduledItemDTO.scheduleIndex` round-trips a legacy archive).
+    var unresolvedResidual: String?
     var createdAt: Date
 
     init(_ anchor: BalanceAnchor) {
@@ -386,6 +400,7 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
         anchoredAt = anchor.anchoredAt
         driftAtAnchor = BackupDecimalCodec.encode(anchor.driftAtAnchor)
         note = anchor.note
+        unresolvedResidual = anchor.unresolvedResidualRaw.map(BackupDecimalCodec.encode)
         createdAt = anchor.createdAt
     }
 
@@ -393,7 +408,8 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
         BalanceAnchor(
             id: id, amount: try BackupDecimalCodec.decode(amount), currency: currency,
             anchoredAt: anchoredAt, driftAtAnchor: try BackupDecimalCodec.decode(driftAtAnchor),
-            note: note, createdAt: createdAt
+            note: note, unresolvedResidual: try BackupDecimalCodec.decodeOptional(unresolvedResidual),
+            createdAt: createdAt
         )
     }
 }

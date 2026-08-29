@@ -23,7 +23,18 @@ struct BankSyncGate {
     /// safely inside quota.
     static let minInterval: TimeInterval = 6 * 60 * 60
 
-    private static let lastSuccessKey = "bank.sync.lastSuccessAt"
+    // NOT `.secondsSince1970`/`timeIntervalSince1970`: `Date` natively stores its
+    // interval since the 2001 reference date, not 1970 — round-tripping through
+    // `timeIntervalSince1970` adds the 978307200.0 epoch offset on write and
+    // subtracts it on read, and that double arithmetic loses a ULP on recent
+    // dates. Two `Date`s that PRINT identically then fail exact `Equatable`
+    // comparison (`testFailedOutcomeAfterPriorSuccessLeavesTimestampUntouched`,
+    // CI run 33258846602) — same bug class as `BackupArchiver`/`BackupRestorer`
+    // (commit 56cf7fb). Persisting `timeIntervalSinceReferenceDate` directly is
+    // bit-exact, zero-conversion. Key renamed (not just the storage format) so a
+    // stale since-1970 `Double` left over from a prior build is never misread as
+    // a reference-date interval.
+    private static let lastSuccessKey = "bank.sync.lastSuccessRefDate"
     private static let lastHadErrorKey = "bank.sync.lastHadError"
 
     private let defaults: UserDefaults
@@ -35,8 +46,8 @@ struct BankSyncGate {
     /// The timestamp of the last sync attempt that did NOT error, or nil if
     /// none has ever succeeded (or the persisted value was cleared).
     var lastSuccessAt: Date? {
-        let stored = defaults.double(forKey: Self.lastSuccessKey)
-        return stored > 0 ? Date(timeIntervalSince1970: stored) : nil
+        guard let stored = defaults.object(forKey: Self.lastSuccessKey) as? Double else { return nil }
+        return Date(timeIntervalSinceReferenceDate: stored)
     }
 
     /// Whether the MOST RECENT sync attempt (foreground or manual) ended in
@@ -63,6 +74,6 @@ struct BankSyncGate {
         guard !outcome.credentialsMissing else { return }
         defaults.set(outcome.hadError, forKey: Self.lastHadErrorKey)
         guard !outcome.hadError else { return }
-        defaults.set(now.timeIntervalSince1970, forKey: Self.lastSuccessKey)
+        defaults.set(now.timeIntervalSinceReferenceDate, forKey: Self.lastSuccessKey)
     }
 }

@@ -21,10 +21,14 @@ import SwiftData
 ///     overlapping window skips anything already imported. This is what guarantees
 ///     "second pull → no double-insert".
 ///  2. **Cross-source, P8:** `DedupService.flagIfDuplicate` flags (never drops) the
-///     SAME real payment arriving from a different surface. NOTE (risk): a bank row
-///     and an Apple-Pay `.autoLogged` row share the `.autoLoggedIntent` dedup origin
-///     (the frozen `DedupOrigin` has no bank case), so those two are not P8-flagged
-///     against each other; bank-vs-manual/voice/share/import IS flagged.
+///     SAME real payment arriving from a different surface. `DedupOrigin` DOES carry
+///     a dedicated `.bank` case (`[bank]`-prefixed `rawTranscript` resolves to it —
+///     see `DedupOrigin.of`), distinct from `.autoLoggedIntent` (Apple Pay) and
+///     `.autoLoggedShare` — so a bank row and an Apple-Pay `.autoLogged` row ARE
+///     cross-source flagged against each other, exactly like bank-vs-manual/voice/
+///     share/import. `DedupOrigin`'s own doc explains why: intent, share, and bank
+///     are each meant to collide with EACH OTHER (the same real payment commonly
+///     arrives via more than one surface).
 
 // MARK: - Draft + mapper (pure, Sendable)
 
@@ -149,8 +153,11 @@ enum BankSyncMapper {
     // MARK: rawTranscript marker
 
     /// The `[bank]` origin prefix + the embedded bank-key marker used for re-pull
-    /// dedup. Kept `[bank]`-prefixed (NOT `[share]`) so `DedupOrigin` resolves to
-    /// `.autoLoggedIntent`, never colliding with real share captures.
+    /// dedup. Kept `[bank]`-prefixed (NOT `[share]`) so `DedupOrigin` resolves to its
+    /// own dedicated `.bank` case (see `DedupOrigin.of`) rather than being mistaken
+    /// for a share capture — `.bank` still cross-source-collides with
+    /// `.autoLoggedShare`/`.autoLoggedIntent`/manual/voice/import, just not with
+    /// another `.bank` row (that re-pull guard is the bank-key marker below, not P8).
     static let originPrefix = "[bank]"
 
     static func rawTranscript(for draft: BankDraft) -> String {

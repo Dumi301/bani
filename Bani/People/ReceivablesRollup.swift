@@ -38,17 +38,20 @@ struct ReceivablesSummary: Equatable, Sendable {
 /// recurring receivable once, never once per past/future occurrence.
 enum ReceivablesRollup {
 
-    static func ronValue(_ item: ScheduledItemSnapshot, rate: Double?) -> Decimal? {
+    /// L5: `rate` is a `Decimal` (see `RateService.rateDecimal`) so this never
+    /// re-derives a `Decimal` from the display `Double` — the source of the FX
+    /// display noise this fix removes.
+    static func ronValue(_ item: ScheduledItemSnapshot, rate: Decimal?) -> Decimal? {
         switch item.currency {
         case .ron: return item.amount
-        case .eur: return rate.map { item.amount * Decimal($0) }
+        case .eur: return rate.map { item.amount * $0 }
         }
     }
 
     /// Groups pending/incoming items by counterparty (blank counterparties
     /// excluded — there is no "who" to owe). Done items and outgoing items
     /// (money the client owes, not receivables) are excluded entirely.
-    static func build(_ items: [ScheduledItemSnapshot], rate: Double?) -> ReceivablesSummary {
+    static func build(_ items: [ScheduledItemSnapshot], rate: Decimal?) -> ReceivablesSummary {
         var byName: [String: [(item: ScheduledItemSnapshot, ronValue: Decimal)]] = [:]
         var order: [String] = []
 

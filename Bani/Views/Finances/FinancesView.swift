@@ -650,6 +650,11 @@ struct FinancesView: View {
     private var trimmedQuery: String { searchText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isSearching: Bool { !trimmedQuery.isEmpty }
     private var displayRate: Double? { rates.rate }
+    // L5: the exact Decimal rate (`RateService.rateDecimal`) — the source every
+    // `FinancesAnalytics` call below uses, not `displayRate.map { Decimal($0) }`
+    // (the binary-float-noise conversion this fix removes). `displayRate` itself
+    // stays `Double`-typed: it only ever feeds nil-checks and "1 EUR = …" text.
+    private var rateDecimal: Decimal? { rates.rateDecimal }
     private var currencyCode: String { displayRate == nil ? currencyToggle.displayCode : Currency.ron.displayCode }
     private var defaultCustomStart: Date { calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date() }
 
@@ -776,7 +781,7 @@ struct FinancesView: View {
         let scoped = displayRate == nil ? incomeTransactions.filter { $0.currency == currencyToggle } : incomeTransactions
         return scoped.map(spendItem)
     }
-    private var incomeTotal: Decimal { FinancesAnalytics.combinedTotal(incomeSpendItems, rate: displayRate) }
+    private var incomeTotal: Decimal { FinancesAnalytics.combinedTotal(incomeSpendItems, rate: rateDecimal) }
     private var hasIncome: Bool { !incomeTransactions.isEmpty }
     /// Net cash flow = income − spending (A3 net toggle).
     private var netTotal: Decimal { incomeTotal - periodTotal }
@@ -788,23 +793,23 @@ struct FinancesView: View {
     // MARK: - Aggregates
 
     private var periodTotal: Decimal {
-        FinancesAnalytics.combinedTotal(analyticsSpendItems, rate: displayRate)
+        FinancesAnalytics.combinedTotal(analyticsSpendItems, rate: rateDecimal)
     }
     private var categoryTotals: [FinancesAnalytics.CategoryTotal] {
-        FinancesAnalytics.byCategory(analyticsSpendItems, rate: displayRate)
+        FinancesAnalytics.byCategory(analyticsSpendItems, rate: rateDecimal)
     }
     private var buckets: [FinancesAnalytics.TimeBucket] {
-        FinancesAnalytics.buckets(analyticsSpendItems, interval: currentInterval, unit: preset.bucketUnit, calendar: calendar, rate: displayRate)
+        FinancesAnalytics.buckets(analyticsSpendItems, interval: currentInterval, unit: preset.bucketUnit, calendar: calendar, rate: rateDecimal)
     }
     private var averageBucket: Decimal {
         FinancesAnalytics.average(buckets)
     }
     private var currentTrend: [FinancesAnalytics.CumulativePoint] {
-        FinancesAnalytics.cumulative(analyticsSpendItems, rate: displayRate, isPrevious: false, displayShift: 0)
+        FinancesAnalytics.cumulative(analyticsSpendItems, rate: rateDecimal, isPrevious: false, displayShift: 0)
     }
     private var previousTrend: [FinancesAnalytics.CumulativePoint] {
         let shift = currentInterval.start.timeIntervalSince(previousInterval.start)
-        return FinancesAnalytics.cumulative(previousSpendItems, rate: displayRate, isPrevious: true, displayShift: shift)
+        return FinancesAnalytics.cumulative(previousSpendItems, rate: rateDecimal, isPrevious: true, displayShift: shift)
     }
 
     // MARK: - Grouping

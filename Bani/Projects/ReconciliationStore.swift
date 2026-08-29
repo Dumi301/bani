@@ -122,7 +122,9 @@ enum ReconciliationStore {
             modelContext.insert(tx)
             adjustment = tx
         }
-        let anchor = insertAnchor(result: result, note: note, now: now, in: modelContext)
+        // L3: the drift was CLOSED by the adjustment above (or there was none to
+        // close) — never an open residual on this path.
+        let anchor = insertAnchor(result: result, note: note, now: now, residual: nil, in: modelContext)
         try? modelContext.save()
         return Commit(anchor: anchor, adjustment: adjustment)
     }
@@ -130,6 +132,11 @@ enum ReconciliationStore {
     /// Record reality WITHOUT a closing adjustment: mark the point and reset the
     /// drift baseline to `result.actual`, writing no transaction. The next reconcile
     /// measures drift from here.
+    ///
+    /// L3: when the drift is non-zero, it folds invisibly into the new baseline —
+    /// no adjustment closes it. That gap is recorded on the anchor itself
+    /// (`unresolvedResidual`) so the reconciliation history UI can surface it,
+    /// without changing the math at all (the baseline reset is unchanged).
     @MainActor
     @discardableResult
     static func anchorOnly(
@@ -138,7 +145,8 @@ enum ReconciliationStore {
         now: Date = .now,
         in modelContext: ModelContext
     ) -> BalanceAnchor {
-        let anchor = insertAnchor(result: result, note: note, now: now, in: modelContext)
+        let residual = result.drift == 0 ? nil : result.drift
+        let anchor = insertAnchor(result: result, note: note, now: now, residual: residual, in: modelContext)
         try? modelContext.save()
         return anchor
     }
@@ -146,13 +154,15 @@ enum ReconciliationStore {
     // MARK: - Internals
 
     /// Insert the anchor row (amount = the entered reality; `driftAtAnchor` = the
-    /// drift observed at this reconcile, for the history list). Not saved — callers
-    /// batch the save.
+    /// drift observed at this reconcile, for the history list; `residual` = the
+    /// L3 open-gap marker, non-nil only from the `anchorOnly` path). Not saved —
+    /// callers batch the save.
     @MainActor
     private static func insertAnchor(
         result: ReconciliationResult,
         note: String?,
         now: Date,
+        residual: Decimal?,
         in modelContext: ModelContext
     ) -> BalanceAnchor {
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -161,7 +171,8 @@ enum ReconciliationStore {
             currency: result.currency,
             anchoredAt: now,
             driftAtAnchor: result.drift,
-            note: (trimmed?.isEmpty ?? true) ? nil : trimmed
+            note: (trimmed?.isEmpty ?? true) ? nil : trimmed,
+            unresolvedResidual: residual
         )
         modelContext.insert(anchor)
         return anchor

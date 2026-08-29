@@ -281,6 +281,15 @@ struct ReconciliationHistoryView: View {
                 Text(anchor.anchoredAt.formatted(.dateTime.day().month(.abbreviated).year().hour().minute().locale(locale)))
                     .font(.caption2)
                     .foregroundStyle(Palette.secondaryInk)
+                // L3: the anchor-only open residual, one secondary-text line —
+                // visibility only, never shown when the drift was closed by an
+                // adjustment (or was already zero).
+                if let residual = anchor.unresolvedResidual {
+                    Text(residualText(residual))
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .accessibilityIdentifier("reconcile.history.residual")
+                }
             }
             Spacer()
             Text(driftText(anchor.driftAtAnchor))
@@ -294,5 +303,14 @@ struct ReconciliationHistoryView: View {
         let sign = value > 0 ? "+" : (value < 0 ? "−" : "")
         let magnitude = value.magnitude.formatted(.number.precision(.fractionLength(0...2)))
         return String(localized: "reconcile.history.drift \("\(sign)\(magnitude)")")
+    }
+
+    /// L3: the anchor-only unresolved-gap caption, mirroring `driftText`'s
+    /// sign+magnitude convention (currency is already shown on the amount line
+    /// above, so it's omitted here too).
+    private func residualText(_ value: Decimal) -> String {
+        let sign = value > 0 ? "+" : (value < 0 ? "−" : "")
+        let magnitude = value.magnitude.formatted(.number.precision(.fractionLength(0...2)))
+        return String(localized: "reconcile.history.residual \("\(sign)\(magnitude)")")
     }
 }

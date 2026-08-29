@@ -150,7 +150,9 @@ enum RaportHubBuilder {
         loans: [LoanSnapshot],
         projects: [ProjectSnapshot],
         items: [ScheduledItemSnapshot],
-        rate: Double?,
+        // L5: a `Decimal` (see `RateService.rateDecimal`) — the caller passes the
+        // exact FX rate directly rather than converting a display `Double` here.
+        rate: Decimal?,
         horizon: LiquidityHorizon,
         cashflowInterval: DateInterval,
         // IDs of scheduled items that are loan payments (`ScheduledItem.loanID != nil`).
@@ -169,17 +171,16 @@ enum RaportHubBuilder {
         now: Date = .now,
         calendar: Calendar = .current
     ) -> RaportHubModel {
-        let rateDecimal = rate.map { Decimal($0) }
         let projectLines = lines.map(\.projectLine)
 
         // ── Position ──
-        let netLogged = ProjectAnalytics.netLoggedPosition(projectLines, rate: rateDecimal)
+        let netLogged = ProjectAnalytics.netLoggedPosition(projectLines, rate: rate)
         let pendingSnapshots = items.filter { $0.status == .pending }
         let liquidity = LiquidityCalculator.result(
             netLoggedPosition: netLogged,
             pendingItems: pendingSnapshots,
             horizon: horizon,
-            rate: rateDecimal,
+            rate: rate,
             now: now
         )
         var cashIn: Decimal = 0
@@ -187,7 +188,7 @@ enum RaportHubBuilder {
         var cashUnconvertible = false
         for line in lines where line.date >= cashflowInterval.start && line.date < cashflowInterval.end {
             guard line.direction != .neutral else { continue }
-            guard let value = ron(line.amount, line.currency, rate: rateDecimal) else {
+            guard let value = ron(line.amount, line.currency, rate: rate) else {
                 cashUnconvertible = true
                 continue
             }
@@ -219,7 +220,7 @@ enum RaportHubBuilder {
         // ── Projects (invested + budgeting) ──
         let projectRows: [RaportProjectRow] = projects
             .filter { !$0.archived }
-            .map { projectRow(for: $0, lines: lines, items: items, loanItemIDs: loanItemIDs, rate: rateDecimal, calendar: calendar) }
+            .map { projectRow(for: $0, lines: lines, items: items, loanItemIDs: loanItemIDs, rate: rate, calendar: calendar) }
 
         return RaportHubModel(
             position: position, receivables: receivables,

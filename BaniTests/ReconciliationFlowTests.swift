@@ -129,6 +129,9 @@ final class ReconciliationFlowTests: XCTestCase {
         let anchor = ReconciliationStore.anchorOnly(result: result, now: fixedNow, in: ctx)
         XCTAssertEqual(anchor.amount, 800)
         XCTAssertEqual(anchor.driftAtAnchor, -200)
+        // L3: the unclosed drift is recorded as the anchor's open residual —
+        // visibility only, the math above (drift/baseline) is untouched.
+        XCTAssertEqual(anchor.unresolvedResidual, -200, "anchorOnly with non-zero drift records the unclosed gap as a residual")
 
         // No transaction written; the position is unchanged by a bare anchor.
         XCTAssertEqual(try ctx.fetchCount(FetchDescriptor<Transaction>()), txCountBefore, "Just anchor writes no transaction")
@@ -138,6 +141,32 @@ final class ReconciliationFlowTests: XCTestCase {
         let result2 = ReconciliationStore.result(actual: 800, currency: .ron, in: ctx)
         XCTAssertEqual(result2.expected, 800, "baseline reset to the anchored reality")
         XCTAssertEqual(result2.drift, 0)
+
+        // L3: anchoring again at zero drift leaves NO open residual (nothing unclosed).
+        let anchorClean = ReconciliationStore.anchorOnly(result: result2, now: fixedNow.addingTimeInterval(60), in: ctx)
+        XCTAssertNil(anchorClean.unresolvedResidual, "a zero-drift anchorOnly records no residual")
+    }
+
+    // MARK: - L3: anchorOnly residual visibility
+
+    /// `createAdjustmentAndAnchor` CLOSES the drift with a real transaction, so its
+    /// anchor must never carry an open residual — only the `anchorOnly` (no
+    /// adjustment) path can leave one. Math (drift/position) is identical to
+    /// `testAdjustThenAnchorMakesPositionEqualRealityAndSecondReconcileIsClean`.
+    func testCreateAdjustmentAndAnchorNeverRecordsResidual() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        seed(ctx, .income, 1000)
+        seed(ctx, .expense, 300)
+        try ctx.save()
+
+        let result = ReconciliationStore.result(actual: 650, currency: .ron, in: ctx)
+        XCTAssertEqual(result.drift, -50)
+
+        let commit = ReconciliationStore.createAdjustmentAndAnchor(result: result, now: fixedNow, in: ctx)
+        XCTAssertNotNil(commit.adjustment, "sanity: the drift WAS closed by a real adjustment")
+        XCTAssertNil(commit.anchor.unresolvedResidual, "a drift closed by an adjustment leaves no open residual")
     }
 
     // MARK: - Composition with P3: a live loan booking flows through as booked

@@ -248,7 +248,9 @@ struct ProjectsView: View {
         )
     }
     private var horizon: LiquidityHorizon { LiquidityHorizon(rawValue: horizonRaw) ?? .days30 }
-    private var rateDecimal: Decimal? { rates.rate.map { Decimal($0) } }
+    // L5: the exact Decimal rate (`RateService.rateDecimal`), not
+    // `rates.rate.map { Decimal($0) }` — see `RateService`'s doc.
+    private var rateDecimal: Decimal? { rates.rateDecimal }
 
     private var activeProjects: [Project] { projects.filter { !$0.archived } }
     private var archivedProjects: [Project] { projects.filter { $0.archived } }

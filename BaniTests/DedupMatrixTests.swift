@@ -313,6 +313,77 @@ final class DedupMatrixTests: XCTestCase {
         XCTAssertTrue(recs.last?.correctedFields.contains(.merge) ?? false, "the merge is recorded via the additive .merge bit")
     }
 
+    // MARK: - L2: merge repoints dangling references before deleting the loser
+
+    /// L2: a container that ALSO registers `ScheduledItem` (absent from
+    /// `ImportTestSupport.inMemoryContainer()`, `makeContainer()`'s backing), so
+    /// the dangling-reference repoint tests below can plant a linked ScheduledItem
+    /// alongside the dedup-relevant types `saveVoice`/`AutoLogWriter.logShared` need.
+    private func makeContextWithScheduledItems() throws -> ModelContext {
+        let container = try ModelContainer(
+            for: Transaction.self, CategoryRule.self, DecisionRecord.self, ContextRule.self,
+            CorrectionMemory.self, CustomCategory.self, ImportBatch.self, ScheduledItem.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        return ModelContext(container)
+    }
+
+    func testMergeRepointsOtherDuplicateOfIDReferencesToKeeper() throws {
+        let ctx = try makeContextWithScheduledItems()
+        let now = Date()
+
+        let voiceTx = saveVoice(amount: 77, description: "Lidl Cluj", date: now, in: ctx)   // earlier createdAt, the keeper
+        let shareTx = AutoLogWriter.logShared(
+            amount: 77, currency: .ron, descriptionText: "Lidl", merchant: "Lidl",
+            direction: .expense, rawText: "notificare Lidl 77 RON", in: ctx
+        )
+        voiceTx.createdAt = now.addingTimeInterval(-60)
+        shareTx.createdAt = now
+        try ctx.save()
+        XCTAssertEqual(shareTx.duplicateOfID, voiceTx.id, "sanity: shareTx (the loser) is flagged against voiceTx (the keeper)")
+
+        // A THIRD, unrelated transaction independently flagged as a duplicate of the
+        // LOSER — simulating an earlier, separate P8 flag unrelated to this merge.
+        let thirdTx = Transaction(amount: 5, currency: .ron, context: .personal,
+                                   descriptionText: "altceva", source: .manual, direction: .expense, date: now)
+        ctx.insert(thirdTx)
+        thirdTx.duplicateOfID = shareTx.id
+        try ctx.save()
+
+        let kept = DedupService.merge(shareTx, in: ctx)
+        XCTAssertEqual(kept?.id, voiceTx.id)
+
+        XCTAssertEqual(thirdTx.duplicateOfID, voiceTx.id,
+                       "a third row's duplicateOfID is repointed to the keeper, never left dangling on the deleted loser")
+    }
+
+    func testMergeRepointsLinkedScheduledItemToKeeper() throws {
+        let ctx = try makeContextWithScheduledItems()
+        let now = Date()
+
+        let voiceTx = saveVoice(amount: 77, description: "Lidl Cluj", date: now, in: ctx)   // earlier createdAt, the keeper
+        let shareTx = AutoLogWriter.logShared(
+            amount: 77, currency: .ron, descriptionText: "Lidl", merchant: "Lidl",
+            direction: .expense, rawText: "notificare Lidl 77 RON", in: ctx
+        )
+        voiceTx.createdAt = now.addingTimeInterval(-60)
+        shareTx.createdAt = now
+        try ctx.save()
+        XCTAssertEqual(shareTx.duplicateOfID, voiceTx.id, "sanity: shareTx (the loser) is flagged against voiceTx (the keeper)")
+
+        // A ScheduledItem "mark-done" linked to the LOSER — independent of dedup.
+        let item = ScheduledItem(direction: .outgoing, amount: 77, currency: .ron, title: "Chirie",
+                                  dueDate: now, status: .done, linkedTransactionID: shareTx.id)
+        ctx.insert(item)
+        try ctx.save()
+
+        let kept = DedupService.merge(shareTx, in: ctx)
+        XCTAssertEqual(kept?.id, voiceTx.id)
+
+        XCTAssertEqual(item.linkedTransactionID, voiceTx.id,
+                       "the ScheduledItem's link is repointed to the keeper, never left dangling on the deleted loser")
+    }
+
     func testKeepBothClearsFlagWithoutDeletingAndWritesConfirmedRecord() throws {
         let ctx = try makeContext()
         let now = Date()
