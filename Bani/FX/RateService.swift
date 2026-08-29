@@ -12,7 +12,9 @@ import SwiftUI
 /// Persistence uses `@AppStorage` PRIMITIVES ONLY (`@AppStorage` cannot store
 /// structs or `Decimal`): `"bnr.rate"` (Double), `"bnr.date"` (String — the
 /// BNR *publishing* date from the XML, NOT `fetchedAt`), `"bnr.fetchedAt"`
-/// (Double, `timeIntervalSince1970`).
+/// (Double, `timeIntervalSince1970`), `"bnr.rateExact"` (String — L5: the
+/// literal decimal text backing `rateDecimal`, the exact `Decimal` mirror of
+/// `rate` every display multiply should use).
 ///
 /// Weekend/holiday: BNR simply serves the last published rates — there is no
 /// special-casing beyond parsing whatever the feed returns.
@@ -43,6 +45,18 @@ final class RateService {
     @ObservationIgnored
     @AppStorage("bnr.fetchedAt") private var storedFetchedAt: Double = 0
 
+    /// L5: the bit-exact `Decimal` mirror of `storedRate`, persisted SEPARATELY
+    /// as its literal decimal text (`Decimal`'s `description` — always "."
+    /// decimal point, no grouping — round-trips through `Decimal(string:)`
+    /// exactly). NOT derived from `storedRate`/`rate` via `Decimal(Double)`:
+    /// that conversion carries the source `Double`'s binary rounding error
+    /// (a BNR rate like "4.9761" is not exactly representable in binary
+    /// floating point), which is exactly the noise `rateDecimal` exists to
+    /// avoid in every display total downstream. Empty sentinel = "never
+    /// fetched", mirroring `storedDate`.
+    @ObservationIgnored
+    @AppStorage("bnr.rateExact") private var storedRateExact: String = ""
+
     // MARK: Observable, display-facing state
     //
     // Kept as plain (internal) `var`s rather than `private(set)` so
@@ -53,6 +67,14 @@ final class RateService {
     /// EUR→RON, display-only. `nil` until a rate has ever been fetched.
     var rate: Double?
 
+    /// L5: EUR→RON as an exact `Decimal` — the source every `Decimal` multiply
+    /// against a transaction amount should use (`RateService.ronEquivalent`,
+    /// `FinancesAnalytics.ronValue`/`combinedTotal`/`byCategory`/`buckets`/
+    /// `cumulative`, `ReceivablesRollup.ronValue`/`build`, `RaportHubBuilder.build`)
+    /// instead of converting the `Double` `rate` at the call site. `nil` exactly
+    /// when `rate` is `nil`.
+    var rateDecimal: Decimal?
+
     /// The `<Cube date="…">` BNR *publishing* date from the XML — NOT `fetchedAt`.
     var bnrPublishingDate: String?
 
@@ -61,6 +83,7 @@ final class RateService {
 
     init() {
         rate = storedRate > 0 ? storedRate : nil
+        rateDecimal = storedRateExact.isEmpty ? nil : Decimal(string: storedRateExact)
         bnrPublishingDate = storedDate.isEmpty ? nil : storedDate
         fetchedAt = storedFetchedAt > 0 ? Date(timeIntervalSince1970: storedFetchedAt) : nil
     }
@@ -84,10 +107,12 @@ final class RateService {
 
             let now = Date()
             rate = parsed.rate
+            rateDecimal = parsed.rateDecimal
             bnrPublishingDate = parsed.date
             fetchedAt = now
 
             storedRate = parsed.rate
+            storedRateExact = "\(parsed.rateDecimal)"
             storedDate = parsed.date
             storedFetchedAt = now.timeIntervalSince1970
         } catch {
@@ -99,13 +124,18 @@ final class RateService {
     /// `.ron` passes the amount through unchanged. `.eur` converts using the
     /// cached rate, or returns `nil` if no rate has ever been fetched (the
     /// caller then falls back to per-currency totals, never a guessed rate).
+    /// L5: multiplies by `rateDecimal` (falling back to `Decimal(rate)` only
+    /// when `rateDecimal` wasn't populated — e.g. a caller that seeded `rate`
+    /// directly without going through `refreshIfNeeded()`/`init()`) rather than
+    /// converting the `Double` `rate` here, so the everyday path never
+    /// reintroduces the binary-float rounding noise `rateDecimal` exists to avoid.
     func ronEquivalent(of amount: Decimal, currency: Currency) -> Decimal? {
         switch currency {
         case .ron:
             return amount
         case .eur:
-            guard let rate else { return nil }
-            return amount * Decimal(rate)
+            guard let exact = rateDecimal ?? rate.map({ Decimal($0) }) else { return nil }
+            return amount * exact
         }
     }
 
@@ -116,8 +146,11 @@ final class RateService {
     /// needed) and extracts the `<Cube date="…">` publishing date plus the
     /// `<Rate currency="EUR">` value. Numbers are dot-decimal, parsed with a
     /// FIXED `en_US_POSIX` locale regardless of device locale. Returns `nil`
-    /// on any parse failure or a missing EUR rate.
-    nonisolated static func parseEURRate(fromBNRXML xml: String) -> (rate: Double, date: String)? {
+    /// on any parse failure or a missing EUR rate. L5: `rateDecimal` is parsed
+    /// directly from the XML's raw decimal text via `Decimal(string:)` — never
+    /// derived from `rate` (the `Double`) — so it carries none of the binary
+    /// floating-point rounding a `Decimal(Double)` conversion would.
+    nonisolated static func parseEURRate(fromBNRXML xml: String) -> (rate: Double, rateDecimal: Decimal, date: String)? {
         guard let data = xml.data(using: .utf8) else { return nil }
 
         let delegate = BNRRateXMLParserDelegate()
@@ -126,10 +159,11 @@ final class RateService {
 
         guard parser.parse(),
               let date = delegate.cubeDate,
-              let rate = delegate.eurRate else {
+              let rate = delegate.eurRate,
+              let rateDecimal = delegate.eurRateExact else {
             return nil
         }
-        return (rate, date)
+        return (rate, rateDecimal, date)
     }
 }
 
@@ -139,6 +173,10 @@ final class RateService {
 private final class BNRRateXMLParserDelegate: NSObject, XMLParserDelegate {
     private(set) var cubeDate: String?
     private(set) var eurRate: Double?
+    /// L5: parsed straight from the trimmed XML text via `Decimal(string:)` —
+    /// a separate, zero-Double-intermediate path from `eurRate` (see
+    /// `RateService.parseEURRate`'s doc).
+    private(set) var eurRateExact: Decimal?
 
     private static let posixLocale = Locale(identifier: "en_US_POSIX")
 
@@ -191,5 +229,10 @@ private final class BNRRateXMLParserDelegate: NSObject, XMLParserDelegate {
         if let number = formatter.number(from: trimmed) {
             eurRate = number.doubleValue
         }
+        // L5: exact decimal digits, no `Double` in the path at all (unlike
+        // `eurRate` above via `NumberFormatter.doubleValue`). `Decimal(string:)`
+        // with a nil locale always expects "." as the decimal point (matching
+        // the fixed-POSIX text BNR publishes), so no locale argument is needed.
+        eurRateExact = Decimal(string: trimmed)
     }
 }

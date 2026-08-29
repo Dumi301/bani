@@ -41,7 +41,7 @@ final class FinancesAnalyticsTests: XCTestCase {
             SpendItem(amount: 10, currency: .eur, category: .dining, date: day(2026, 7, 2)),
         ]
         // 100 RON + 10 EUR × 5.0 = 150 RON
-        XCTAssertEqual(FinancesAnalytics.combinedTotal(items, rate: 5.0), 150)
+        XCTAssertEqual(FinancesAnalytics.combinedTotal(items, rate: 5), 150)
     }
 
     func testNoRateFallbackExcludesEURFromCombined() {

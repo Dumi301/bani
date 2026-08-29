@@ -115,7 +115,7 @@ final class ReceivablesRollupTests: XCTestCase {
         let items = [item(counterparty: "Ana", direction: .incoming, status: .pending, amount: 100, currency: .eur, dueDate: Date())]
         XCTAssertEqual(ReceivablesRollup.build(items, rate: nil).grandTotal, 0, "EUR without a rate is excluded, not zero-valued")
         XCTAssertEqual(ReceivablesRollup.build(items, rate: nil).people.isEmpty, true)
-        XCTAssertEqual(ReceivablesRollup.build(items, rate: 5.0).grandTotal, 500)
+        XCTAssertEqual(ReceivablesRollup.build(items, rate: 5).grandTotal, 500)
     }
 
     // MARK: - sort order (largest total first)

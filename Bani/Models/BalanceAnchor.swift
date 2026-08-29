@@ -41,7 +41,31 @@ final class BalanceAnchor {
     var driftAtAnchor: Decimal
     /// Optional free-text note the client attached when anchoring.
     var note: String?
+    /// v2.2 L3 "anchor-only residual visibility" — the drift left OPEN when this
+    /// anchor was recorded via the `anchorOnly` commit (no closing adjustment
+    /// written): the same magnitude as `driftAtAnchor`, kept SEPARATELY so an
+    /// anchor closed WITH an adjustment (whose drift was fully absorbed into a
+    /// real `Transaction`) is never confused with one that folded the gap
+    /// silently into the new baseline. STORED as an **Optional** `Decimal`, the
+    /// same additive discipline as `ScheduledItem.scheduleIndexRaw` (added in
+    /// phase C): `BalanceAnchor` rows written before this column decode to `nil`
+    /// (a legal Optional decode, zero data loss — the `Bani-2026-08-02` law) and
+    /// read as "no open residual" through the `unresolvedResidual` accessor.
+    /// `nil` for every anchor committed via `createAdjustmentAndAnchor` (the
+    /// drift was closed) and for a zero-drift `anchorOnly`; set to
+    /// `result.drift` ONLY by `ReconciliationStore.anchorOnly` when the drift is
+    /// non-zero. Reconciliation math itself is byte-identical — this is
+    /// visibility only (see `ReconciliationStore` / `ReconciliationHistoryView`).
+    var unresolvedResidualRaw: Decimal?
     var createdAt: Date
+
+    /// Public accessor over the optional backing store. Kept a plain computed
+    /// property (never used in a `#Predicate`/`SortDescriptor` keypath — all
+    /// residual display is in-memory), matching `ScheduledItem.scheduleIndex`.
+    var unresolvedResidual: Decimal? {
+        get { unresolvedResidualRaw }
+        set { unresolvedResidualRaw = newValue }
+    }
 
     init(
         id: UUID = UUID(),
@@ -50,6 +74,7 @@ final class BalanceAnchor {
         anchoredAt: Date = .now,
         driftAtAnchor: Decimal = 0,
         note: String? = nil,
+        unresolvedResidual: Decimal? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -58,6 +83,7 @@ final class BalanceAnchor {
         self.anchoredAt = anchoredAt
         self.driftAtAnchor = driftAtAnchor
         self.note = note
+        self.unresolvedResidualRaw = unresolvedResidual
         self.createdAt = createdAt
     }
 }
@@ -74,6 +100,9 @@ struct BalanceAnchorSnapshot: Identifiable, Hashable, Sendable {
     let anchoredAt: Date
     let driftAtAnchor: Decimal
     let note: String?
+    /// L3: the open (never-closed) residual from an `anchorOnly` commit, or
+    /// `nil` — mirrors `BalanceAnchor.unresolvedResidual`.
+    let unresolvedResidual: Decimal?
     let createdAt: Date
 }
 
@@ -81,7 +110,8 @@ extension BalanceAnchor {
     var snapshot: BalanceAnchorSnapshot {
         BalanceAnchorSnapshot(
             id: id, amount: amount, currency: currency, anchoredAt: anchoredAt,
-            driftAtAnchor: driftAtAnchor, note: note, createdAt: createdAt
+            driftAtAnchor: driftAtAnchor, note: note,
+            unresolvedResidual: unresolvedResidual, createdAt: createdAt
         )
     }
 }

@@ -30,7 +30,7 @@ final class RaportModelTests: XCTestCase {
     /// Fetch everything and assemble the hub model exactly as the view does.
     private func buildModel(
         in ctx: ModelContext,
-        rate: Double? = nil,
+        rate: Decimal? = nil,
         horizon: LiquidityHorizon = .days30,
         now: Date = .now,
         calendar: Calendar = .current,

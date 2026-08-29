@@ -16,6 +16,10 @@ struct BankLinkView: View {
     @Environment(\.modelContext) private var modelContext
 
     private let keychain = KeychainStore()
+    /// H1 (phase-A): stateless status/throttle wrapper shared with
+    /// `BaniApp.syncBankIfNeeded` — read here to show the last-sync time + a
+    /// plain error line, and updated after every manual "Sync now" too.
+    private let bankSyncGate = BankSyncGate()
 
     @State private var store: BankLinkStore?
     @State private var secretID = ""
@@ -85,6 +89,24 @@ struct BankLinkView: View {
                 Text(statusText).foregroundStyle(Palette.secondaryInk)
             }
             .listRowBackground(Palette.surface)
+
+            if store?.state.isLinked == true {
+                LabeledContent("bank.sync.lastSync") {
+                    Text(lastSyncText).foregroundStyle(Palette.secondaryInk)
+                }
+                .listRowBackground(Palette.surface)
+
+                if bankSyncGate.lastHadError {
+                    // Spec: "a plain error line" — same muted styling as every
+                    // other secondary line on this screen (no ad-hoc color; the
+                    // palette has no error/danger token and adding one is
+                    // outside this lane's touched files).
+                    Text("bank.sync.error")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .listRowBackground(Palette.surface)
+                }
+            }
 
             if store?.state.isLinked != true {
                 Picker("bank.institution.select", selection: $selectedInstitutionID) {
@@ -159,6 +181,14 @@ struct BankLinkView: View {
         }
     }
 
+    /// H1 (phase-A): the last successful sync (foreground or manual), read
+    /// straight from `bankSyncGate` — never dated (recomputed on every body
+    /// evaluation, so a fresh manual sync updates it immediately).
+    private var lastSyncText: String {
+        guard let date = bankSyncGate.lastSuccessAt else { return String(localized: "bank.sync.never") }
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
     // MARK: Actions
 
     private func bootstrap() {
@@ -199,6 +229,10 @@ struct BankLinkView: View {
         let accounts = store.link?.accountIDs ?? []
         let service = BankSyncService(modelContainer: modelContext.container)
         let outcome = await service.sync(accountIDs: accounts, client: client)
+        // H1: manual sync bypasses `bankSyncGate.shouldSync` (this button always
+        // runs) but still records the outcome so the status line above reflects
+        // it — same bookkeeping the foreground path uses.
+        bankSyncGate.recordOutcome(outcome)
         syncSummary = String(format: String(localized: "bank.sync.done %lld"), outcome.inserted)
     }
 

@@ -35,11 +35,14 @@ enum FinancesAnalytics {
 
     /// The RON-equivalent of one item. `.ron` passes through; `.eur` converts
     /// with `rate` when present, otherwise returns the raw EUR amount (the caller
-    /// only combines when a rate exists — see `combinedTotal`).
-    static func ronValue(_ item: SpendItem, rate: Double?) -> Decimal {
+    /// only combines when a rate exists — see `combinedTotal`). L5: `rate` is a
+    /// `Decimal` (see `RateService.rateDecimal`) so this never re-derives a
+    /// `Decimal` from the display `Double` — the source of the FX display noise
+    /// this fix removes.
+    static func ronValue(_ item: SpendItem, rate: Decimal?) -> Decimal {
         switch item.currency {
         case .ron: return item.amount
-        case .eur: return rate.map { item.amount * Decimal($0) } ?? item.amount
+        case .eur: return rate.map { item.amount * $0 } ?? item.amount
         }
     }
 
@@ -55,11 +58,11 @@ enum FinancesAnalytics {
     /// RON-combined total over the items. With `rate == nil`, EUR items are
     /// EXCLUDED (there is no honest way to combine them) — the caller shows the
     /// side-by-side per-currency fallback instead.
-    static func combinedTotal(_ items: [SpendItem], rate: Double?) -> Decimal {
+    static func combinedTotal(_ items: [SpendItem], rate: Decimal?) -> Decimal {
         items.reduce(Decimal(0)) { sum, item in
             switch item.currency {
             case .ron: return sum + item.amount
-            case .eur: return rate.map { sum + item.amount * Decimal($0) } ?? sum
+            case .eur: return rate.map { sum + item.amount * $0 } ?? sum
             }
         }
     }
@@ -86,7 +89,7 @@ enum FinancesAnalytics {
     /// Per-category totals (RON-combined when `rate` given, else the passed items
     /// should already be single-currency), sorted by total descending. Custom
     /// categories aggregate as their own `CategoryRef.custom` buckets (C3).
-    static func byCategory(_ items: [SpendItem], rate: Double?) -> [CategoryTotal] {
+    static func byCategory(_ items: [SpendItem], rate: Decimal?) -> [CategoryTotal] {
         var totals: [CategoryRef?: (total: Decimal, count: Int)] = [:]
         for item in items {
             let value = ronValue(item, rate: rate)
@@ -121,7 +124,7 @@ enum FinancesAnalytics {
 
     /// Sums items into `unit`-aligned buckets across `interval`, filling empty
     /// buckets with zero so the bar chart never shows a gap (D2 empty states).
-    static func buckets(_ items: [SpendItem], interval: DateInterval, unit: Calendar.Component, calendar: Calendar, rate: Double?) -> [TimeBucket] {
+    static func buckets(_ items: [SpendItem], interval: DateInterval, unit: Calendar.Component, calendar: Calendar, rate: Decimal?) -> [TimeBucket] {
         var sums: [Date: Decimal] = [:]
         for item in items {
             let start = calendar.dateInterval(of: unit, for: item.date)?.start ?? item.date
@@ -169,7 +172,7 @@ enum FinancesAnalytics {
 
     /// A running-sum series for one window. `displayShift` maps a previous-period
     /// point onto the current window (0 for the current period).
-    static func cumulative(_ items: [SpendItem], rate: Double?, isPrevious: Bool, displayShift: TimeInterval) -> [CumulativePoint] {
+    static func cumulative(_ items: [SpendItem], rate: Decimal?, isPrevious: Bool, displayShift: TimeInterval) -> [CumulativePoint] {
         let sorted = items.sorted { $0.date < $1.date }
         var running = Decimal(0)
         return sorted.map { item in

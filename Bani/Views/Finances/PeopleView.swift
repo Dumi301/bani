@@ -36,7 +36,7 @@ private struct ReceivablesEntryRow: View {
     @Query private var scheduledItems: [ScheduledItem]
 
     private var summary: ReceivablesSummary {
-        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rate)
+        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rateDecimal)
     }
 
     var body: some View {
@@ -126,7 +126,7 @@ struct PersonDetailView: View {
 
     private var summary: PersonSummary? {
         let items = transactions.map { PersonItem(counterparty: counterparty, amount: $0.amount, currency: $0.currency, direction: $0.direction, date: $0.date) }
-        return PeopleAnalytics.summaries(items, rate: rates.rate).first
+        return PeopleAnalytics.summaries(items, rate: rates.rateDecimal).first
     }
 
     var body: some View {
@@ -200,7 +200,7 @@ struct ReceivablesView: View {
     @Query private var scheduledItems: [ScheduledItem]
 
     private var summary: ReceivablesSummary {
-        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rate)
+        ReceivablesRollup.build(scheduledItems.map(\.snapshot), rate: rates.rateDecimal)
     }
 
     var body: some View {

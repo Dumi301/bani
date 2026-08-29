@@ -98,7 +98,17 @@ struct RaportHubView: View {
     // MARK: - Model
 
     private var model: RaportHubModel {
-        RaportHubBuilder.build(
+        // Follow-up 1 (v2.2 M4 wiring): `[loanID: [scheduleIndex of its still-pending
+        // payment items]]`, reduced by `RaportHubBuilder.nextLoanPaymentIndex` to each
+        // loan's NEXT row so the debt preview matches exactly what `LoanStore.bookPayment`
+        // books next. A loan absent (no pending items, or none carry a stamp) is simply
+        // omitted — `debtRow` then falls back to booked-count ordering.
+        let pendingStampsByLoan = Dictionary(
+            grouping: scheduledItems.filter { $0.status == .pending && $0.loanID != nil },
+            by: { $0.loanID! }
+        ).mapValues { $0.compactMap(\.scheduleIndex) }
+
+        return RaportHubBuilder.build(
             lines: transactions.map {
                 RaportTxLine(amount: $0.amount, currency: $0.currency, direction: $0.direction,
                              projectID: $0.projectID, loanID: $0.loanID, date: $0.date)
@@ -106,10 +116,11 @@ struct RaportHubView: View {
             loans: loans.map(\.snapshot),
             projects: projects.map(\.snapshot),
             items: scheduledItems.map(\.snapshot),
-            rate: rates.rate,
+            rate: rates.rateDecimal,
             horizon: horizon,
             cashflowInterval: cashflowInterval,
             loanItemIDs: Set(scheduledItems.filter { $0.loanID != nil }.map(\.id)),
+            nextLoanPaymentIndex: RaportHubBuilder.nextLoanPaymentIndex(pendingStampsByLoan: pendingStampsByLoan),
             now: Date(),
             calendar: calendar
         )
@@ -446,6 +457,16 @@ struct RaportHubView: View {
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryInk)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        // Follow-up 3 (v2.2): M5's floor-interest truncation flag
+                        // (`RaportDebtSection.costOfCapitalTruncated`) was computed but
+                        // never surfaced — one secondary-text line, mirroring the note above.
+                        if section.costOfCapitalTruncated {
+                            Text("raport.debt.costTruncatedNote")
+                                .font(.caption2)
+                                .foregroundStyle(Palette.secondaryInk)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityIdentifier("raport.debt.costTruncatedNote")
+                        }
                     }
                 }
             }
@@ -677,7 +698,9 @@ struct RaportHubView: View {
     /// Resolve every non-neutral transaction into a categorised pivot row (RON).
     private func centralizatorRows() -> [CentralizatorPivotExporter.Row] {
         let customLookup = Dictionary(uniqueKeysWithValues: customCategories.map { ($0.id, $0.name) })
-        let rate = rates.rate.map { Decimal($0) }
+        // L5: the exact Decimal rate, not `rates.rate.map { Decimal($0) }` (the
+        // binary-float-noise conversion this fix removes).
+        let rate = rates.rateDecimal
         return transactions.compactMap { tx in
             guard tx.direction != .neutral else { return nil }
             let ron: Decimal

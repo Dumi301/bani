@@ -86,8 +86,12 @@ enum DateFieldParser {
             if b > 12 { secondOver12 = true }
         }
         // If the second field exceeds 12 (and the first doesn't), it's month-first.
+        // L1: the dot arm was a dead ternary (`.monthFirstSlash` on both sides) —
+        // dot-separated month-first evidence now reports `.monthFirstDot`, mirroring
+        // the day-first line below. The dash arm intentionally stays `.monthFirstSlash`
+        // (dash dates reuse the slash-order formats — see the caller's comment).
         if secondOver12 && !firstOver12 {
-            return separator == "." ? .monthFirstSlash : .monthFirstSlash
+            return separator == "." ? .monthFirstDot : .monthFirstSlash
         }
         return separator == "." ? .dayFirstDot : .dayFirstSlash
     }

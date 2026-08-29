@@ -136,8 +136,11 @@ struct ProjectDashboardView: View {
     // MARK: - Derived
 
     private var customLookup: CustomCategoryLookup { customCategories.lookup }
-    private var displayRate: Double? { rates.rate }
-    private var rateDecimal: Decimal? { rates.rate.map { Decimal($0) } }
+    // L5: the exact Decimal rate (`RateService.rateDecimal`), not
+    // `rates.rate.map { Decimal($0) }` — see `RateService`'s doc. `displayRate`
+    // (the Double mirror) was dropped here once every local FinancesAnalytics/
+    // ProjectAnalytics call site moved onto this exact Decimal source.
+    private var rateDecimal: Decimal? { rates.rateDecimal }
     private var currencyCode: String { Currency.ron.displayCode }
 
     private var projectTransactions: [Transaction] {
@@ -178,8 +181,8 @@ struct ProjectDashboardView: View {
             .map { SpendItem(amount: $0.amount, currency: $0.currency, category: $0.category, customCategoryID: $0.customCategoryID, date: $0.date) }
     }
 
-    private var periodTotal: Decimal { FinancesAnalytics.combinedTotal(spendItems, rate: displayRate) }
-    private var categoryTotals: [FinancesAnalytics.CategoryTotal] { FinancesAnalytics.byCategory(spendItems, rate: displayRate) }
+    private var periodTotal: Decimal { FinancesAnalytics.combinedTotal(spendItems, rate: rateDecimal) }
+    private var categoryTotals: [FinancesAnalytics.CategoryTotal] { FinancesAnalytics.byCategory(spendItems, rate: rateDecimal) }
 
     /// All-time interval spanning the project's expenses (monthly buckets).
     private var interval: DateInterval {
@@ -190,9 +193,9 @@ struct ProjectDashboardView: View {
     }
 
     private var buckets: [FinancesAnalytics.TimeBucket] {
-        FinancesAnalytics.buckets(spendItems, interval: interval, unit: .month, calendar: .current, rate: displayRate)
+        FinancesAnalytics.buckets(spendItems, interval: interval, unit: .month, calendar: .current, rate: rateDecimal)
     }
     private var currentTrend: [FinancesAnalytics.CumulativePoint] {
-        FinancesAnalytics.cumulative(spendItems, rate: displayRate, isPrevious: false, displayShift: 0)
+        FinancesAnalytics.cumulative(spendItems, rate: rateDecimal, isPrevious: false, displayShift: 0)
     }
 }

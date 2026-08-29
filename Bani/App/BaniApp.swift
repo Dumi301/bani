@@ -34,6 +34,10 @@ struct BaniApp: App {
 
     @State private var whisper: WhisperService
     @State private var rates: RateService
+    /// H1 (phase-A): the foreground bank-sync throttle gate. Stateless wrapper
+    /// over `UserDefaults.standard` (see `BankSyncGate`), so a plain `let` is
+    /// safe here the same way `container`/`modelAbsent` already are.
+    private let bankSyncGate = BankSyncGate()
 
     @MainActor
     init() {
@@ -128,17 +132,30 @@ struct BaniApp: App {
     /// `GoCardlessClient(secrets:)`), fire-and-forget from `scenePhase`. Inert
     /// (no network, no work) without stored credentials — `sync` itself is also
     /// silent-fail, so this never surfaces to the UI.
+    ///
+    /// H1 (phase-A, orchestrator-authorized addition): gated by `bankSyncGate`
+    /// so this opportunistic pull runs at most once per
+    /// `BankSyncGate.minInterval` (6h) — GoCardless allows ~4
+    /// transaction-endpoint calls/account/day, and every foreground was
+    /// calling `sync` unconditionally, exhausting the quota within a handful
+    /// of app opens and killing the feed for the rest of the day with no
+    /// visible symptom (the 429 was silently absorbed into
+    /// `BankSyncOutcome.hadError`). `BankLinkView.syncNow()` — the manual
+    /// "Sync now" path — calls `BankSyncService.sync` directly and never
+    /// consults this gate.
     @MainActor
     private func syncBankIfNeeded() async {
         let keychain = KeychainStore()
         guard keychain.hasCredentials else { return }
+        guard bankSyncGate.shouldSync() else { return }
         let accountIDs = (try? container.mainContext.fetch(FetchDescriptor<BankLink>()))?
             .sorted { $0.createdAt > $1.createdAt }
             .first?
             .accountIDs ?? []
         let client = GoCardlessClient(secrets: keychain)
         let service = BankSyncService(modelContainer: container)
-        _ = await service.sync(accountIDs: accountIDs, client: client)
+        let outcome = await service.sync(accountIDs: accountIDs, client: client)
+        bankSyncGate.recordOutcome(outcome)
     }
 
     var body: some Scene {

@@ -178,6 +178,26 @@ enum DedupService {
         keeper.duplicateOfID = nil
 
         let keeperID = keeper.id
+        let loserID = loser.id
+
+        // L2: repoint dangling foreign-key-style references to `loser` BEFORE it is
+        // deleted, so a merge never orphans another row's pointer.
+        //  (a) any OTHER transaction flagged as a duplicate of the loser now points
+        //      at the keeper instead (a stale, now-unresolvable `duplicateOfID`
+        //      would otherwise silently self-clear the next time it's resolved —
+        //      see `matchedTransaction`/`merge`'s own "already gone" branch above —
+        //      discarding a real unresolved flag instead of preserving it).
+        //  (b) any `ScheduledItem` linked to the loser (mark-done / loan booking)
+        //      now links to the keeper, so undo / re-entry still finds a live
+        //      transaction instead of silently no-op'ing (`ScheduledItemStore`).
+        for other in all where other.id != loserID && other.duplicateOfID == loserID {
+            other.duplicateOfID = keeperID
+        }
+        let scheduledItems = (try? context.fetch(FetchDescriptor<ScheduledItem>())) ?? []
+        for item in scheduledItems where item.linkedTransactionID == loserID {
+            item.linkedTransactionID = keeperID
+        }
+
         let keeperCategory = keeper.category
         let keeperContext = keeper.context
         context.delete(loser)

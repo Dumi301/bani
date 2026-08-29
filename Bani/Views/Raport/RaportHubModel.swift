@@ -63,6 +63,11 @@ struct RaportDebtRow: Equatable, Sendable, Identifiable {
     /// Lifetime interest across the whole amortization schedule — the cost of this
     /// capital.
     var totalInterest: Decimal
+    /// M5 defence-in-depth: `true` when this loan's schedule was force-collapsed
+    /// because a fixed payment can't amortize, so `totalInterest` is a FLOOR and
+    /// understates the real cost. Only legacy stored loans can trip this (create/
+    /// edit rejects such terms). The UI must flag cost, never show it as honest.
+    var totalInterestTruncated: Bool
 
     var id: UUID { loanID }
 }
@@ -75,8 +80,11 @@ struct RaportDebtSection: Equatable, Sendable {
     var rows: [RaportDebtRow]
     var totalOutstanding: Decimal
     var costOfCapital: Decimal
+    /// M5: `true` when ANY row's `totalInterest` is truncated, so this section's
+    /// `costOfCapital` understates the real cost and must be shown flagged.
+    var costOfCapitalTruncated: Bool
 
-    static let empty = RaportDebtSection(rows: [], totalOutstanding: 0, costOfCapital: 0)
+    static let empty = RaportDebtSection(rows: [], totalOutstanding: 0, costOfCapital: 0, costOfCapitalTruncated: false)
     var isEmpty: Bool { rows.isEmpty }
 }
 
@@ -142,7 +150,9 @@ enum RaportHubBuilder {
         loans: [LoanSnapshot],
         projects: [ProjectSnapshot],
         items: [ScheduledItemSnapshot],
-        rate: Double?,
+        // L5: a `Decimal` (see `RateService.rateDecimal`) — the caller passes the
+        // exact FX rate directly rather than converting a display `Double` here.
+        rate: Decimal?,
         horizon: LiquidityHorizon,
         cashflowInterval: DateInterval,
         // IDs of scheduled items that are loan payments (`ScheduledItem.loanID != nil`).
@@ -150,20 +160,27 @@ enum RaportHubBuilder {
         // this set; the project budgeting rows exclude these so loan debt-service is
         // counted only once, in the dedicated Debt sections.
         loanItemIDs: Set<UUID> = [],
+        // M4: for each loan, the schedule-row index of its NEXT payment = the lowest
+        // schedule stamp (`ScheduledItem.scheduleIndex`) among its still-pending
+        // payment items — exactly the row `LoanStore.bookPayment` will book next.
+        // `ScheduledItemSnapshot` omits the stamp, so (like `loanItemIDs`) the caller
+        // derives this from the live items (see `nextLoanPaymentIndex(...)`). A loan
+        // absent from the map (legacy items with no stamp) falls back to booked-count
+        // ordering in `debtRow`.
+        nextLoanPaymentIndex: [UUID: Int] = [:],
         now: Date = .now,
         calendar: Calendar = .current
     ) -> RaportHubModel {
-        let rateDecimal = rate.map { Decimal($0) }
         let projectLines = lines.map(\.projectLine)
 
         // ── Position ──
-        let netLogged = ProjectAnalytics.netLoggedPosition(projectLines, rate: rateDecimal)
+        let netLogged = ProjectAnalytics.netLoggedPosition(projectLines, rate: rate)
         let pendingSnapshots = items.filter { $0.status == .pending }
         let liquidity = LiquidityCalculator.result(
             netLoggedPosition: netLogged,
             pendingItems: pendingSnapshots,
             horizon: horizon,
-            rate: rateDecimal,
+            rate: rate,
             now: now
         )
         var cashIn: Decimal = 0
@@ -171,7 +188,7 @@ enum RaportHubBuilder {
         var cashUnconvertible = false
         for line in lines where line.date >= cashflowInterval.start && line.date < cashflowInterval.end {
             guard line.direction != .neutral else { continue }
-            guard let value = ron(line.amount, line.currency, rate: rateDecimal) else {
+            guard let value = ron(line.amount, line.currency, rate: rate) else {
                 cashUnconvertible = true
                 continue
             }
@@ -193,7 +210,8 @@ enum RaportHubBuilder {
         var bankRows: [RaportDebtRow] = []
         var investorRows: [RaportDebtRow] = []
         for loan in loans where loan.status == .active {
-            let row = debtRow(for: loan, lines: lines, projectName: projectName, calendar: calendar)
+            let row = debtRow(for: loan, lines: lines, projectName: projectName,
+                              nextIndex: nextLoanPaymentIndex[loan.id], calendar: calendar)
             if loan.kind == .bank { bankRows.append(row) } else { investorRows.append(row) }
         }
         let bankDebt = section(bankRows)
@@ -202,7 +220,7 @@ enum RaportHubBuilder {
         // ── Projects (invested + budgeting) ──
         let projectRows: [RaportProjectRow] = projects
             .filter { !$0.archived }
-            .map { projectRow(for: $0, lines: lines, items: items, loanItemIDs: loanItemIDs, rate: rateDecimal, calendar: calendar) }
+            .map { projectRow(for: $0, lines: lines, items: items, loanItemIDs: loanItemIDs, rate: rate, calendar: calendar) }
 
         return RaportHubModel(
             position: position, receivables: receivables,
@@ -216,12 +234,11 @@ enum RaportHubBuilder {
         for loan: LoanSnapshot,
         lines: [RaportTxLine],
         projectName: (UUID?) -> String?,
+        nextIndex: Int?,
         calendar: Calendar
     ) -> RaportDebtRow {
         // Outstanding = principal − Σ booked principal (neutral, loan-tagged) slices.
         // This is the exact `LoanStore.position` definition, computed purely here.
-        // (`RaportTxLine` carries `loanID`; `ScheduledItemSnapshot` does not, so the
-        // next-payment split is read from the schedule, not the pending item.)
         let bookedSlices = lines.filter { $0.loanID == loan.id && $0.direction == .neutral }
         let bookedPrincipal = bookedSlices.reduce(Decimal(0)) { $0 + $1.amount }
         let bookedCount = bookedSlices.count
@@ -230,7 +247,7 @@ enum RaportHubBuilder {
             ? AmortizationSchedule.rounded2(outstanding / loan.principal * 100)
             : 0
 
-        let schedule = AmortizationSchedule.schedule(
+        let amortization = AmortizationSchedule.scheduleResult(
             principal: loan.principal,
             annualRatePercent: loan.annualRatePercent,
             termMonths: loan.termMonths,
@@ -238,10 +255,14 @@ enum RaportHubBuilder {
             fixedMonthlyPayment: loan.fixedMonthlyPayment,
             calendar: calendar
         )
-        // The next unbooked schedule row IS the next payment (amount, due date, and
-        // the interest/principal split), bound by ordinal — the exact row
-        // `LoanStore.bookPayment` will book next.
-        let nextRow: AmortizationPayment? = bookedCount < schedule.count ? schedule[bookedCount] : nil
+        let schedule = amortization.rows
+        // M4: the next payment is the row `LoanStore.bookPayment` will book next =
+        // the lowest-stamped pending item's row. Prefer that stamp (passed in from
+        // the live items); fall back to booked-count ordering for legacy loans whose
+        // items carry no stamp. Both paths agree for in-order booking; only the stamp
+        // stays correct after out-of-order booking or a mid-life edit.
+        let resolvedIndex = nextIndex ?? bookedCount
+        let nextRow: AmortizationPayment? = (0..<schedule.count).contains(resolvedIndex) ? schedule[resolvedIndex] : nil
 
         let bookedToProjectID = loan.kind == .bank ? loan.projectID : nil
         return RaportDebtRow(
@@ -258,7 +279,8 @@ enum RaportHubBuilder {
             nextDueDate: nextRow?.dueDate,
             bookedToProjectID: bookedToProjectID,
             bookedToProjectName: projectName(bookedToProjectID),
-            totalInterest: AmortizationSchedule.totalInterest(schedule)
+            totalInterest: AmortizationSchedule.totalInterest(schedule),
+            totalInterestTruncated: amortization.isTruncated
         )
     }
 
@@ -266,8 +288,24 @@ enum RaportHubBuilder {
         RaportDebtSection(
             rows: rows,
             totalOutstanding: rows.reduce(Decimal(0)) { $0 + $1.outstanding },
-            costOfCapital: rows.reduce(Decimal(0)) { $0 + $1.totalInterest }
+            costOfCapital: rows.reduce(Decimal(0)) { $0 + $1.totalInterest },
+            costOfCapitalTruncated: rows.contains { $0.totalInterestTruncated }
         )
+    }
+
+    // MARK: - Next-payment stamp map (M4)
+
+    /// Reduce each loan's pending-payment stamps to its next schedule-row index (the
+    /// lowest stamp). Feed the result to `build(nextLoanPaymentIndex:)` so the debt
+    /// preview matches EXACTLY the row `LoanStore.bookPayment` will book next, even
+    /// after out-of-order booking or a mid-life edit. A loan whose pending items
+    /// carry no stamp (legacy) is simply omitted, so `debtRow` falls back to
+    /// booked-count ordering. The caller passes `[loanID: [stamps of pending items]]`
+    /// built from the live `ScheduledItem`s (which carry `scheduleIndex`); keeping
+    /// this reduction here stops the view and tests from drifting on the definition
+    /// of "next".
+    static func nextLoanPaymentIndex(pendingStampsByLoan: [UUID: [Int]]) -> [UUID: Int] {
+        pendingStampsByLoan.compactMapValues { $0.min() }
     }
 
     // MARK: - Per-project

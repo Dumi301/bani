@@ -46,6 +46,26 @@ final class DateFieldParserTests: XCTestCase {
         XCTAssertFalse(d.ambiguous)
     }
 
+    /// L1: dot-separated month-first evidence (second field > 12) must report the
+    /// dedicated `.monthFirstDot` case, not `.monthFirstSlash` (the dead-ternary bug).
+    func testDetectDotMonthFirstProven() {
+        let d = DateFieldParser.detect(samples: [cell("03.15.2024"), cell("07.22.2024")])
+        XCTAssertEqual(d.format, .monthFirstDot)
+        XCTAssertFalse(d.ambiguous)
+    }
+
+    /// L1: `candidatePatterns` builds dot/slash/dash variants for whichever base
+    /// pattern is picked, so `.monthFirstDot` parses byte-identically to
+    /// `.monthFirstSlash` for the same dot-separated text — the fix is purely about
+    /// which case `detect` reports, never about parse behavior.
+    func testParseDotMonthFirstMatchesSlashMonthFirstBehavior() {
+        let dotDate = try! XCTUnwrap(DateFieldParser.parse(cell: cell("03.15.2024"), format: .monthFirstDot))
+        let slashDate = try! XCTUnwrap(DateFieldParser.parse(cell: cell("03.15.2024"), format: .monthFirstSlash))
+        XCTAssertEqual(dotDate, slashDate)
+        let c = comps(dotDate)
+        XCTAssertEqual(c.month, 3); XCTAssertEqual(c.day, 15)
+    }
+
     func testDetectSerialWhenXLSXCellsResolved() {
         let d = DateFieldParser.detect(samples: [cell("45657", serial: Date(timeIntervalSince1970: 0))])
         XCTAssertEqual(d.format, .excelSerial)

@@ -21,10 +21,14 @@ import SwiftData
 ///     overlapping window skips anything already imported. This is what guarantees
 ///     "second pull → no double-insert".
 ///  2. **Cross-source, P8:** `DedupService.flagIfDuplicate` flags (never drops) the
-///     SAME real payment arriving from a different surface. NOTE (risk): a bank row
-///     and an Apple-Pay `.autoLogged` row share the `.autoLoggedIntent` dedup origin
-///     (the frozen `DedupOrigin` has no bank case), so those two are not P8-flagged
-///     against each other; bank-vs-manual/voice/share/import IS flagged.
+///     SAME real payment arriving from a different surface. `DedupOrigin` DOES carry
+///     a dedicated `.bank` case (`[bank]`-prefixed `rawTranscript` resolves to it —
+///     see `DedupOrigin.of`), distinct from `.autoLoggedIntent` (Apple Pay) and
+///     `.autoLoggedShare` — so a bank row and an Apple-Pay `.autoLogged` row ARE
+///     cross-source flagged against each other, exactly like bank-vs-manual/voice/
+///     share/import. `DedupOrigin`'s own doc explains why: intent, share, and bank
+///     are each meant to collide with EACH OTHER (the same real payment commonly
+///     arrives via more than one surface).
 
 // MARK: - Draft + mapper (pure, Sendable)
 
@@ -48,16 +52,29 @@ struct BankDraft: Equatable, Sendable {
 enum BankSyncMapper {
 
     /// Money parser: the signed STRING (`"-15.30"`, `"+328.18"`, `"12,50"`) → a
-    /// magnitude `Decimal` + direction. POSIX/dot decimal, comma tolerated. Returns
-    /// nil for a blank/zero/unparseable value (skipped, never a zero-amount save).
+    /// magnitude `Decimal` + direction. L4: the sign is stripped first, then the
+    /// remaining digit token is routed through `AmountLexer.value(forDigitToken:)`
+    /// — the SAME separator-disambiguation core the voice parser and Excel/CSV
+    /// import use — instead of a naive comma→dot swap (which misread "1,234" as
+    /// 1.234 rather than the thousands-grouped 1234). GoCardless currently emits
+    /// plain dot-decimal amounts, so this is behavior-preserving for real inputs;
+    /// it only changes (fixes) inputs the naive swap got wrong. Returns nil for a
+    /// blank/zero/unparseable value (skipped, never a zero-amount save).
     static func parseAmount(_ raw: String) -> (magnitude: Decimal, direction: TransactionDirection)? {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let normalized = trimmed.replacingOccurrences(of: ",", with: ".")
-        guard let value = Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
-        if value == 0 { return nil }
-        let direction: TransactionDirection = value < 0 ? .expense : .income
-        return (value.magnitude, direction)
+
+        var isNegative = false
+        if trimmed.hasPrefix("-") {
+            isNegative = true
+            trimmed.removeFirst()
+        } else if trimmed.hasPrefix("+") {
+            trimmed.removeFirst()
+        }
+
+        guard let magnitude = AmountLexer.value(forDigitToken: trimmed), magnitude != 0 else { return nil }
+        let direction: TransactionDirection = isNegative ? .expense : .income
+        return (magnitude, direction)
     }
 
     /// Currency from the amount block's ISO code, falling back to the account
@@ -136,8 +153,11 @@ enum BankSyncMapper {
     // MARK: rawTranscript marker
 
     /// The `[bank]` origin prefix + the embedded bank-key marker used for re-pull
-    /// dedup. Kept `[bank]`-prefixed (NOT `[share]`) so `DedupOrigin` resolves to
-    /// `.autoLoggedIntent`, never colliding with real share captures.
+    /// dedup. Kept `[bank]`-prefixed (NOT `[share]`) so `DedupOrigin` resolves to its
+    /// own dedicated `.bank` case (see `DedupOrigin.of`) rather than being mistaken
+    /// for a share capture — `.bank` still cross-source-collides with
+    /// `.autoLoggedShare`/`.autoLoggedIntent`/manual/voice/import, just not with
+    /// another `.bank` row (that re-pull guard is the bank-key marker below, not P8).
     static let originPrefix = "[bank]"
 
     static func rawTranscript(for draft: BankDraft) -> String {
@@ -198,6 +218,17 @@ actor BankSyncService {
 
         // Fetch existing state once: category rules + registries for annotation, and
         // every already-imported bank key for the no-double-insert guard.
+        //
+        // H1/phase-A considered narrowing this to a `source == .autoLogged`
+        // `#Predicate` (every bank row is `.autoLogged`; `extractBankKey` already
+        // discards non-bank `.autoLogged` rows via the missing marker, so it would
+        // be a correct — not just a faster — narrowing). Left as the full fetch:
+        // there is no local Swift toolchain to compile-verify a `#Predicate`
+        // enum-equality expression here (no existing precedent for it in this
+        // codebase — the only other `#Predicate<Transaction>` sites compare `id`;
+        // `direction`, the other stored enum, is explicitly documented as "never
+        // used in a #Predicate keypath"), and CI is the only gate. Flagged for a
+        // worker/session with toolchain access to pick up.
         let ruleSnaps = ruleSnapshots()
         let projectSnaps = projectSnapshots()
         let peopleSnaps = personSnapshots()

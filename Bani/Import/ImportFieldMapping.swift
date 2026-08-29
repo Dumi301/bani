@@ -9,6 +9,14 @@ enum ImportDateFormat: String, CaseIterable, Sendable, Identifiable {
     case dayFirstSlash   // dd/MM/yyyy
     case iso             // yyyy-MM-dd
     case monthFirstSlash // MM/dd/yyyy
+    /// L1 (v2.2 smalls): added to mirror `dayFirstDot`/`dayFirstSlash` — a
+    /// dot-separated column with month-first evidence (second component > 12)
+    /// now reports its OWN case instead of the slash one. Parsing itself was
+    /// already separator-tolerant (`DateFieldParser.candidatePatterns` builds
+    /// dot/slash/dash variants for whichever case is picked, so this is a
+    /// display/detection-accuracy fix, not a parse-behavior change — see
+    /// `DateFieldParser.dayOrMonthFirst`).
+    case monthFirstDot   // MM.dd.yyyy
     case excelSerial     // numeric Excel serial → SheetCell.serialDate
 
     var id: String { rawValue }
@@ -20,6 +28,7 @@ enum ImportDateFormat: String, CaseIterable, Sendable, Identifiable {
         case .dayFirstSlash:   "dd/MM/yyyy"
         case .iso:             "yyyy-MM-dd"
         case .monthFirstSlash: "MM/dd/yyyy"
+        case .monthFirstDot:   "MM.dd.yyyy"
         case .excelSerial:     nil
         }
     }
@@ -31,6 +40,7 @@ enum ImportDateFormat: String, CaseIterable, Sendable, Identifiable {
         case .dayFirstSlash:   "31/12/2024"
         case .iso:             "2024-12-31"
         case .monthFirstSlash: "12/31/2024"
+        case .monthFirstDot:   "12.31.2024"
         case .excelSerial:     "45657"
         }
     }
@@ -42,6 +52,7 @@ enum ImportDateFormat: String, CaseIterable, Sendable, Identifiable {
         case .dayFirstSlash:   String(localized: "import.dateFmt.dayFirstSlash")
         case .iso:             String(localized: "import.dateFmt.iso")
         case .monthFirstSlash: String(localized: "import.dateFmt.monthFirst")
+        case .monthFirstDot:   String(localized: "import.dateFmt.monthFirstDot")
         case .excelSerial:     String(localized: "import.dateFmt.excelSerial")
         }
     }

@@ -387,15 +387,21 @@ enum BackupTestFixtures {
                                      fixedMonthlyPayment: nil, projectID: nil, notes: "")
         ctx.insert(interestFreeLoan)
 
+        // Follow-up 2: carries a non-nil `scheduleIndex` (the M3 loan-schedule
+        // stamp) so the backup round trip proves the STORED value, not just its
+        // nil default.
         let scheduled = ScheduledItem(direction: .outgoing, amount: 0.01, currency: .ron, title: "Rată",
                                        counterparty: "Bancă Națională", dueDate: .now, projectID: project.id,
-                                       recurrence: .monthly, loanID: loan.id)
+                                       recurrence: .monthly, loanID: loan.id, scheduleIndex: 3)
         ctx.insert(scheduled)
 
         let scheduledMinimal = ScheduledItem(direction: .incoming, amount: 42, currency: .eur, title: "Plată client", dueDate: .now)
         ctx.insert(scheduledMinimal)
 
-        let anchor = BalanceAnchor(amount: 12_345.67, currency: .eur, driftAtAnchor: -0.01, note: "notă ancoră")
+        // L3: carries a non-nil `unresolvedResidual` (an anchor-only open gap) so
+        // the backup round trip proves the STORED value, not just its nil default.
+        let anchor = BalanceAnchor(amount: 12_345.67, currency: .eur, driftAtAnchor: -0.01, note: "notă ancoră",
+                                    unresolvedResidual: -0.01)
         ctx.insert(anchor)
 
         let anchorNoNote = BalanceAnchor(amount: 0.01, currency: .ron, driftAtAnchor: 0, note: nil)

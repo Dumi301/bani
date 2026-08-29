@@ -11,6 +11,10 @@ final class RateServiceTests: XCTestCase {
     nonisolated private static let bnrRateKey = "bnr.rate"
     nonisolated private static let bnrDateKey = "bnr.date"
     nonisolated private static let bnrFetchedAtKey = "bnr.fetchedAt"
+    // L5: the exact-decimal mirror's persisted key — cleared alongside the
+    // others so a stale value never leaks between test runs on the same CI
+    // simulator (same rationale as the three keys above).
+    nonisolated private static let bnrRateExactKey = "bnr.rateExact"
 
     override func setUp() {
         super.setUp()
@@ -32,6 +36,7 @@ final class RateServiceTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: Self.bnrRateKey)
         UserDefaults.standard.removeObject(forKey: Self.bnrDateKey)
         UserDefaults.standard.removeObject(forKey: Self.bnrFetchedAtKey)
+        UserDefaults.standard.removeObject(forKey: Self.bnrRateExactKey)
     }
 
     // MARK: - Fixture loading
@@ -97,6 +102,26 @@ final class RateServiceTests: XCTestCase {
         XCTAssertEqual(parsed.rate, posixParsed, accuracy: 0.0001)
     }
 
+    // MARK: - L5: rateDecimal exactness
+
+    /// `rateDecimal` must be the LITERAL BNR decimal text, parsed via
+    /// `Decimal(string:)` — never re-derived from the `Double` `rate` (which
+    /// would reintroduce the binary-float rounding noise this property exists
+    /// to avoid). `4.9761` is not exactly representable in binary64 (its
+    /// reduced denominator, 10000 = 2⁴×5⁴, is not a pure power of two), so
+    /// `Decimal(Double)` of the parsed rate provably differs from the exact
+    /// decimal — proving `rateDecimal` really is sourced from the text, not
+    /// the `Double`.
+    func testParseEURRateReturnsExactDecimalNotDoubleDerived() throws {
+        let xml = try loadFixtureXML()
+        let parsed = try XCTUnwrap(RateService.parseEURRate(fromBNRXML: xml))
+
+        let exact = try XCTUnwrap(Decimal(string: "4.9761"))
+        XCTAssertEqual(parsed.rateDecimal, exact, "rateDecimal is the bit-exact BNR decimal text")
+        XCTAssertNotEqual(Decimal(parsed.rate), exact,
+                          "sanity: Decimal(Double) does NOT round-trip the BNR rate exactly")
+    }
+
     func testParseEURRateReturnsNilForMalformedXML() {
         XCTAssertNil(RateService.parseEURRate(fromBNRXML: "<not><valid"))
         XCTAssertNil(RateService.parseEURRate(fromBNRXML: ""))
@@ -139,5 +164,57 @@ final class RateServiceTests: XCTestCase {
 
         let result = service.ronEquivalent(of: Decimal(10), currency: .eur)
         XCTAssertNil(result)
+    }
+
+    /// L5: when `rateDecimal` IS seeded (the normal production path — `init()`
+    /// and `refreshIfNeeded()` always set both mirrors together), `ronEquivalent`
+    /// consumes it directly rather than re-deriving a `Decimal` from `rate`. The
+    /// result differs from the naive `Decimal(rate)` conversion, proving the
+    /// exact source is really what's being used, not silently ignored.
+    func testRonEquivalentUsesRateDecimalWhenBothMirrorsAreSeeded() throws {
+        let service = RateService()
+        service.rate = 4.9761
+        service.rateDecimal = try XCTUnwrap(Decimal(string: "4.9761"))
+
+        let result = try XCTUnwrap(service.ronEquivalent(of: Decimal(10), currency: .eur))
+        let exact = try XCTUnwrap(Decimal(string: "4.9761"))
+        XCTAssertEqual(result, Decimal(10) * exact)
+        XCTAssertNotEqual(result, Decimal(10) * Decimal(4.9761),
+                          "must NOT match the noisy Decimal(Double) conversion — rateDecimal is genuinely consulted")
+    }
+
+    /// L5 end-to-end: BNR XML → `rateDecimal` → `ronEquivalent`, proving the
+    /// whole pipeline (as `refreshIfNeeded()` wires it) is bit-exact — no
+    /// `Decimal(Double)` conversion anywhere between the published rate text and
+    /// the displayed RON total.
+    func testRonEquivalentEndToEndFromParsedXMLIsBitExact() throws {
+        let xml = try loadFixtureXML()
+        let parsed = try XCTUnwrap(RateService.parseEURRate(fromBNRXML: xml))
+
+        let service = RateService()
+        service.rate = parsed.rate
+        service.rateDecimal = parsed.rateDecimal
+
+        let result = try XCTUnwrap(service.ronEquivalent(of: Decimal(100), currency: .eur))
+        let exact = try XCTUnwrap(Decimal(string: "4.9761"))
+        XCTAssertEqual(result, 100 * exact, "the fetched-XML rate converts bit-exactly end to end")
+    }
+
+    // MARK: - L5 (Phase E / E2): PeopleAnalytics.ronValue exactness
+
+    /// `PeopleAnalytics.ronValue` now consumes the exact `Decimal` rate (mirrors
+    /// `FinancesAnalytics.ronValue` / `ReceivablesRollup.ronValue`, the five L5
+    /// sites already landed) rather than re-deriving a `Decimal` from a `Double`
+    /// rate at the call site. `4.9761` is not exactly representable in binary64,
+    /// so `Decimal(Double(4.9761))` provably differs from the exact decimal text —
+    /// proving the exact source is genuinely what gets multiplied.
+    func testPeopleAnalyticsRonValueIsBitExactWithDecimalRate() throws {
+        let exact = try XCTUnwrap(Decimal(string: "4.9761"))
+        let item = PersonItem(counterparty: "Ana", amount: Decimal(10), currency: .eur, direction: .expense, date: .now)
+
+        let result = try XCTUnwrap(PeopleAnalytics.ronValue(item, rate: exact))
+        XCTAssertEqual(result, Decimal(10) * exact)
+        XCTAssertNotEqual(result, Decimal(10) * Decimal(4.9761),
+                          "must NOT match the noisy Decimal(Double) conversion — the exact rate is genuinely consulted")
     }
 }

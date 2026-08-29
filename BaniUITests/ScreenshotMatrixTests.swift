@@ -7,7 +7,7 @@ import XCTest
 ///   • the app in Romanian (Log + Raport hub + Finances drill-down),
 ///   • Projects tab + dashboard, and the B1 density matrix.
 /// Tabs are selected by INDEX so capture is locale-agnostic. v2 tab order:
-/// 0 = Raport, 1 = Log, 2 = Projects, 3 = Settings (Log is the launch tab).
+/// 0 = Raport, 1 = Log, 2 = Projects, 3 = Settings (Raport is the launch tab, E1).
 final class ScreenshotMatrixTests: XCTestCase {
 
     override func setUpWithError() throws { continueAfterFailure = false }
@@ -87,6 +87,7 @@ final class ScreenshotMatrixTests: XCTestCase {
         ]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20))
+        selectTab(app, index: 1)   // E1: launch tab is now Raport — navigate to Log for this shot
         snapshot(app, name: "ro-log")
         selectTab(app, index: 0)
         XCTAssertTrue(app.descendants(matching: .any)["raport.hub.root"].waitForExistence(timeout: 10))

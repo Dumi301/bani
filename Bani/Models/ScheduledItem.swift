@@ -136,6 +136,27 @@ final class ScheduledItem {
     /// they carry `projectID == nil` so they never surface in a per-project
     /// mark-done pane (their project attribution lives on `Loan.projectID`).
     var loanID: UUID?
+    /// v2.2 M3 "loan-schedule stamp" — the 0-based `AmortizationSchedule` ROW this
+    /// payment maps to, STORED as an **Optional** `Int`. Same optional-backed
+    /// additive discipline as `recurrenceRaw` / `seriesID` / `loanID`: every
+    /// `ScheduledItem` row written before this column decodes to `nil` (a legal
+    /// Optional decode, zero data loss — the `Bani-2026-08-02` law) and reads as
+    /// "unstamped" through the `scheduleIndex` accessor below, so booking falls
+    /// back to due-date order (the pre-stamp behaviour). New loan-payment items are
+    /// stamped at generation by `LoanStore` so `bookPayment` binds each payment to
+    /// its EXACT interest/principal split by row index — never by sorted position,
+    /// which mis-binds after out-of-order booking or a mid-life loan edit. `nil`
+    /// for every non-loan scheduled item. A NEW column (never previously named), so
+    /// like `recurrenceRaw` it needs no `@Attribute(originalName:)`.
+    var scheduleIndexRaw: Int?
+    /// Public accessor over the optional backing store. Kept a plain computed
+    /// property (never used in a `#Predicate`/`SortDescriptor` keypath — all stamp
+    /// use is in-memory), matching `recurrence` / `Transaction.direction`. Reads
+    /// `nil` for legacy/unstamped rows; writes go through to the backing store.
+    var scheduleIndex: Int? {
+        get { scheduleIndexRaw }
+        set { scheduleIndexRaw = newValue }
+    }
     var createdAt: Date
 
     init(
@@ -153,6 +174,7 @@ final class ScheduledItem {
         recurrence: RecurrenceRule = .none,
         seriesID: UUID? = nil,
         loanID: UUID? = nil,
+        scheduleIndex: Int? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -169,6 +191,7 @@ final class ScheduledItem {
         self.recurrenceRaw = recurrence.rawValue
         self.seriesID = seriesID
         self.loanID = loanID
+        self.scheduleIndexRaw = scheduleIndex
         self.createdAt = createdAt
     }
 

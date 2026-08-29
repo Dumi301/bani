@@ -56,13 +56,35 @@ struct LoanEditSheet: View {
         return value
     }
     private var parsedTerm: Int? { Int(termText.trimmingCharacters(in: .whitespaces)) }
-    private var canSave: Bool {
+    /// Every OTHER `canSave` guard: a valid principal, non-blank name/lender, and
+    /// either a term or a fixed payment entered. Split out from `canSave` so the
+    /// follow-up-3 footnote (`blockedOnlyByNonAmortizingPayment`) can tell "the
+    /// form is genuinely incomplete" apart from "the form is complete but this
+    /// fixed payment can never amortize" without duplicating the guard chain.
+    private var formOtherwiseComplete: Bool {
         guard parsedPrincipal != nil else { return false }
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         guard !lender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         // A schedule needs either a term or a fixed monthly payment.
         return parsedTerm != nil || parseDecimal(fixedPaymentText) != nil
     }
+    /// M5: reject a fixed monthly payment that can't amortize (≤ first-period
+    /// interest) — it would collapse the schedule and understate total interest.
+    /// `true` (never blocks) when the form isn't complete enough yet to judge —
+    /// `canSave` already gates on `formOtherwiseComplete` separately.
+    private var passesAmortizationCheck: Bool {
+        guard let principal = parsedPrincipal else { return true }
+        return AmortizationSchedule.canAmortize(
+            principal: principal,
+            annualRatePercent: parseDecimal(rateText),
+            fixedMonthlyPayment: parseDecimal(fixedPaymentText)
+        )
+    }
+    private var canSave: Bool { formOtherwiseComplete && passesAmortizationCheck }
+    /// Follow-up 3 (v2.2 M5 footnote): true only when the form is otherwise
+    /// complete and `canAmortize` alone is what's blocking save — never shown for
+    /// a plain incomplete form (empty name, missing principal, …).
+    private var blockedOnlyByNonAmortizingPayment: Bool { formOtherwiseComplete && !passesAmortizationCheck }
     private var activeProjects: [ProjectSnapshot] {
         projects.filter { !$0.archived }.map(\.snapshot)
     }
@@ -113,7 +135,15 @@ struct LoanEditSheet: View {
                 } header: {
                     Text("loan.section.terms")
                 } footer: {
-                    Text("loan.section.terms.footer")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("loan.section.terms.footer")
+                        // Follow-up 3 (v2.2 M5): the ONLY reason Save is disabled is a
+                        // fixed payment that can never amortize the loan.
+                        if blockedOnlyByNonAmortizingPayment {
+                            Text("loan.error.paymentBelowInterest")
+                                .accessibilityIdentifier("loan.error.paymentBelowInterest")
+                        }
+                    }
                 }
                 .listRowBackground(Palette.surface)
 
@@ -155,6 +185,13 @@ struct LoanEditSheet: View {
 
     private func save() {
         guard let principal = parsedPrincipal else { return }
+        // M5: reject non-amortizing terms before mutating/persisting anything (also
+        // gated by `canSave`; this guard closes the programmatic path too).
+        guard (try? LoanStore.validate(
+            principal: principal,
+            annualRatePercent: parseDecimal(rateText),
+            fixedMonthlyPayment: parseDecimal(fixedPaymentText)
+        )) != nil else { return }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanLender = lender.trimmingCharacters(in: .whitespacesAndNewlines)
         // A bank loan keeps its project; investor money is off every project rollup.

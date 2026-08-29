@@ -20,7 +20,7 @@ env:
   # `version` field. AltStore requires CFBundleShortVersionString == the
   # source.json version EXACTLY or it refuses the install/update — never
   # hardcode "2.1" anywhere else, or the two can drift again.
-  BANI_MARKETING_VERSION: "2.1"
+  BANI_MARKETING_VERSION: "2.2"
 
 jobs:
   # ── STAGE 1 — GATE ──────────────────────────────────────────────────────────
