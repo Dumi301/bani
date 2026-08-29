@@ -1,56 +1,46 @@
-# HANDOFF — Bani V2 teardown push (2026-08-24)
+# HANDOFF — Bani
 
-Status at write time: all feature phases committed to `v2-teardown` (PR #3);
-final CI + seal commits pending. Full evidence + ⚑ flags:
-`pipeline/prompts-v2/REVIEW-PACKET.md`. Destination doc: `VISION.md` ·
-lanes: `ROADMAP.md` · execution plan: `PLAN.md`.
+Updated: 2026-08-29 (v2.2 fix-all pass; supersedes the stale 08-24 handoff that
+still listed P1 backup as parked — backup shipped in 2.1.64 on 08-25).
 
-## What shipped in this push (one commit per phase)
+## Shipped state
+- **main @ 04d4540 — "Bani 2.2"** (squash of PR #4, branch `v2.2-bugfix`):
+  fixes ALL 12 findings of the 2026-08-29 full diagnostic (2 HIGH, 5 MED,
+  5 LOW) + D-approved launch-tab flip.
+- **Release v2.2.70 LIVE on AltStore — verified 2026-08-30**: Pages feed
+  `version` 2.2.70 (HTTP 200) == release tag v2.2.70 == IPA
+  `CFBundleShortVersionString` 2.2.70 / `CFBundleVersion` 70; Bani.ipa
+  downloads HTTP 200, 3,155,226 bytes (matches the release asset exactly).
+- Previous: 2.1.64 live on AltStore since 08-25 (full backup/restore).
 
-| Commit | Phase | One-liner |
+## The v2.2 pass (one commit per phase on the PR)
+| Phase | Fixes | Commit |
 |---|---|---|
-| cb948c5 → main | P0 | AltStore update detection fixed + dynamic release notes (v1.0.43 live, verified in prod) |
-| 44c3d22 | P2 | Recurring ScheduledItems (additive, DST/month-end-safe, series) |
-| 6ab5b3a | P5 | §4.3 corpus decisions — found already shipped in v1.1; test gates added |
-| f618285 | P3 | Loans: exact-Decimal amortization, bank interest→project expense, investor cost-of-capital, markDone delegation |
-| b25b043 | P6 | Person registry + owed-to-me receivables + project interview |
-| 8097b6e | P4 | Balance anchoring/reconciliation (neutral-excluded drift, same-currency law) |
-| fc041da | P7 | **Raport Hub teardown** — tabs Raport·Log·Projects·Settings, Finances demoted, xlsx relay (Raport Custom + Centralizator) |
-| adfe5a6 | P8 | Cross-source dedup (flag-never-drop, merge review) + fix cycle adding bank origin |
-| 9400843 | P10 | Interpretation layer (FM annotates-never-gates, fallback byte-identical) |
-| 29cec2c | P9 | Open banking (GoCardless, Keychain-only secrets, no backend) |
-| dd0a5cc | P11 | Smart NL search on the hub (closed-vocabulary date compiler, verified filters) |
-| (seal) | — | 2.0.N versioning, foreground bank sync, screenshot seed |
+| A banking | H1 6h foreground sync throttle (GoCardless ~4/day quota), last-sync + error in settings, manual bypass; L4 AmountLexer-hardened bank amount parsing | c1c4ddd |
+| B backup | H2 atomic restore: erase+insert in ONE save, blobs staged & swapped post-commit — failed restore leaves data intact | 6cab58f |
+| C loans | M1 markDone/undoDone idempotence; M3 schedule-row stamps (out-of-order/edit-proof exact splits); M4 preview from stamps; M5 non-amortizing terms rejected + isTruncated flag | 182d34c |
+| D smalls | M2 dedup docs match code; L1 DateFieldParser ternary; L2 merge repoints refs; L3 anchor-only residual recorded+shown; L5 exact Decimal FX everywhere displayed; gate timestamp bit-exact (refDate) | 6fb9b3e + 2beed1a |
+| E launch | Launch tab Log→Raport (D sign-off 08-29), UI suites self-navigate; PeopleAnalytics Decimal FX; comision confirmed as-shipped | 8ac9569 (2nd PC session) |
 
-## NOT shipped
-- **P1 backup/export/restore — PARKED.** Full approved design at
-  `pipeline/prompts-v2/p1-design-notes.md`; blocked by the hook bug (below).
-  MUST be built before 2.0 is declared data-safe; it will cover the FINAL
-  schema (Loan, Person, BalanceAnchor, BankLink included) when dispatched.
-- LLM annotator async wiring inside live cards (deterministic path wired;
-  FM path seam-tested, adoption = on-device follow-up).
-- Post-V2 parking lot: houses-split, per-row import assignment, voice project
-  parsing, desktop peer, what-if scenarios.
+Fix cycles: 2 (gate ULP date round-trip → refDate persistence; test arg order).
+CI evidence: run 33264007766 full green (gate, screenshots, ipa, whisper).
 
-## Open items for D (ordered)
-1. **Fix `.claude/fable_code_guard.mjs`** (task #14; diagnosis + suggested
-   one-liner in the task) → then say the word and P1 dispatches.
-2. **"merge it"** on PR #3 once CI is green and you've eyeballed the hub
-   screenshots — the squash subject becomes the client-visible 2.0 release
-   note; write it accordingly.
-3. Review-packet ⚑ flags: launch-tab (Log vs Raport), comision mechanism
-   (family-of-origin), P5 stale-docs note.
-4. **Device checklist** (CI cannot prove): share sheet shows Bani · App Group
-   survives AltStore re-sign · Whisper end-to-end · real Raiffeisen
-   notification round-trip (then parser tuning) · GoCardless real bank link
-   (enter secret pair in Settings → Bank) · after P1 ships: backup
-   export/restore across both phones.
-5. `pipeline/` specs are still git-ignored (classifier refused workers on
-   .gitignore) — un-ignore by hand when convenient; everything referenced
-   here lives in the working copy.
+## Open items
+- **D on-device checklist** (needs both phones on 2.2): share sheet shows Bani ·
+  Whisper e2e · real Raiffeisen notification text into the parser hatch ·
+  GoCardless real bank link · cross-phone backup/restore.
+- `seenKeys` full-store fetch in `BankSyncService.sync` — correct but
+  unbounded; a `#Predicate` narrowing is flagged inline for a toolchain session.
+- Loan-aware undo for booked loan payments (generic undoDone deletes only the
+  interest tx) — flagged in `ScheduledItemStore.undoDone` comment.
+- `syncPendingPayment` regeneration after out-of-order booking + subsequent
+  loan edit (UI can't reach it today) — noted in phase C report.
+- `pipeline/` still git-ignored (specs/prompts local-only) — standing PLAN item.
 
-## Verification trail
-- Run 32723483525 (main): 6/6 green, release v1.0.43, feed verified in prod.
-- Run 32735870483 (8097b6e): green — loans/people/reconciliation suites.
-- Final run at the seal head: pending at write time — see PR #3 checks and
-  REVIEW-PACKET for the verifier's job-level evidence.
+## Known context
+- Two sessions worked this pass on 08-29 (this one + a second PC Fable session
+  that shipped phase E during a rate-limit gap). Coordination notes in
+  `<vault>/pc/pc-note-bani-*.md`.
+- Frozen-seam discipline: additive optional-backed columns only
+  (`ScheduledItem.scheduleIndexRaw`, `BalanceAnchor.unresolvedResidualRaw` are
+  the newest examples). Backup DTOs carry both.
