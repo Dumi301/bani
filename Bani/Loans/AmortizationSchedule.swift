@@ -23,6 +23,27 @@ struct AmortizationPayment: Equatable, Sendable, Identifiable {
     var id: Int { index }
 }
 
+// MARK: - Schedule result (rows + truncation flag)
+
+/// The outcome of building an amortization schedule: the rows PLUS whether the
+/// build had to force-collapse a degenerate loan (`AmortizationSchedule.schedule`
+/// returns just `.rows` for the many callers that don't care).
+///
+/// `isTruncated` is the M5 defence-in-depth flag. It is `true` only when a fixed
+/// monthly payment could not cover even the first period's interest, so the whole
+/// remaining principal was dumped into a single row (the loan can never amortize).
+/// In that case the reported `totalInterest` is a FLOOR — one month's interest —
+/// and MASSIVELY understates the true lifetime cost of a non-amortizing loan.
+/// `RaportHubModel` surfaces this flag so cost-of-capital is never silently wrong.
+/// New loans can never be `isTruncated` (create/edit validation rejects them up
+/// front — see `canAmortize`); the flag exists only to flag legacy stored data.
+struct AmortizationScheduleResult: Equatable, Sendable {
+    let rows: [AmortizationPayment]
+    let isTruncated: Bool
+
+    static let empty = AmortizationScheduleResult(rows: [], isTruncated: false)
+}
+
 // MARK: - Pure amortization math
 
 /// Pure, unit-testable fixed-rate amortization — no `ModelContext`, no side
@@ -111,7 +132,26 @@ enum AmortizationSchedule {
         fixedMonthlyPayment: Decimal?,
         calendar: Calendar = .current
     ) -> [AmortizationPayment] {
-        guard principal > 0 else { return [] }
+        scheduleResult(
+            principal: principal, annualRatePercent: annualRatePercent, termMonths: termMonths,
+            startDate: startDate, fixedMonthlyPayment: fixedMonthlyPayment, calendar: calendar
+        ).rows
+    }
+
+    /// The full build, exposing the M5 `isTruncated` flag alongside the rows. The
+    /// row math is byte-identical to the historical `schedule(...)` (which now just
+    /// takes `.rows`); the only addition is recording WHEN the degenerate
+    /// below-interest collapse fired, so callers that book real money can tell a
+    /// genuine schedule apart from a force-collapsed one.
+    static func scheduleResult(
+        principal: Decimal,
+        annualRatePercent: Decimal?,
+        termMonths: Int?,
+        startDate: Date,
+        fixedMonthlyPayment: Decimal?,
+        calendar: Calendar = .current
+    ) -> AmortizationScheduleResult {
+        guard principal > 0 else { return .empty }
         let r = monthlyRate(annualRatePercent: annualRatePercent)
 
         // Resolve the level payment and an upper bound on the number of rows.
@@ -121,19 +161,20 @@ enum AmortizationSchedule {
             payment = rounded2(fixed)
             rowCap = min(termMonths ?? maxMonths, maxMonths)
         } else if let months = termMonths, months > 0 {
-            guard let p = levelPayment(principal: principal, monthlyRate: r, months: months) else { return [] }
+            guard let p = levelPayment(principal: principal, monthlyRate: r, months: months) else { return .empty }
             payment = p
             rowCap = min(months, maxMonths)
         } else {
             // No fixed payment and no term ⇒ not enough to form a schedule.
-            return []
+            return .empty
         }
-        guard payment > 0 else { return [] }
+        guard payment > 0 else { return .empty }
 
         var rows: [AmortizationPayment] = []
         var balance = principal
         var due = startDate
         var index = 1
+        var isTruncated = false
 
         while balance > 0 && index <= rowCap {
             due = RecurrenceEngine.nextDueDate(after: due, rule: .monthly, calendar: calendar) ?? due
@@ -154,13 +195,17 @@ enum AmortizationSchedule {
             }
 
             // Guard a degenerate fixed payment that never amortizes (payment ≤
-            // interest): force progress by treating this as the final row.
+            // interest): force progress by treating this as the final row. This is a
+            // TRUNCATION — the reported totalInterest is only this one month's slice
+            // and understates the real, non-amortizing loan; flag it so it is never
+            // read as an honest cost.
             if principalSlice <= 0 {
                 principalSlice = balance
                 let finalPayment = interest + principalSlice
                 rows.append(AmortizationPayment(index: index, dueDate: due, payment: finalPayment,
                                                 interest: interest, principal: principalSlice, balanceAfter: 0))
                 balance = 0
+                isTruncated = true
                 break
             }
 
@@ -171,7 +216,26 @@ enum AmortizationSchedule {
             index += 1
         }
 
-        return rows
+        return AmortizationScheduleResult(rows: rows, isTruncated: isTruncated)
+    }
+
+    // MARK: - Create/edit validation (M5)
+
+    /// The first period's interest = `round(principal × monthlyRate, 0.01)` — the
+    /// exact amount a monthly payment must EXCEED to make any principal progress.
+    static func firstPeriodInterest(principal: Decimal, annualRatePercent: Decimal?) -> Decimal {
+        rounded2(principal * monthlyRate(annualRatePercent: annualRatePercent))
+    }
+
+    /// Whether a loan's terms can actually amortize. A fixed monthly payment that is
+    /// ≤ the first period's interest can never reduce the principal, so the schedule
+    /// would force-collapse and understate total interest — such a loan is rejected
+    /// at create/edit (M5). The annuity path (no fixed payment) always amortizes by
+    /// construction, and an interest-free loan (first-period interest 0) amortizes
+    /// with any positive payment.
+    static func canAmortize(principal: Decimal, annualRatePercent: Decimal?, fixedMonthlyPayment: Decimal?) -> Bool {
+        guard let fixed = fixedMonthlyPayment, fixed > 0 else { return true }
+        return rounded2(fixed) > firstPeriodInterest(principal: principal, annualRatePercent: annualRatePercent)
     }
 
     // MARK: - Derived totals

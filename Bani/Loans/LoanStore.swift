@@ -34,20 +34,55 @@ import SwiftData
 /// an integration point owned outside this file.
 enum LoanStore {
 
+    // MARK: - Validation (M5)
+
+    /// Why a loan's terms were rejected at create/edit.
+    enum ValidationError: Error, Equatable {
+        /// A fixed monthly payment ≤ the first period's interest: the loan can never
+        /// amortize, so its schedule would collapse and understate total interest.
+        case fixedPaymentBelowInterest
+    }
+
+    /// Validate a loan's terms before it is persisted or re-synced. Throws when a
+    /// fixed monthly payment cannot amortize the principal (≤ first-period
+    /// interest). The pure predicate lives on `AmortizationSchedule.canAmortize`;
+    /// this is the throwing façade the create/edit call sites and tests use.
+    static func validate(principal: Decimal, annualRatePercent: Decimal?, fixedMonthlyPayment: Decimal?) throws {
+        guard AmortizationSchedule.canAmortize(
+            principal: principal, annualRatePercent: annualRatePercent, fixedMonthlyPayment: fixedMonthlyPayment
+        ) else {
+            throw ValidationError.fixedPaymentBelowInterest
+        }
+    }
+
     // MARK: - Create
 
     /// Insert a new loan, seed the loan-interest category, and generate its full
-    /// pending payment series. Returns the generated items (empty when the loan
-    /// can't form a schedule — no term and no fixed payment).
+    /// pending payment series. Each generated item is STAMPED with its
+    /// `AmortizationSchedule` row index (M3) so booking binds by schedule row, never
+    /// sorted position. Returns the generated items (empty when the loan can't form
+    /// a schedule — no term and no fixed payment). Returns empty WITHOUT persisting
+    /// when the terms can't amortize (M5: a fixed payment ≤ first-period interest is
+    /// rejected, never stored as a collapsed schedule).
     @MainActor
     @discardableResult
     static func createLoan(_ loan: Loan, calendar: Calendar = .current, in modelContext: ModelContext) -> [ScheduledItem] {
+        // M5: never persist a non-amortizing loan (its schedule would truncate and
+        // understate totalInterest). Reject up front, before any insert.
+        guard AmortizationSchedule.canAmortize(
+            principal: loan.principal, annualRatePercent: loan.annualRatePercent,
+            fixedMonthlyPayment: loan.fixedMonthlyPayment
+        ) else { return [] }
+
         modelContext.insert(loan)
         LoanCategories.seedInterestCategory(in: modelContext)
 
         let schedule = loan.schedule(calendar: calendar)
         let seriesID = UUID()
-        let items = schedule.map { paymentItem(for: loan, row: $0, seriesID: seriesID) }
+        // Stamp each payment with its 0-based schedule row index (M3).
+        let items = schedule.indices.map {
+            paymentItem(for: loan, row: schedule[$0], scheduleIndex: $0, seriesID: seriesID)
+        }
         for item in items { modelContext.insert(item) }
         try? modelContext.save()
         return items
@@ -80,10 +115,22 @@ enum LoanStore {
         guard item.status == .pending else { return nil }
 
         let siblings = loanItems(loanID: loan.id, in: modelContext).sorted { $0.dueDate < $1.dueDate }
-        guard let ordinal = siblings.firstIndex(where: { $0.id == item.id }) else { return nil }
         let schedule = loan.schedule(calendar: calendar)
-        guard ordinal < schedule.count else { return nil }
-        let row = schedule[ordinal]
+
+        // M3: bind the payment to its EXACT schedule row by its persisted stamp, so
+        // the interest/principal split is right regardless of sort order,
+        // out-of-order booking, or a mid-life edit. Legacy items written before the
+        // stamp existed carry no stamp → fall back to due-date order (the old
+        // behaviour, correct for in-order booking of a legacy series).
+        let scheduleIndex: Int
+        if let stamp = item.scheduleIndex {
+            scheduleIndex = stamp
+        } else {
+            guard let ordinal = siblings.firstIndex(where: { $0.id == item.id }) else { return nil }
+            scheduleIndex = ordinal
+        }
+        guard scheduleIndex >= 0, scheduleIndex < schedule.count else { return nil }
+        let row = schedule[scheduleIndex]
 
         // Interest slice — expense. Bank books against the loan's project; investor
         // is cost-of-capital and carries NO project (recovered via loanID→kind).
@@ -143,8 +190,11 @@ enum LoanStore {
         let bookedCount = countBookedPayments(for: loan.id, in: modelContext)
         guard bookedCount < schedule.count else { try? modelContext.save(); return }
 
-        for row in schedule[bookedCount...] {
-            modelContext.insert(paymentItem(for: loan, row: row, seriesID: seriesID))
+        // Regenerate the still-unpaid rows, each STAMPED with its TRUE schedule row
+        // index (M3): indices `bookedCount ..< count` are exactly those rows, so a
+        // payment booked after an edit still binds to the right split.
+        for index in bookedCount..<schedule.count {
+            modelContext.insert(paymentItem(for: loan, row: schedule[index], scheduleIndex: index, seriesID: seriesID))
         }
         try? modelContext.save()
     }
@@ -233,7 +283,7 @@ enum LoanStore {
     /// Build one pending payment `ScheduledItem` for a schedule row (outgoing,
     /// loan-tagged, project = loan's project; `recurrence = .none` — the series is
     /// the set of pre-generated occurrences, linked by `seriesID`).
-    private static func paymentItem(for loan: Loan, row: AmortizationPayment, seriesID: UUID) -> ScheduledItem {
+    private static func paymentItem(for loan: Loan, row: AmortizationPayment, scheduleIndex: Int, seriesID: UUID) -> ScheduledItem {
         ScheduledItem(
             direction: .outgoing,
             amount: row.payment,
@@ -245,7 +295,8 @@ enum LoanStore {
             status: .pending,
             recurrence: .none,
             seriesID: seriesID,
-            loanID: loan.id
+            loanID: loan.id,
+            scheduleIndex: scheduleIndex
         )
     }
 }

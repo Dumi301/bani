@@ -53,6 +53,18 @@ enum ScheduledItemStore {
             // transaction); fall through only so the non-optional contract holds.
         }
 
+        // M1: idempotence for the generic (non-loan) path — mirror the loan path
+        // and `LoanStore.bookPayment`'s `guard .pending`. A double-tap / re-entry on
+        // an already-done item must NOT insert a second transaction (which would
+        // orphan the first — `undoDone` only deletes the LAST-linked one — and
+        // double-count totals). Return the existing linked transaction, book
+        // nothing, and don't re-fire the recurrence hook.
+        if item.status != .pending,
+           let txID = item.linkedTransactionID,
+           let existing = (try? modelContext.fetch(FetchDescriptor<Transaction>(predicate: #Predicate { $0.id == txID })))?.first {
+            return existing
+        }
+
         let resolvedDescription = descriptionText ?? (item.title.isEmpty ? item.descriptionText : item.title)
         let transaction = Transaction(
             amount: amount ?? item.amount,
@@ -110,6 +122,13 @@ enum ScheduledItemStore {
     /// restore the item to pending, clearing the link.
     @MainActor
     static func undoDone(_ item: ScheduledItem, in modelContext: ModelContext) {
+        // Symmetric to markDone's `guard .pending`: only a DONE item can be undone.
+        // Undoing a pending item would clear a link/tx it never owned. (NOTE: a loan
+        // payment item is completed as a two-transaction split via
+        // LoanStore.bookPayment; this generic undo deletes only the linked interest
+        // tx and does NOT reopen the loan — loan payments must be undone through a
+        // loan-aware path, not here. See the report's risk note.)
+        guard item.status == .done else { return }
         if let txID = item.linkedTransactionID {
             let descriptor = FetchDescriptor<Transaction>(predicate: #Predicate { $0.id == txID })
             if let tx = (try? modelContext.fetch(descriptor))?.first {

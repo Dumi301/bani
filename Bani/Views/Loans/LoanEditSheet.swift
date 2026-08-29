@@ -57,11 +57,18 @@ struct LoanEditSheet: View {
     }
     private var parsedTerm: Int? { Int(termText.trimmingCharacters(in: .whitespaces)) }
     private var canSave: Bool {
-        guard parsedPrincipal != nil else { return false }
+        guard let principal = parsedPrincipal else { return false }
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         guard !lender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         // A schedule needs either a term or a fixed monthly payment.
-        return parsedTerm != nil || parseDecimal(fixedPaymentText) != nil
+        guard parsedTerm != nil || parseDecimal(fixedPaymentText) != nil else { return false }
+        // M5: reject a fixed monthly payment that can't amortize (≤ first-period
+        // interest) — it would collapse the schedule and understate total interest.
+        return AmortizationSchedule.canAmortize(
+            principal: principal,
+            annualRatePercent: parseDecimal(rateText),
+            fixedMonthlyPayment: parseDecimal(fixedPaymentText)
+        )
     }
     private var activeProjects: [ProjectSnapshot] {
         projects.filter { !$0.archived }.map(\.snapshot)
@@ -155,6 +162,13 @@ struct LoanEditSheet: View {
 
     private func save() {
         guard let principal = parsedPrincipal else { return }
+        // M5: reject non-amortizing terms before mutating/persisting anything (also
+        // gated by `canSave`; this guard closes the programmatic path too).
+        guard (try? LoanStore.validate(
+            principal: principal,
+            annualRatePercent: parseDecimal(rateText),
+            fixedMonthlyPayment: parseDecimal(fixedPaymentText)
+        )) != nil else { return }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanLender = lender.trimmingCharacters(in: .whitespacesAndNewlines)
         // A bank loan keeps its project; investor money is off every project rollup.
