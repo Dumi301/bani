@@ -244,6 +244,16 @@ struct EnableBankingClient: Sendable {
     /// URL registered at the Enable Banking portal (`bani://oauth/callback` is
     /// never sent upstream; the worker's `/callback` is what bounces the user
     /// back into the app via that custom scheme).
+    ///
+    /// Body shape per Enable Banking's `StartAuthorizationRequest`/`Access`
+    /// schema (confirmed against the live API reference, not just the
+    /// quick-start sample, which omits the access sub-scopes): `access.balances`
+    /// and `access.transactions` are each a plain `Bool` ("Request consent with
+    /// balances/transactions access"), NOT a scope-string list — Bani wants
+    /// both, so both are always `true`. `psu_type` is `"personal"` (Bani links a
+    /// single individual's own accounts, never a business PSU). `language` is
+    /// optional per the schema; sent as `"en"` so the ASPSP's consent UI has a
+    /// deterministic default regardless of device locale.
     func startAuth(
         aspspName: String,
         country: String,
@@ -252,10 +262,16 @@ struct EnableBankingClient: Sendable {
     ) async throws -> AuthStartResponse {
         let workerBaseURL = try requireWorkerBaseURL()
         let body: [String: Any] = [
-            "access": ["valid_until": Self.rfc3339Formatter.string(from: validUntil)],
+            "access": [
+                "balances": true,
+                "transactions": true,
+                "valid_until": Self.rfc3339Formatter.string(from: validUntil),
+            ],
             "aspsp": ["name": aspspName, "country": country],
             "state": state.uuidString,
             "redirect_url": workerBaseURL + "/callback",
+            "psu_type": "personal",
+            "language": "en",
         ]
         let request = try jsonRequest("POST", path: "/auth", body: body)
         return try await decode(AuthStartResponse.self, request: request)

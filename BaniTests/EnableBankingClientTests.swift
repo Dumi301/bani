@@ -83,6 +83,10 @@ final class EnableBankingClientTests: XCTestCase {
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: Any])
         let access = try XCTUnwrap(json["access"] as? [String: Any])
         XCTAssertNotNil(access["valid_until"], "access.valid_until must be present")
+        // Access sub-scopes per the live API reference's `Access` schema —
+        // plain booleans, not a scope-string list; Bani always requests both.
+        XCTAssertEqual(access["balances"] as? Bool, true)
+        XCTAssertEqual(access["transactions"] as? Bool, true)
         let aspsp = try XCTUnwrap(json["aspsp"] as? [String: Any])
         XCTAssertEqual(aspsp["name"] as? String, "Raiffeisen Bank")
         XCTAssertEqual(aspsp["country"] as? String, "RO")
@@ -90,6 +94,8 @@ final class EnableBankingClientTests: XCTestCase {
         // redirect_url is the WORKER's own /callback — the registered redirect —
         // never the app's `bani://oauth/callback` custom scheme.
         XCTAssertEqual(json["redirect_url"] as? String, "https://bani-proxy.test.workers.dev/callback")
+        XCTAssertEqual(json["psu_type"] as? String, "personal", "Bani links a single individual, never a business PSU")
+        XCTAssertEqual(json["language"] as? String, "en")
     }
 
     // MARK: - Sessions
