@@ -468,6 +468,11 @@ struct LoanDTO: Codable, Equatable, Sendable {
 /// Mirrors `BankLink` (`Bani/Banking/BankLinkStore.swift`). Holds ONLY the
 /// non-secret metadata the model itself stores — no secret ever lives here, same
 /// as the live `@Model` (secrets stay in the Keychain, out of scope for backup).
+/// v2.3 appends the six Enable Banking columns (`sessionID`…`sessionRevoked`) as
+/// additive optionals — the same `scheduleIndex` precedent as `ScheduledItemDTO`:
+/// a pre-v2.3 archive has no such keys, and Swift's synthesized `Decodable`
+/// decodes a missing key on an Optional property to `nil`, so old archives
+/// round-trip with the model's own `nil`/`false` defaults, never a decode failure.
 struct BankLinkDTO: Codable, Equatable, Sendable {
     var id: UUID
     var institutionID: String?
@@ -480,6 +485,14 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
     var linkURL: String?
     var lastSyncByAccount: [String: Date]
     var createdAt: Date
+    // v2.3 additive columns (Enable Banking) — mirror `BankLink`'s appended tail,
+    // in the model's exact declared order.
+    var sessionID: String?
+    var authorizationID: String?
+    var aspspName: String?
+    var aspspCountry: String?
+    var consentValidUntil: Date?
+    var sessionRevoked: Bool?
 
     init(_ link: BankLink) {
         id = link.id
@@ -493,12 +506,20 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
         linkURL = link.linkURL
         lastSyncByAccount = link.lastSyncByAccount
         createdAt = link.createdAt
+        sessionID = link.sessionID
+        authorizationID = link.authorizationID
+        aspspName = link.aspspName
+        aspspCountry = link.aspspCountry
+        consentValidUntil = link.consentValidUntil
+        sessionRevoked = link.sessionRevoked
     }
 
     func makeModel() -> BankLink {
         BankLink(id: id, institutionID: institutionID, institutionName: institutionName,
                  agreementID: agreementID, requisitionID: requisitionID, statusCode: statusCode,
                  accountIDs: accountIDs, agreementExpiresAt: agreementExpiresAt, linkURL: linkURL,
-                 lastSyncByAccount: lastSyncByAccount, createdAt: createdAt)
+                 lastSyncByAccount: lastSyncByAccount, createdAt: createdAt,
+                 sessionID: sessionID, authorizationID: authorizationID, aspspName: aspspName,
+                 aspspCountry: aspspCountry, consentValidUntil: consentValidUntil, sessionRevoked: sessionRevoked)
     }
 }

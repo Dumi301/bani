@@ -407,10 +407,16 @@ enum BackupTestFixtures {
         let anchorNoNote = BalanceAnchor(amount: 0.01, currency: .ron, driftAtAnchor: 0, note: nil)
         ctx.insert(anchorNoNote)
 
+        // Carries BOTH the pre-v2.3 (GoCardless-era) columns AND the six v2.3
+        // Enable Banking columns non-nil, so the round trip proves every stored
+        // BankLink property survives — not just the additive tail's nil default.
         let bankLink = BankLink(institutionID: "revolut_ro", institutionName: "Revolut", agreementID: "agr-1",
                                  requisitionID: "req-1", statusCode: "LN", accountIDs: ["acc-1", "acc-2"],
                                  agreementExpiresAt: Date().addingTimeInterval(86_400), linkURL: nil,
-                                 lastSyncByAccount: ["acc-1": Date()])
+                                 lastSyncByAccount: ["acc-1": Date()],
+                                 sessionID: "sess-1", authorizationID: "auth-1", aspspName: "Revolut",
+                                 aspspCountry: "RO", consentValidUntil: Date().addingTimeInterval(7 * 86_400),
+                                 sessionRevoked: false)
         ctx.insert(bankLink)
 
         let rule = CategoryRule(keyword: "benzina", category: .fuel, origin: .learned, hitCount: 5)

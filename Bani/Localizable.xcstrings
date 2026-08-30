@@ -20,10 +20,22 @@
         "ro": { "stringUnit": { "state": "translated", "value": "Conectează banca" } }
       }
     },
+    "bank.consent.expiresIn %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Consent expires in %lld days — reconnect soon" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Consimțământul expiră în %lld zile — reconectează-te curând" } }
+      }
+    },
     "bank.institution.select": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Choose your bank" } },
         "ro": { "stringUnit": { "state": "translated", "value": "Alege-ți banca" } }
+      }
+    },
+    "bank.keys.deviceToken": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Device token" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Token dispozitiv" } }
       }
     },
     "bank.keys.save": {
@@ -32,28 +44,28 @@
         "ro": { "stringUnit": { "state": "translated", "value": "Salvează cheile" } }
       }
     },
-    "bank.keys.secretID": {
-      "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Secret ID" } },
-        "ro": { "stringUnit": { "state": "translated", "value": "ID secret" } }
-      }
-    },
-    "bank.keys.secretKey": {
-      "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Secret key" } },
-        "ro": { "stringUnit": { "state": "translated", "value": "Cheie secretă" } }
-      }
-    },
     "bank.keys.section": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "GoCardless keys" } },
-        "ro": { "stringUnit": { "state": "translated", "value": "Chei GoCardless" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Bank connection" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conexiune bancară" } }
       }
     },
     "bank.keys.stored": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Keys stored securely" } },
         "ro": { "stringUnit": { "state": "translated", "value": "Chei stocate în siguranță" } }
+      }
+    },
+    "bank.keys.workerURL": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Worker URL" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "URL worker" } }
+      }
+    },
+    "bank.link.error": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Couldn't connect — try again" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Conectarea a eșuat — încearcă din nou" } }
       }
     },
     "bank.settings.footer": {

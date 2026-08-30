@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bani — Privacy Policy</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0 auto;
+      max-width: 46rem;
+      padding: 2rem 1.25rem 4rem;
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1c1c1e;
+      background: #fbfbfd;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { color: #e8e8ea; background: #111113; }
+      a { color: #6fb1ff; }
+      hr { border-color: #333; }
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+    h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; }
+    .updated { color: #8a8a8e; font-size: .9rem; margin: 0 0 1.5rem; }
+    ul { padding-left: 1.25rem; }
+    li { margin: .3rem 0; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+    hr { border: none; border-top: 1px solid #e2e2e5; margin: 2.5rem 0; }
+    footer { color: #8a8a8e; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <h1>Bani — Privacy Policy</h1>
+  <p class="updated">Last updated: 30 August 2026</p>
+
+  <p>
+    Bani is an on-device expense logger for iPhone. It has no account system and
+    no server of its own for your financial data — everything you record lives in
+    a local database on your device. This policy explains what the optional
+    <strong>bank sync</strong> feature does with your data.
+  </p>
+
+  <h2>What Bani stores, and where</h2>
+  <ul>
+    <li><strong>Your transactions</strong> stay in a local database on your iPhone. They are not uploaded to us and are not shared with third parties.</li>
+    <li><strong>Bank connection credentials</strong> — the worker URL and a device token you enter in Settings — are stored only in the iOS Keychain on your device. They are set to device-only access, never sync to iCloud, and are never written to app logs, backups you export, or our code.</li>
+    <li>Bani contains <strong>no analytics, advertising, or tracking</strong> SDKs.</li>
+  </ul>
+
+  <h2>How bank sync works</h2>
+  <p>
+    Bank sync is off until you enter your credentials. When enabled, Bani talks to
+    a proxy (the "Bani worker") that forwards requests to the open-banking provider
+    <strong>Enable Banking</strong>. The worker adds the provider's own
+    authentication and relays the provider's responses back to the app unchanged.
+    Connecting a bank opens your bank's own secure consent page; Bani never sees
+    your online-banking username or password.
+  </p>
+  <ul>
+    <li>Bani requests read-only access to your account balances and transactions, for the consent window your bank grants.</li>
+    <li>Transactions the provider returns are imported into the local database on your device and categorized there. No copy is kept off-device by Bani.</li>
+  </ul>
+
+  <h2>Disconnecting</h2>
+  <p>
+    "Unlink &amp; wipe keys" in Settings revokes the bank session, deletes the
+    stored connection metadata, and wipes the credentials from your Keychain.
+    Transactions already imported remain on your device until you delete them.
+  </p>
+
+  <h2>Data sharing</h2>
+  <p>
+    We do not sell, rent, or share your financial data. The only external service
+    involved in bank sync is the open-banking provider you explicitly connect to,
+    reached through the Bani worker, for the sole purpose of fetching the accounts
+    and transactions you consented to.
+  </p>
+
+  <hr>
+  <footer>
+    Bani is distributed as an unsigned app for personal use. Questions about this
+    policy can be raised through the project's source repository.
+  </footer>
+</body>
+</html>
