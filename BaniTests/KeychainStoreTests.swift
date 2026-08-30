@@ -1,66 +1,64 @@
 import XCTest
 @testable import Bani
 
-/// P9 — the credential-storage seam. The round-trip / wipe CONTRACT is asserted
-/// against `InMemorySecretStore` (deterministic on any CI simulator). The real
-/// `KeychainStore` is ALSO exercised, but a generic-password item can be
-/// unavailable on a CI simulator with no keychain-access-group entitlement — so
-/// that test SKIPS (never fails) when the keychain round-trip does not come back,
-/// per the brief's "protocol-seam it and test the seam" instruction.
+/// v2.3 — the credential-storage seam. The round-trip / wipe CONTRACT is
+/// asserted against `InMemorySecretStore` (deterministic on any CI simulator).
+/// The real `KeychainStore` is ALSO exercised, but a generic-password item can
+/// be unavailable on a CI simulator with no keychain-access-group entitlement
+/// — so that test SKIPS (never fails) when the keychain round-trip does not
+/// come back, per the brief's "protocol-seam it and test the seam" instruction.
 final class KeychainStoreTests: XCTestCase {
 
     // MARK: - The seam contract (in-memory, deterministic)
 
     func testRoundTripStringViaSeam() {
         let store: any SecretStoring = InMemorySecretStore()
-        store.set("SECRET_ID_123", for: .secretID)
-        store.set("SECRET_KEY_456", for: .secretKey)
+        store.set("https://bani-proxy.example.workers.dev", for: .workerBaseURL)
+        store.set("DEVICE_TOKEN_123", for: .deviceToken)
 
-        XCTAssertEqual(store.string(for: .secretID), "SECRET_ID_123")
-        XCTAssertEqual(store.string(for: .secretKey), "SECRET_KEY_456")
+        XCTAssertEqual(store.string(for: .workerBaseURL), "https://bani-proxy.example.workers.dev")
+        XCTAssertEqual(store.string(for: .deviceToken), "DEVICE_TOKEN_123")
     }
 
     func testHasCredentialsReflectsBothSecrets() {
         let store: any SecretStoring = InMemorySecretStore()
         XCTAssertFalse(store.hasCredentials)
-        store.set("id", for: .secretID)
+        store.set("https://bani-proxy.example.workers.dev", for: .workerBaseURL)
         XCTAssertFalse(store.hasCredentials, "one secret is not enough")
-        store.set("key", for: .secretKey)
+        store.set("DEVICE_TOKEN_123", for: .deviceToken)
         XCTAssertTrue(store.hasCredentials)
     }
 
-    func testCodableValueRoundTrip() {
+    /// Device tokens can be long, opaque, high-entropy strings — proves the
+    /// Keychain round-trip holds a ~200-char value exactly, byte for byte.
+    func testRoundTripLongDeviceTokenValue() {
         let store: any SecretStoring = InMemorySecretStore()
-        let bundle = TokenBundle(
-            accessToken: "A", accessExpiresAt: Date(timeIntervalSince1970: 1_000_000),
-            refreshToken: "R", refreshExpiresAt: Date(timeIntervalSince1970: 2_000_000)
-        )
-        store.setValue(bundle, for: .tokenBundle)
+        let longToken = String(repeating: "a1B2c3D4-", count: 22) // 198 chars
+        XCTAssertEqual(longToken.count, 198)
 
-        let read = store.value(TokenBundle.self, for: .tokenBundle)
-        XCTAssertEqual(read, bundle)
+        store.set(longToken, for: .deviceToken)
+
+        XCTAssertEqual(store.string(for: .deviceToken), longToken)
     }
 
     func testWipeAllClearsEverything() {
         let store: any SecretStoring = InMemorySecretStore()
-        store.set("id", for: .secretID)
-        store.set("key", for: .secretKey)
-        store.setValue(TokenBundle(accessToken: "A", accessExpiresAt: .now), for: .tokenBundle)
+        store.set("https://bani-proxy.example.workers.dev", for: .workerBaseURL)
+        store.set("DEVICE_TOKEN_123", for: .deviceToken)
         XCTAssertTrue(store.hasCredentials)
 
         store.wipeAll()
 
         XCTAssertFalse(store.hasCredentials)
-        XCTAssertNil(store.string(for: .secretID))
-        XCTAssertNil(store.string(for: .secretKey))
-        XCTAssertNil(store.value(TokenBundle.self, for: .tokenBundle))
+        XCTAssertNil(store.string(for: .workerBaseURL))
+        XCTAssertNil(store.string(for: .deviceToken))
     }
 
     func testSettingNilClearsASingleKey() {
         let store: any SecretStoring = InMemorySecretStore()
-        store.set("id", for: .secretID)
-        store.set(nil as String?, for: .secretID)
-        XCTAssertNil(store.string(for: .secretID))
+        store.set("https://bani-proxy.example.workers.dev", for: .workerBaseURL)
+        store.set(nil as String?, for: .workerBaseURL)
+        XCTAssertNil(store.string(for: .workerBaseURL))
     }
 
     // MARK: - The real KeychainStore (skips if the CI keychain is unavailable)
@@ -71,19 +69,19 @@ final class KeychainStoreTests: XCTestCase {
         let store = KeychainStore(service: "com.dumi.bani.gocardless.tests.\(UUID().uuidString)")
         store.wipeAll()
 
-        store.set("REAL_SECRET_ID", for: .secretID)
-        guard store.string(for: .secretID) == "REAL_SECRET_ID" else {
+        store.set("https://bani-proxy.example.workers.dev", for: .workerBaseURL)
+        guard store.string(for: .workerBaseURL) == "https://bani-proxy.example.workers.dev" else {
             throw XCTSkip("keychain generic-password items are unavailable on this CI simulator — the seam contract is covered by the in-memory tests above")
         }
 
         // Round-trip proven — now assert update + wipe on the real store.
-        store.set("REAL_SECRET_KEY", for: .secretKey)
-        XCTAssertEqual(store.string(for: .secretKey), "REAL_SECRET_KEY")
-        store.set("REAL_SECRET_ID_UPDATED", for: .secretID)
-        XCTAssertEqual(store.string(for: .secretID), "REAL_SECRET_ID_UPDATED", "upsert updates in place")
+        store.set("REAL_DEVICE_TOKEN", for: .deviceToken)
+        XCTAssertEqual(store.string(for: .deviceToken), "REAL_DEVICE_TOKEN")
+        store.set("https://bani-proxy-updated.example.workers.dev", for: .workerBaseURL)
+        XCTAssertEqual(store.string(for: .workerBaseURL), "https://bani-proxy-updated.example.workers.dev", "upsert updates in place")
 
         store.wipeAll()
-        XCTAssertNil(store.string(for: .secretID), "wipe on unlink clears the item")
-        XCTAssertNil(store.string(for: .secretKey))
+        XCTAssertNil(store.string(for: .workerBaseURL), "wipe on unlink clears the item")
+        XCTAssertNil(store.string(for: .deviceToken))
     }
 }

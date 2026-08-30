@@ -1,32 +1,35 @@
 import Foundation
 import Security
 
-/// P9 open-banking — the ONLY place GoCardless credentials ever live. The app has
-/// no backend: the user enters `secret_id` / `secret_key` ONCE in Settings and they
-/// are written to the iOS **Keychain** (`kSecClassGenericPassword`, this-app-only,
-/// `AfterFirstUnlockThisDeviceOnly` so an opportunistic foreground pull works while
-/// the phone is locked-after-first-unlock but the item never syncs or leaves the
-/// device). The minted access/refresh token is cached here too. Secrets are NEVER
-/// written to the repo, `UserDefaults`, a SwiftData `@Model`, a vault file, or a log.
+/// v2.3 open-banking — the ONLY place the Bani WORKER's connection details ever
+/// live. The app has no backend of its own beyond that worker: the user enters
+/// the worker's base URL + a device token ONCE in Settings and they are written
+/// to the iOS **Keychain** (`kSecClassGenericPassword`, this-app-only,
+/// `AfterFirstUnlockThisDeviceOnly` so an opportunistic foreground pull works
+/// while the phone is locked-after-first-unlock but the item never syncs or
+/// leaves the device). There is no minted/refreshed token to cache — the
+/// device token IS the bearer credential, sent as-is on every request (the
+/// worker owns all upstream Enable Banking auth). Secrets are NEVER written to
+/// the repo, `UserDefaults`, a SwiftData `@Model`, a vault file, or a log.
 ///
-/// Everything goes through the `SecretStoring` seam so `GoCardlessClient` and the
-/// tests are decoupled from `Security.framework`: CI simulators can be flaky about
-/// generic-password items (no keychain-access-group entitlement), so the tests run
-/// the round-trip/wipe contract against `InMemorySecretStore` and ALSO attempt the
-/// real `KeychainStore`, skipping only if the simulator keychain is genuinely
-/// unavailable (see `KeychainStoreTests`).
+/// Everything goes through the `SecretStoring` seam so `EnableBankingClient`
+/// and the tests are decoupled from `Security.framework`: CI simulators can be
+/// flaky about generic-password items (no keychain-access-group entitlement),
+/// so the tests run the round-trip/wipe contract against
+/// `InMemorySecretStore` and ALSO attempt the real `KeychainStore`, skipping
+/// only if the simulator keychain is genuinely unavailable (see
+/// `KeychainStoreTests`).
 enum SecretKey: String, Sendable, CaseIterable {
-    /// GoCardless `secret_id` (entered by the user).
-    case secretID = "gocardless.secret_id"
-    /// GoCardless `secret_key` (entered by the user).
-    case secretKey = "gocardless.secret_key"
-    /// The cached `TokenBundle` (access + refresh + expiries), JSON-encoded.
-    case tokenBundle = "gocardless.token_bundle"
+    /// The Bani worker's base URL (e.g. `https://bani-proxy.<account>.workers.dev`).
+    case workerBaseURL = "enablebanking.worker_base_url"
+    /// The device token sent as `Authorization: Bearer <deviceToken>` on every
+    /// worker request (checked against the worker's `DEVICE_TOKENS` secret).
+    case deviceToken = "enablebanking.device_token"
 }
 
-/// The credential-storage seam. `Sendable` so `GoCardlessClient` (a `Sendable`
-/// value) can hold one and be used from any actor. Implementations MUST never log
-/// or otherwise externalize a value.
+/// The credential-storage seam. `Sendable` so `EnableBankingClient` (a
+/// `Sendable` value) can hold one and be used from any actor. Implementations
+/// MUST never log or otherwise externalize a value.
 protocol SecretStoring: Sendable {
     func data(for key: SecretKey) -> Data?
     func set(_ data: Data?, for key: SecretKey)
@@ -45,7 +48,7 @@ extension SecretStoring {
         set(value.flatMap { $0.data(using: .utf8) }, for: key)
     }
 
-    /// A `Codable` value convenience (used for the `TokenBundle`).
+    /// A `Codable` value convenience, kept for any future structured secret.
     func value<T: Decodable>(_ type: T.Type, for key: SecretKey) -> T? {
         guard let data = data(for: key) else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
@@ -56,11 +59,11 @@ extension SecretStoring {
         set(try? JSONEncoder().encode(value), for: key)
     }
 
-    /// Whether both user-entered secrets are present — the single gate that turns
-    /// the whole feature on. No secrets ⇒ silent-degrade (feature invisible except
-    /// its Settings row; sync is inert).
+    /// Whether both the worker base URL and the device token are present — the
+    /// single gate that turns the whole feature on. Either missing ⇒
+    /// silent-degrade (feature invisible except its Settings row; sync is inert).
     var hasCredentials: Bool {
-        (string(for: .secretID)?.isEmpty == false) && (string(for: .secretKey)?.isEmpty == false)
+        (string(for: .workerBaseURL)?.isEmpty == false) && (string(for: .deviceToken)?.isEmpty == false)
     }
 }
 
@@ -68,8 +71,8 @@ extension SecretStoring {
 /// service, this-app-only, device-only.
 struct KeychainStore: SecretStoring {
 
-    /// The service every item is filed under. App-specific; no access group, so the
-    /// item is private to this app's keychain and never shared or synced.
+    /// The service every item is filed under. App-specific; no access group, so
+    /// the item is private to this app's keychain and never shared or synced.
     static let service = "com.dumi.bani.gocardless"
 
     let service: String
