@@ -46,6 +46,20 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.dumi.bani
+    # v2.3 open-banking: register the `bani` URL scheme so the worker's
+    # `/callback` HTML can bounce the user back into the app via
+    # `bani://oauth/callback` (also the scheme ASWebAuthenticationSession
+    # intercepts). XcodeGen writes this partial Info.plist and points
+    # INFOPLIST_FILE at it; GENERATE_INFOPLIST_FILE stays YES, so Xcode merges
+    # the INFOPLIST_KEY_* settings below on top (CFBundleURLTypes has no
+    # INFOPLIST_KEY_ form, so a partial plist is the only way to add it).
+    info:
+      path: Support/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: com.dumi.bani.oauth
+            CFBundleURLSchemes:
+              - bani
     settings:
       base:
         GENERATE_INFOPLIST_FILE: "YES"

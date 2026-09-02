@@ -129,14 +129,14 @@ struct BaniApp: App {
     /// comment promises ("Pull is manual … the app-foreground opportunistic pull
     /// is wired by the root"). Mirrors `BankLinkView.syncNow()`'s call shape
     /// exactly (accountIDs from the persisted `BankLink` row + a fresh
-    /// `GoCardlessClient(secrets:)`), fire-and-forget from `scenePhase`. Inert
+    /// `EnableBankingClient(secrets:)`), fire-and-forget from `scenePhase`. Inert
     /// (no network, no work) without stored credentials — `sync` itself is also
     /// silent-fail, so this never surfaces to the UI.
     ///
     /// H1 (phase-A, orchestrator-authorized addition): gated by `bankSyncGate`
     /// so this opportunistic pull runs at most once per
-    /// `BankSyncGate.minInterval` (6h) — GoCardless allows ~4
-    /// transaction-endpoint calls/account/day, and every foreground was
+    /// `BankSyncGate.minInterval` (6h) — Enable Banking rate-limits the
+    /// transaction endpoint per account/day, and every foreground was
     /// calling `sync` unconditionally, exhausting the quota within a handful
     /// of app opens and killing the feed for the rest of the day with no
     /// visible symptom (the 429 was silently absorbed into
@@ -152,7 +152,7 @@ struct BaniApp: App {
             .sorted { $0.createdAt > $1.createdAt }
             .first?
             .accountIDs ?? []
-        let client = GoCardlessClient(secrets: keychain)
+        let client = EnableBankingClient(secrets: keychain)
         let service = BankSyncService(modelContainer: container)
         let outcome = await service.sync(accountIDs: accountIDs, client: client)
         bankSyncGate.recordOutcome(outcome)

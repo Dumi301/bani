@@ -1,0 +1,6 @@
+name = "bani-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-08-30"
+
+# Secrets (EB_APP_ID, EB_PRIVATE_KEY_PKCS8, DEVICE_TOKENS) are set with
+# `wrangler secret put` — never listed here. See README.md.

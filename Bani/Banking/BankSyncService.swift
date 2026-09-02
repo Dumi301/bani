@@ -1,14 +1,17 @@
 import Foundation
 import SwiftData
 
-/// P9 — pulls booked bank transactions and lands them in the EXISTING auto-log
-/// review flow. Runs off the main actor (`@ModelActor`, its own `ModelContext` over
-/// the shared store — the `ImportCommitRunner` pattern) so a foreground/manual sync
-/// never blocks the UI.
+/// P9 / v2.3 — pulls booked bank transactions from Enable Banking (via
+/// `EnableBankingClient`, the Bani worker's pass-through) and lands them in the
+/// EXISTING auto-log review flow. Runs off the main actor (`@ModelActor`, its own
+/// `ModelContext` over the shared store — the `ImportCommitRunner` pattern) so a
+/// foreground/manual sync never blocks the UI.
 ///
-/// Pipeline per transaction: decode → map to a `BankDraft` (`Decimal` amount from
-/// the signed STRING, direction from the sign, counterparty from creditor/debtor,
-/// date from `bookingDate`) → annotate the category via P10's
+/// Pipeline per transaction: decode → filter to `status == "BOOK"` (a `PEND` row
+/// is never landed — it can still change or vanish before it books) → map to a
+/// `BankDraft` (`Decimal` magnitude from the UNSIGNED amount string via
+/// `AmountLexer`, direction from `credit_debit_indicator`, counterparty from
+/// creditor/debtor, date from `booking_date`) → annotate the category via P10's
 /// `InterpretationService` (deterministic on CI — no FM) → insert as a
 /// `source == .autoLogged` `Transaction` (so it shows in the "N auto-logged —
 /// review" chip exactly like an Apple-Pay capture) → `DedupService.flagIfDuplicate`
@@ -16,10 +19,14 @@ import SwiftData
 ///
 /// Two dedup layers, deliberately distinct:
 ///  1. **Bank-native, no-double-insert:** each transaction's stable bank key
-///     (`transactionId` → `internalTransactionId` → a synthetic booking-date/amount/
+///     (`transaction_id` → `entry_reference` → a synthetic booking-date/amount/
 ///     counterparty fingerprint) is embedded in `rawTranscript`; a re-pull over an
 ///     overlapping window skips anything already imported. This is what guarantees
-///     "second pull → no double-insert".
+///     "second pull → no double-insert". The synthetic-fingerprint FORMAT is
+///     unchanged from the pre-v2.3 (GoCardless) mapper — only which raw fields
+///     feed it changed — so an old-era `⟦bank:…⟧` marker embedded in a pre-v2.3
+///     row is read by the SAME `extractBankKey` and never collides with a v2.3
+///     row unless the underlying transaction data itself is identical.
 ///  2. **Cross-source, P8:** `DedupService.flagIfDuplicate` flags (never drops) the
 ///     SAME real payment arriving from a different surface. `DedupOrigin` DOES carry
 ///     a dedicated `.bank` case (`[bank]`-prefixed `rawTranscript` resolves to it —
@@ -29,6 +36,18 @@ import SwiftData
 ///     share/import. `DedupOrigin`'s own doc explains why: intent, share, and bank
 ///     are each meant to collide with EACH OTHER (the same real payment commonly
 ///     arrives via more than one surface).
+///
+/// v2.3 pagination: Enable Banking pages transactions via an opaque
+/// `continuation_key` cursor instead of GoCardless's single flat `booked`/`pending`
+/// arrays. `sync` walks the cursor per account, bounded at
+/// `maxPagesPerAccount` so a misbehaving feed can never turn one sync into an
+/// unbounded pull.
+///
+/// v2.3 revocation: a 401/403 from `transactions` mid-life marks the link's
+/// `sessionRevoked = true` (defensively both codes — Enable Banking's exact
+/// revocation status code is unverified) so `BankLinkState.derive` reports
+/// `.expired` and the UI prompts a re-link; the sync itself still reports the
+/// account as errored (`hadError`), never crashes, never blocks other accounts.
 
 // MARK: - Draft + mapper (pure, Sendable)
 
@@ -51,15 +70,16 @@ struct BankDraft: Equatable, Sendable {
 /// are unit-testable in isolation.
 enum BankSyncMapper {
 
-    /// Money parser: the signed STRING (`"-15.30"`, `"+328.18"`, `"12,50"`) → a
-    /// magnitude `Decimal` + direction. L4: the sign is stripped first, then the
-    /// remaining digit token is routed through `AmountLexer.value(forDigitToken:)`
-    /// — the SAME separator-disambiguation core the voice parser and Excel/CSV
-    /// import use — instead of a naive comma→dot swap (which misread "1,234" as
-    /// 1.234 rather than the thousands-grouped 1234). GoCardless currently emits
-    /// plain dot-decimal amounts, so this is behavior-preserving for real inputs;
-    /// it only changes (fixes) inputs the naive swap got wrong. Returns nil for a
-    /// blank/zero/unparseable value (skipped, never a zero-amount save).
+    /// General-purpose SIGNED-string amount parser (`"-15.30"`, `"+328.18"`,
+    /// `"12,50"`) → a magnitude `Decimal` + direction inferred from the sign.
+    /// NOT used by `draft(from:)` below — Enable Banking's amounts are UNSIGNED
+    /// (see `magnitude(fromUnsignedAmount:)`), so applying this sign-stripping
+    /// parser to one would silently mis-infer `.income` for every row (no sign
+    /// is ever present to strip). Kept as a standalone utility, still exercised
+    /// by its own tests: the separator-disambiguation core
+    /// (`AmountLexer.value(forDigitToken:)`) it shares with the voice parser and
+    /// Excel/CSV import is worth pinning independently of any one bank feed's
+    /// sign convention.
     static func parseAmount(_ raw: String) -> (magnitude: Decimal, direction: TransactionDirection)? {
         var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -77,6 +97,27 @@ enum BankSyncMapper {
         return (magnitude, direction)
     }
 
+    /// Enable Banking's `transaction_amount.amount` is UNSIGNED — direction is
+    /// carried separately by `credit_debit_indicator` (see `direction(from:)`),
+    /// never by a sign in this string. Magnitude alone goes through
+    /// `AmountLexer.value(forDigitToken:)` directly, with NO sign-stripping
+    /// step (there is never a sign to strip) — the SAME separator-disambiguation
+    /// core the voice parser and Excel/CSV import use, so a bank feed that
+    /// writes thousands with a dot ("25.000") is still read correctly. Returns
+    /// nil for a blank/zero/unparseable value (skipped, never a zero-amount save).
+    static func magnitude(fromUnsignedAmount raw: String) -> Decimal? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard let value = AmountLexer.value(forDigitToken: trimmed), value != 0 else { return nil }
+        return value
+    }
+
+    /// `DBIT` = money left the account (expense); anything else (`CRDT`, or an
+    /// unrecognized code — tolerant by design) is treated as income.
+    static func direction(from creditDebitIndicator: String) -> TransactionDirection {
+        creditDebitIndicator == "DBIT" ? .expense : .income
+    }
+
     /// Currency from the amount block's ISO code, falling back to the account
     /// currency, then RON (never invents a currency).
     static func currency(code: String?, accountCurrency: Currency) -> Currency {
@@ -84,67 +125,71 @@ enum BankSyncMapper {
         return Currency(rawValue: code.uppercased()) ?? accountCurrency
     }
 
-    /// The counterparty signal: for a debit (expense) the money went TO the creditor;
-    /// for a credit (income) it came FROM the debtor. Falls back to remittance text.
-    static func counterparty(from tx: BankTransaction, direction: TransactionDirection) -> String? {
-        let primary = direction == .expense ? tx.creditorName : tx.debtorName
-        let secondary = direction == .expense ? tx.debtorName : tx.creditorName
-        let candidates = [primary, secondary, remittance(from: tx), tx.additionalInformation]
+    /// The counterparty signal: for a debit (expense) the money went TO the
+    /// creditor; for a credit (income) it came FROM the debtor. Falls back to
+    /// the remittance text.
+    static func counterparty(from tx: EBTransaction, direction: TransactionDirection) -> String? {
+        let primary = direction == .expense ? tx.creditor?.name : tx.debtor?.name
+        let secondary = direction == .expense ? tx.debtor?.name : tx.creditor?.name
+        let candidates = [primary, secondary, remittance(from: tx)]
         for candidate in candidates {
             if let c = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !c.isEmpty { return c }
         }
         return nil
     }
 
-    /// The unstructured remittance text (single field, else the array joined).
-    static func remittance(from tx: BankTransaction) -> String? {
-        if let s = tx.remittanceInformationUnstructured?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty { return s }
-        if let arr = tx.remittanceInformationUnstructuredArray, !arr.isEmpty {
-            let joined = arr.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-            return joined.isEmpty ? nil : joined
-        }
-        return nil
+    /// The unstructured remittance text — Enable Banking's `remittance_information`
+    /// is already `[String]?`, joined for display.
+    static func remittance(from tx: EBTransaction) -> String? {
+        guard let arr = tx.remittanceInformation, !arr.isEmpty else { return nil }
+        let joined = arr.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return joined.isEmpty ? nil : joined
     }
 
-    /// The booking date: `bookingDate` (yyyy-MM-dd) → `bookingDateTime` (ISO8601) →
-    /// `valueDate` → now. Never crashes on a missing/odd date.
-    static func date(from tx: BankTransaction, now: Date = .now) -> Date {
-        if let d = tx.bookingDate, let parsed = GoCardlessClient.apiDateFormatter.date(from: d) { return parsed }
-        if let dt = tx.bookingDateTime, let parsed = ISO8601DateFormatter().date(from: dt) { return parsed }
-        if let v = tx.valueDate, let parsed = GoCardlessClient.apiDateFormatter.date(from: v) { return parsed }
+    /// The booking date: `booking_date` → `value_date` → `transaction_date` →
+    /// now. Never crashes on a missing/odd date.
+    static func date(from tx: EBTransaction, now: Date = .now) -> Date {
+        if let d = tx.bookingDate, let parsed = EnableBankingClient.apiDateFormatter.date(from: d) { return parsed }
+        if let v = tx.valueDate, let parsed = EnableBankingClient.apiDateFormatter.date(from: v) { return parsed }
+        if let t = tx.transactionDate, let parsed = EnableBankingClient.apiDateFormatter.date(from: t) { return parsed }
         return now
     }
 
-    /// The stable per-transaction key for re-pull dedup. For id-less banks the
-    /// synthetic fingerprint uses the RAW date STRING (never the resolved `now`
-    /// fallback), so a date-less row hashes identically on every pull and is not
-    /// re-inserted. RISK: two genuinely-identical id-less same-day payments collide
-    /// (the second is skipped) — rare, and the safer failure than double-counting.
-    static func bankKey(for tx: BankTransaction, counterparty: String?, amountRaw: String, currency: Currency) -> String {
+    /// The stable per-transaction key for re-pull dedup: primary `transaction_id`,
+    /// secondary `entry_reference`, else a synthetic fingerprint. The SYNTHETIC
+    /// FORMAT itself is unchanged from the pre-v2.3 (GoCardless) mapper — only
+    /// which raw fields feed it changed — so it still uses the RAW date STRING
+    /// (never the resolved `now` fallback), so a date-less row hashes
+    /// identically on every pull and is not re-inserted. RISK: two genuinely-
+    /// identical id-less same-day payments collide (the second is skipped) —
+    /// rare, and the safer failure than double-counting.
+    static func bankKey(for tx: EBTransaction, counterparty: String?, amountRaw: String, currency: Currency) -> String {
         if let id = tx.transactionId?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty { return id }
-        if let id = tx.internalTransactionId?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty { return id }
-        let rawDate = tx.bookingDate ?? tx.bookingDateTime ?? tx.valueDate ?? ""
+        if let id = tx.entryReference?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty { return id }
+        let rawDate = tx.bookingDate ?? tx.valueDate ?? tx.transactionDate ?? ""
         return "syn:\(rawDate)|\(amountRaw)|\(currency.rawValue)|\(counterparty ?? "")"
     }
 
     /// Map one bank transaction to a `BankDraft`, or nil to skip it (unparseable /
-    /// zero amount).
-    static func draft(from tx: BankTransaction, accountCurrency: Currency, now: Date = .now) -> BankDraft? {
-        guard let (magnitude, direction) = parseAmount(tx.transactionAmount.amount) else { return nil }
+    /// zero amount). Caller is responsible for the `status == "BOOK"` filter —
+    /// this never inspects `status` itself.
+    static func draft(from tx: EBTransaction, accountCurrency: Currency, now: Date = .now) -> BankDraft? {
+        guard let mag = magnitude(fromUnsignedAmount: tx.transactionAmount.amount) else { return nil }
+        let dir = direction(from: tx.creditDebitIndicator)
         let cur = currency(code: tx.transactionAmount.currency, accountCurrency: accountCurrency)
-        let party = counterparty(from: tx, direction: direction)
+        let party = counterparty(from: tx, direction: dir)
         let when = date(from: tx, now: now)
         let key = bankKey(for: tx, counterparty: party, amountRaw: tx.transactionAmount.amount, currency: cur)
         let description = party ?? remittance(from: tx) ?? String(localized: "bank.tx.fallback")
         // Verbatim text preserved for search (merchant + amount + currency).
-        let amountString = NSDecimalNumber(decimal: magnitude).stringValue
+        let amountString = NSDecimalNumber(decimal: mag).stringValue
         var parts: [String] = []
         if let party { parts.append(party) }
         if let rem = remittance(from: tx), rem != party { parts.append(rem) }
         parts.append("\(amountString) \(cur.displayCode)")
         let rawText = parts.joined(separator: " · ")
         return BankDraft(
-            amount: magnitude, direction: direction, currency: cur,
+            amount: mag, direction: dir, currency: cur,
             counterparty: party, descriptionText: description, date: when,
             bankKey: key, rawText: rawText
         )
@@ -201,13 +246,19 @@ actor BankSyncService {
     /// re-inserted.
     static let refetchOverlap: TimeInterval = 3 * 24 * 60 * 60 // 3 days
 
+    /// v2.3 pagination guard: Enable Banking's `continuation_key` walk is
+    /// unbounded in principle. This caps how many pages ONE account will page
+    /// through in ONE sync so a misbehaving feed (or an infinite-key ASPSP
+    /// quirk) can never turn one sync into an unbounded pull.
+    static let maxPagesPerAccount = 20
+
     /// Pull + land transactions for the given accounts. `annotator` defaults to the
     /// deterministic-only path (no FM on CI). Every failure is absorbed silently —
     /// the outcome reports counts, never throws to the UI.
     func sync(
         accountIDs: [String],
         accountCurrency: Currency = .ron,
-        client: GoCardlessClient,
+        client: EnableBankingClient,
         annotator: any AnnotationRefining = UnavailableAnnotator()
     ) async -> BankSyncOutcome {
         // Silent-degrade: no keys ⇒ inert, no network touched.
@@ -239,55 +290,78 @@ actor BankSyncService {
 
         for accountID in accountIDs {
             let dateFrom = linkRow?.lastSyncByAccount[accountID].map { $0.addingTimeInterval(-Self.refetchOverlap) }
-            let response: AccountTransactionsResponse
-            do {
-                response = try await client.transactions(accountID: accountID, dateFrom: dateFrom)
-            } catch {
-                outcome.hadError = true
-                continue
-            }
-            outcome.accountsSynced += 1
-
             var newestBooking: Date?
-            for bankTx in response.transactions.booked ?? [] {
-                guard let draft = BankSyncMapper.draft(from: bankTx, accountCurrency: accountCurrency) else { continue }
-                newestBooking = max(newestBooking ?? draft.date, draft.date)
+            var accountSucceeded = false
+            var continuationKey: String?
 
-                // No-double-insert: skip anything already imported (this run or prior).
-                guard !seenKeys.contains(draft.bankKey) else {
-                    outcome.skippedDuplicates += 1
-                    continue
+            pageLoop: for _ in 0..<Self.maxPagesPerAccount {
+                let page: TransactionsPage
+                do {
+                    page = try await client.transactions(
+                        accountUID: accountID, dateFrom: dateFrom, continuationKey: continuationKey
+                    )
+                } catch let error as EnableBankingError {
+                    outcome.hadError = true
+                    // Defensively both codes — Enable Banking's exact
+                    // revocation status code from `transactions` is unverified.
+                    if error == .unauthorized {
+                        linkRow?.sessionRevoked = true
+                    } else if case .http(403, _) = error {
+                        linkRow?.sessionRevoked = true
+                    }
+                    break pageLoop
+                } catch {
+                    outcome.hadError = true
+                    break pageLoop
                 }
-                seenKeys.insert(draft.bankKey)
 
-                // P10 annotation (deterministic on CI); direction/counterparty stay the
-                // bank's ground truth.
-                let interpretation = await InterpretationService.annotate(
-                    .importRow(draft.descriptionText),
-                    rules: ruleSnaps, projects: projectSnaps, people: peopleSnaps,
-                    annotator: annotator
-                )
+                accountSucceeded = true
 
-                let transaction = Transaction(
-                    amount: draft.amount,
-                    currency: draft.currency,
-                    context: .personal,
-                    descriptionText: draft.descriptionText,
-                    date: draft.date,
-                    rawTranscript: BankSyncMapper.rawTranscript(for: draft),
-                    source: .autoLogged,
-                    direction: draft.direction,
-                    counterparty: draft.counterparty
-                )
-                transaction.categoryRef = interpretation.categoryRef ?? .preset(.other)
-                modelContext.insert(transaction)
-                outcome.inserted += 1
+                for bankTx in page.transactions where bankTx.status == "BOOK" {
+                    guard let draft = BankSyncMapper.draft(from: bankTx, accountCurrency: accountCurrency) else { continue }
+                    newestBooking = max(newestBooking ?? draft.date, draft.date)
 
-                // P8 — flag (never drop) a cross-source duplicate for the review surface.
-                if DedupService.flagIfDuplicate(transaction, in: modelContext) != nil {
-                    outcome.flaggedCrossSource += 1
+                    // No-double-insert: skip anything already imported (this run or prior).
+                    guard !seenKeys.contains(draft.bankKey) else {
+                        outcome.skippedDuplicates += 1
+                        continue
+                    }
+                    seenKeys.insert(draft.bankKey)
+
+                    // P10 annotation (deterministic on CI); direction/counterparty stay the
+                    // bank's ground truth.
+                    let interpretation = await InterpretationService.annotate(
+                        .importRow(draft.descriptionText),
+                        rules: ruleSnaps, projects: projectSnaps, people: peopleSnaps,
+                        annotator: annotator
+                    )
+
+                    let transaction = Transaction(
+                        amount: draft.amount,
+                        currency: draft.currency,
+                        context: .personal,
+                        descriptionText: draft.descriptionText,
+                        date: draft.date,
+                        rawTranscript: BankSyncMapper.rawTranscript(for: draft),
+                        source: .autoLogged,
+                        direction: draft.direction,
+                        counterparty: draft.counterparty
+                    )
+                    transaction.categoryRef = interpretation.categoryRef ?? .preset(.other)
+                    modelContext.insert(transaction)
+                    outcome.inserted += 1
+
+                    // P8 — flag (never drop) a cross-source duplicate for the review surface.
+                    if DedupService.flagIfDuplicate(transaction, in: modelContext) != nil {
+                        outcome.flaggedCrossSource += 1
+                    }
                 }
+
+                guard let nextKey = page.continuationKey, !nextKey.isEmpty else { break pageLoop }
+                continuationKey = nextKey
             }
+
+            if accountSucceeded { outcome.accountsSynced += 1 }
 
             // Since-last-sync bookkeeping.
             if let linkRow, let newestBooking {

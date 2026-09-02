@@ -31,11 +31,11 @@ final class BankSyncThrottleTests: XCTestCase {
     private func makeContainer() throws -> ModelContainer { try BaniModelContainer.make(inMemory: true) }
 
     private func ronSession(reusable: Bool = true) -> MockHTTPSession {
-        MockHTTPSession([.get("/accounts/acc-ron-1/transactions/", json: BankFixtures.transactionsRON, reusable: reusable)])
+        MockHTTPSession([.get("/accounts/acc-ron-1/transactions", json: BankFixtures.transactionsMixed, reusable: reusable)])
     }
 
     private func failingSession() -> MockHTTPSession {
-        MockHTTPSession([.get("/accounts/acc-ron-1/transactions/", status: 500, json: "{}", reusable: true)])
+        MockHTTPSession([.get("/accounts/acc-ron-1/transactions", status: 500, json: "{}", reusable: true)])
     }
 
     // MARK: - (a) Sync skipped inside the interval
@@ -80,12 +80,12 @@ final class BankSyncThrottleTests: XCTestCase {
         // `shouldSync` — it calls `BankSyncService.sync` directly.
         let container = try makeContainer()
         let secrets = BankTestSupport.credentialedSecrets()
-        let client = GoCardlessClient(session: ronSession(), secrets: secrets)
+        let client = EnableBankingClient(session: ronSession(), secrets: secrets)
         let service = BankSyncService(modelContainer: container)
 
         let outcome = await service.sync(accountIDs: ["acc-ron-1"], client: client)
 
-        XCTAssertEqual(outcome.inserted, 3, "manual sync runs and inserts regardless of the gate's state")
+        XCTAssertEqual(outcome.inserted, 4, "manual sync runs and inserts regardless of the gate's state (4 BOOK rows in the fixture, the PEND row excluded)")
     }
 
     // MARK: - (d) Failed sync does not advance the persisted timestamp
@@ -123,7 +123,7 @@ final class BankSyncThrottleTests: XCTestCase {
         let gate = BankSyncGate(defaults: defaults)
         let container = try makeContainer()
         let secrets = BankTestSupport.credentialedSecrets()
-        let client = GoCardlessClient(session: failingSession(), secrets: secrets)
+        let client = EnableBankingClient(session: failingSession(), secrets: secrets)
         let service = BankSyncService(modelContainer: container)
 
         XCTAssertTrue(gate.shouldSync())
@@ -173,8 +173,10 @@ final class BankSyncThrottleTests: XCTestCase {
         XCTAssertEqual(result?.direction, .expense)
     }
 
-    /// GoCardless's real, current shape — plain dot-decimal — must parse
-    /// exactly as before this fix (behavior-preserving for existing inputs).
+    /// The plain dot-decimal shape (still `BankSyncMapper.parseAmount`'s own
+    /// general-purpose contract, even though `draft(from:)` no longer routes
+    /// Enable Banking's unsigned amounts through it) — must parse exactly as
+    /// before this fix (behavior-preserving for existing inputs).
     func testParseAmountPlainDotDecimalUnchanged() {
         let result = BankSyncMapper.parseAmount("12.30")
         XCTAssertEqual(result?.magnitude, Decimal(string: "12.30"))
