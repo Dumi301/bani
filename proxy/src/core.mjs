@@ -99,21 +99,53 @@ export function isJwtFresh(exp, nowSeconds) {
   return nowSeconds < exp - JWT_REFRESH_MARGIN_SECONDS;
 }
 
-// ---- device-token auth ---------------------------------------------------
+// ---- device-token auth / tenant resolution --------------------------------
 
 /**
+ * Resolves which configured tenant an incoming request authenticates as.
+ * Subsumes the old single-tenant `isAuthorized` check: a request is valid
+ * only when its Bearer token appears in the resolved tenant's device-token
+ * list.
+ *
+ * - No hint: the token must appear in exactly one tenant's list (the
+ *   unique match wins); 0 or 2+ matches -> null.
+ * - Hint present: parsed as a 1-based tenant number; must be a plain
+ *   positive integer, in range, and the token must appear in that
+ *   specific tenant's list -- otherwise null.
+ *
  * @param {string | null | undefined} authHeader - raw `Authorization` header value
- * @param {string | undefined} deviceTokensCsv - env.DEVICE_TOKENS ("tok1,tok2")
+ * @param {string | null | undefined} tenantHint - raw `X-Bani-Tenant` header value (1-based); null/absent = auto-detect
+ * @param {Array<{deviceTokensCsv?: string | null} | null | undefined>} tenants - tenant configs, index 0 = tenant 1 (unsuffixed secrets)
+ * @returns {number | null} 0-based tenant index, or null on auth failure
  */
-export function isAuthorized(authHeader, deviceTokensCsv) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
+export function resolveTenant(authHeader, tenantHint, tenants) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
   const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) return false;
-  const allowed = (deviceTokensCsv ?? "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-  return allowed.includes(token);
+  if (!token) return null;
+
+  const list = tenants ?? [];
+  const tokensOf = (tenant) =>
+    (tenant?.deviceTokensCsv ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+  if (tenantHint !== null && tenantHint !== undefined && tenantHint !== "") {
+    if (!/^[0-9]+$/.test(tenantHint)) return null; // malformed (non-numeric)
+    const idx = Number(tenantHint) - 1;
+    if (idx < 0 || idx >= list.length) return null; // out of range
+    return tokensOf(list[idx]).includes(token) ? idx : null;
+  }
+
+  let matchIndex = null;
+  let matchCount = 0;
+  for (let i = 0; i < list.length; i++) {
+    if (tokensOf(list[i]).includes(token)) {
+      matchIndex = i;
+      matchCount++;
+    }
+  }
+  return matchCount === 1 ? matchIndex : null;
 }
 
 // ---- router ---------------------------------------------------------------

@@ -10,7 +10,7 @@ import {
   buildSigningInput,
   assembleJwt,
   isJwtFresh,
-  isAuthorized,
+  resolveTenant,
   matchRoute,
   callbackHtml,
 } from "../src/core.mjs";
@@ -136,18 +136,57 @@ test("isJwtFresh honours the 300s refresh margin", () => {
   assert.equal(isJwtFresh(1000, 999), false);
 });
 
-// ---- device-token auth -------------------------------------------------------
+// ---- device-token auth / tenant resolution -----------------------------------
 
-test("isAuthorized validates Bearer token against the DEVICE_TOKENS csv", () => {
-  assert.equal(isAuthorized("Bearer abc", "abc,def"), true);
-  assert.equal(isAuthorized("Bearer xyz", "abc,def"), false);
-  assert.equal(isAuthorized(null, "abc,def"), false);
-  assert.equal(isAuthorized(undefined, "abc,def"), false);
-  assert.equal(isAuthorized("Basic abc", "abc,def"), false);
-  assert.equal(isAuthorized("Bearer ", "abc,def"), false);
-  assert.equal(isAuthorized("Bearer  abc ", " abc , def "), true);
-  assert.equal(isAuthorized("Bearer abc", ""), false);
-  assert.equal(isAuthorized("Bearer abc", undefined), false);
+test("resolveTenant: single tenant, no hint -> that tenant's index", () => {
+  const tenants = [{ deviceTokensCsv: "abc,def" }];
+  assert.equal(resolveTenant("Bearer abc", null, tenants), 0);
+  assert.equal(resolveTenant("Bearer  abc ", undefined, tenants), 0);
+});
+
+test("resolveTenant: token in tenant 2 only, no hint -> index 1", () => {
+  const tenants = [{ deviceTokensCsv: "tok1" }, { deviceTokensCsv: "tok2" }];
+  assert.equal(resolveTenant("Bearer tok2", null, tenants), 1);
+});
+
+test("resolveTenant: token shared by tenants 1+2, no hint -> null (ambiguous)", () => {
+  const tenants = [{ deviceTokensCsv: "shared,tok1" }, { deviceTokensCsv: "shared,tok2" }];
+  assert.equal(resolveTenant("Bearer shared", null, tenants), null);
+});
+
+test("resolveTenant: token shared by tenants 1+2, hint '2' -> index 1", () => {
+  const tenants = [{ deviceTokensCsv: "shared,tok1" }, { deviceTokensCsv: "shared,tok2" }];
+  assert.equal(resolveTenant("Bearer shared", "2", tenants), 1);
+});
+
+test("resolveTenant: hint out of range -> null", () => {
+  const tenants = [{ deviceTokensCsv: "abc" }];
+  assert.equal(resolveTenant("Bearer abc", "2", tenants), null);
+  assert.equal(resolveTenant("Bearer abc", "0", tenants), null);
+});
+
+test("resolveTenant: hint non-numeric -> null", () => {
+  const tenants = [{ deviceTokensCsv: "abc" }];
+  assert.equal(resolveTenant("Bearer abc", "abc", tenants), null);
+  assert.equal(resolveTenant("Bearer abc", "1.5", tenants), null);
+});
+
+test("resolveTenant: hint valid but token not in that tenant -> null", () => {
+  const tenants = [{ deviceTokensCsv: "tok1" }, { deviceTokensCsv: "tok2" }];
+  assert.equal(resolveTenant("Bearer tok1", "2", tenants), null);
+});
+
+test("resolveTenant: unknown token -> null", () => {
+  const tenants = [{ deviceTokensCsv: "abc,def" }];
+  assert.equal(resolveTenant("Bearer xyz", null, tenants), null);
+});
+
+test("resolveTenant: missing/malformed auth header -> null", () => {
+  const tenants = [{ deviceTokensCsv: "abc,def" }];
+  assert.equal(resolveTenant(null, null, tenants), null);
+  assert.equal(resolveTenant(undefined, null, tenants), null);
+  assert.equal(resolveTenant("Basic abc", null, tenants), null);
+  assert.equal(resolveTenant("Bearer ", null, tenants), null);
 });
 
 // ---- router -------------------------------------------------------------------
