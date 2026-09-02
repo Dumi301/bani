@@ -13,37 +13,72 @@ import {
   buildSigningInput,
   assembleJwt,
   isJwtFresh,
-  isAuthorized,
+  resolveTenant,
   matchRoute,
   callbackHtml,
   pemToArrayBuffer,
 } from "./core.mjs";
 
 export interface Env {
-  EB_APP_ID: string;
-  EB_PRIVATE_KEY_PKCS8: string;
-  DEVICE_TOKENS: string;
+  EB_APP_ID?: string;
+  EB_PRIVATE_KEY_PKCS8?: string;
+  DEVICE_TOKENS?: string;
+  // Tenants 2..N use suffixed secret names: EB_APP_ID_2, EB_PRIVATE_KEY_PKCS8_2, DEVICE_TOKENS_2, ...
+  [key: string]: string | undefined;
+}
+
+interface TenantConfig {
+  appId: string;
+  privateKeyPkcs8: string;
+  deviceTokensCsv: string;
 }
 
 const UPSTREAM_BASE = "https://api.enablebanking.com";
+const MAX_TENANTS = 16;
 
-// Per-isolate JWT cache (module scope survives across requests on a warm
-// isolate, cleared on cold start — that's fine, we just re-sign).
-let cachedJwt: { token: string; exp: number } | null = null;
+// Reads tenants 1..N from env at request time. Tenant 1 uses the
+// unsuffixed secret names (back-compat); tenant n>=2 uses `_${n}` suffixes.
+// The loop stops as soon as a slot's EB_APP_ID is absent. A slot whose
+// EB_APP_ID is present but is missing either of the other two secrets is a
+// partial/misconfigured tenant -- it's skipped (kept as null so tenant
+// numbers stay aligned with their secret suffix) without breaking the loop.
+function collectTenants(env: Env): (TenantConfig | null)[] {
+  const tenants: (TenantConfig | null)[] = [];
+  for (let n = 1; n <= MAX_TENANTS; n++) {
+    const suffix = n === 1 ? "" : `_${n}`;
+    const appId = env[`EB_APP_ID${suffix}`];
+    if (!appId) break;
 
-async function getSignedJwt(env: Env): Promise<string> {
+    const privateKeyPkcs8 = env[`EB_PRIVATE_KEY_PKCS8${suffix}`];
+    const deviceTokensCsv = env[`DEVICE_TOKENS${suffix}`];
+    if (!privateKeyPkcs8 || !deviceTokensCsv) {
+      tenants.push(null);
+      continue;
+    }
+    tenants.push({ appId, privateKeyPkcs8, deviceTokensCsv });
+  }
+  return tenants;
+}
+
+// Per-isolate JWT cache, keyed by app_id (module scope survives across
+// requests on a warm isolate, cleared on cold start — that's fine, we just
+// re-sign).
+const jwtCache = new Map<string, { token: string; exp: number }>();
+
+async function getSignedJwt(tenant: TenantConfig): Promise<string> {
   const nowSeconds = Math.floor(Date.now() / 1000);
-  if (cachedJwt && isJwtFresh(cachedJwt.exp, nowSeconds)) {
-    return cachedJwt.token;
+  const cached = jwtCache.get(tenant.appId);
+  if (cached && isJwtFresh(cached.exp, nowSeconds)) {
+    return cached.token;
   }
 
-  const header = buildJwtHeader(env.EB_APP_ID);
+  const header = buildJwtHeader(tenant.appId);
   const payload = buildJwtPayload(nowSeconds);
   const signingInput = buildSigningInput(header, payload);
 
   const key = await crypto.subtle.importKey(
     "pkcs8",
-    pemToArrayBuffer(env.EB_PRIVATE_KEY_PKCS8),
+    pemToArrayBuffer(tenant.privateKeyPkcs8),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["sign"]
@@ -55,7 +90,7 @@ async function getSignedJwt(env: Env): Promise<string> {
   );
 
   const token = assembleJwt(signingInput, signature);
-  cachedJwt = { token, exp: payload.exp };
+  jwtCache.set(tenant.appId, { token, exp: payload.exp });
   return token;
 }
 
@@ -93,8 +128,15 @@ export default {
       });
     }
 
-    // Every other route requires a valid device token.
-    if (!isAuthorized(request.headers.get("Authorization"), env.DEVICE_TOKENS)) {
+    // Every other route requires a valid device token, resolved to a tenant.
+    const tenants = collectTenants(env);
+    const tenantIndex = resolveTenant(
+      request.headers.get("Authorization"),
+      request.headers.get("X-Bani-Tenant"),
+      tenants
+    );
+    const tenant = tenantIndex === null ? null : tenants[tenantIndex];
+    if (!tenant) {
       log(method, pathname, 401);
       return jsonResponse({ error: "unauthorized" }, 401);
     }
@@ -107,7 +149,7 @@ export default {
     // route === "passthrough"
     let jwt: string;
     try {
-      jwt = await getSignedJwt(env);
+      jwt = await getSignedJwt(tenant);
     } catch {
       log(method, pathname, 502);
       return jsonResponse({ error: "bad_gateway" }, 502);
