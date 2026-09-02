@@ -22,12 +22,12 @@
       },
       "versions": [
         {
-          "version": "2.2.70",
-          "buildVersion": "70",
-          "date": "2026-08-29T22:02:07Z",
-          "localizedDescription": "Bani 2.2 — trustworthy money: throttled bank sync, atomic restore, exact loan booking, Raport-first launch",
-          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.2.70/Bani.ipa",
-          "size": 3155226,
+          "version": "2.3.72",
+          "buildVersion": "72",
+          "date": "2026-09-02T11:55:05Z",
+          "localizedDescription": "Bani v2.3 — bank sync via Enable Banking + bani-proxy worker (#5)",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.3.72/Bani.ipa",
+          "size": 3160350,
           "minOSVersion": "26.0"
         }
       ]
