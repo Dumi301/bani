@@ -729,6 +729,21 @@ jobs:
           cat docs/source.json
           jq -e . docs/source.json > /dev/null && echo "source.json is valid JSON"
 
+      - name: Verify IPA version matches source.json (AltStore refuses mismatches)
+        # Added 2026-09-10 (audit A13) after the 08-25 "downloaded version does not
+        # match the version specified by the source" install failure. Fails the
+        # release before source.json is committed if the IPA's
+        # CFBundleShortVersionString != apps[0].versions[0].version.
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/ipa-check && mkdir -p /tmp/ipa-check
+          unzip -o -q Bani.ipa 'Payload/*.app/Info.plist' -d /tmp/ipa-check
+          PLIST="$(find /tmp/ipa-check -name Info.plist | head -1)"
+          IPA_VER="$(python3 -c "import plistlib,sys; print(plistlib.load(open(sys.argv[1],'rb'))['CFBundleShortVersionString'])" "$PLIST")"
+          SRC_VER="$(jq -r '.apps[0].versions[0].version' docs/source.json)"
+          echo "IPA CFBundleShortVersionString=$IPA_VER  source.json version=$SRC_VER"
+          [ "$IPA_VER" = "$SRC_VER" ] || { echo "::error::version mismatch: IPA=$IPA_VER source.json=$SRC_VER"; exit 1; }
+
       - name: Commit source.json to main
         run: |
           set -euo pipefail
