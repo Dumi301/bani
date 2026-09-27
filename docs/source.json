@@ -22,12 +22,12 @@
       },
       "versions": [
         {
-          "version": "2.3.72",
-          "buildVersion": "72",
-          "date": "2026-09-02T11:55:05Z",
-          "localizedDescription": "Bani v2.3 — bank sync via Enable Banking + bani-proxy worker (#5)",
-          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v2.3.72/Bani.ipa",
-          "size": 3160350,
+          "version": "0.3.80",
+          "buildVersion": "80",
+          "date": "2026-09-27T13:50:58Z",
+          "localizedDescription": "Bani v0.3 — bancă / numerar / avans: sync history, bank-vs-cash pots, live bank balance, avans disponibil (#7)",
+          "downloadURL": "https://github.com/Dumi301/bani/releases/download/v0.3.80/Bani.ipa",
+          "size": 3211645,
           "minOSVersion": "26.0"
         }
       ]
