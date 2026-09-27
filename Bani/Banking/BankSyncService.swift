@@ -223,7 +223,7 @@ enum BankSyncMapper {
 // MARK: - Outcome
 
 /// The result of one sync pass — counts only, no secrets.
-struct BankSyncOutcome: Equatable, Sendable {
+struct BankSyncOutcome: Equatable, Sendable, Codable {
     var inserted: Int = 0
     var skippedDuplicates: Int = 0
     var flaggedCrossSource: Int = 0

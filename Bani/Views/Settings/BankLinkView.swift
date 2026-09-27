@@ -44,6 +44,7 @@ struct BankLinkView: View {
                 statusSection
                 if !currentAccounts.isEmpty { accountsSection }
                 actionsSection
+                if !bankSyncGate.runs.isEmpty { historySection }
             }
         }
         .scrollContentBackground(.hidden)
@@ -167,6 +168,28 @@ struct BankLinkView: View {
             }
         } header: {
             Text("bank.accounts.title").foregroundStyle(Palette.secondaryInk)
+        }
+    }
+
+    /// v0.3 — the persisted run log (`BankSyncGate.runs`): what each sync
+    /// actually brought in, so "the feed is dark" is visible instead of silent.
+    private var historySection: some View {
+        Section {
+            ForEach(bankSyncGate.runs) { run in
+                LabeledContent {
+                    Text(String(format: String(localized: "bank.sync.history.row %lld %lld"),
+                                run.outcome.inserted, run.outcome.skippedDuplicates)
+                         + Text(run.outcome.hadError ? " · " + String(localized: "bank.sync.history.error") : ""))
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondaryInk)
+                } label: {
+                    Text(run.at, format: .dateTime.day().month(.abbreviated).hour().minute())
+                        .font(.footnote.monospaced())
+                }
+                .listRowBackground(Palette.surface)
+            }
+        } header: {
+            Text("bank.sync.history.title").foregroundStyle(Palette.secondaryInk)
         }
     }
 

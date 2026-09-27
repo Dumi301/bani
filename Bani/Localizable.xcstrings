@@ -122,6 +122,24 @@
         "ro": { "stringUnit": { "state": "translated", "value": "Ultima sincronizare a eșuat — se reia automat" } }
       }
     },
+    "bank.sync.history.error": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "error" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "eroare" } }
+      }
+    },
+    "bank.sync.history.row %lld %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "+%lld new · %lld skipped" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "+%lld noi · %lld duplicate" } }
+      }
+    },
+    "bank.sync.history.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sync history" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Istoric sincronizări" } }
+      }
+    },
     "bank.sync.lastSync": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Last sync" } },

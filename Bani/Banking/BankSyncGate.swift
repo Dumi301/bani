@@ -36,6 +36,9 @@ struct BankSyncGate {
     // a reference-date interval.
     private static let lastSuccessKey = "bank.sync.lastSuccessRefDate"
     private static let lastHadErrorKey = "bank.sync.lastHadError"
+    private static let runsKey = "bank.sync.runs"
+    /// v0.3 — how many past runs the history keeps; diagnostics, not data.
+    static let maxRuns = 20
 
     private let defaults: UserDefaults
 
@@ -72,8 +75,36 @@ struct BankSyncGate {
     /// on top of the failure.
     func recordOutcome(_ outcome: BankSyncOutcome, now: Date = .now) {
         guard !outcome.credentialsMissing else { return }
+        appendRun(BankSyncRun(at: now, outcome: outcome))
         defaults.set(outcome.hadError, forKey: Self.lastHadErrorKey)
         guard !outcome.hadError else { return }
         defaults.set(now.timeIntervalSinceReferenceDate, forKey: Self.lastSuccessKey)
     }
+
+    // MARK: - v0.3 run history
+
+    /// Every non-inert sync attempt (foreground or manual), newest first, capped
+    /// at `maxRuns`. Stored as JSON in the same `UserDefaults` as the gate —
+    /// diagnostics only, so deliberately NOT a SwiftData model and NOT part of
+    /// the backup archive. `Date` round-trips through JSONEncoder's default
+    /// reference-date double: bit-exact, same lesson as `lastSuccessKey`.
+    var runs: [BankSyncRun] {
+        guard let data = defaults.data(forKey: Self.runsKey),
+              let decoded = try? JSONDecoder().decode([BankSyncRun].self, from: data) else { return [] }
+        return decoded
+    }
+
+    private func appendRun(_ run: BankSyncRun) {
+        let kept = Array(([run] + runs).prefix(Self.maxRuns))
+        if let data = try? JSONEncoder().encode(kept) {
+            defaults.set(data, forKey: Self.runsKey)
+        }
+    }
+}
+
+/// One recorded sync attempt — see `BankSyncGate.runs`.
+struct BankSyncRun: Codable, Equatable, Sendable, Identifiable {
+    var at: Date
+    var outcome: BankSyncOutcome
+    var id: Date { at }
 }

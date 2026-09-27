@@ -145,6 +145,35 @@ final class BankSyncThrottleTests: XCTestCase {
         XCTAssertFalse(gate.lastHadError)
     }
 
+    // MARK: - v0.3: run history
+
+    func testRecordOutcomeAppendsRunNewestFirst() {
+        let gate = BankSyncGate(defaults: defaults)
+        let t0 = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        gate.recordOutcome(BankSyncOutcome(inserted: 3, skippedDuplicates: 1, accountsSynced: 1), now: t0)
+        gate.recordOutcome(BankSyncOutcome(hadError: true), now: t0.addingTimeInterval(60))
+
+        let runs = gate.runs
+        XCTAssertEqual(runs.count, 2)
+        XCTAssertEqual(runs[0].at, t0.addingTimeInterval(60))
+        XCTAssertTrue(runs[0].outcome.hadError)
+        XCTAssertEqual(runs[1].outcome.inserted, 3)
+        XCTAssertEqual(runs[1].outcome.skippedDuplicates, 1)
+    }
+
+    func testInertOutcomeRecordsNoRunAndHistoryIsCapped() {
+        let gate = BankSyncGate(defaults: defaults)
+        gate.recordOutcome(.inert)
+        XCTAssertTrue(gate.runs.isEmpty)
+
+        let t0 = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        for i in 0..<(BankSyncGate.maxRuns + 5) {
+            gate.recordOutcome(BankSyncOutcome(inserted: i, accountsSynced: 1), now: t0.addingTimeInterval(Double(i)))
+        }
+        XCTAssertEqual(gate.runs.count, BankSyncGate.maxRuns)
+        XCTAssertEqual(gate.runs.first?.outcome.inserted, BankSyncGate.maxRuns + 4)
+    }
+
     // MARK: - L4: BankSyncMapper.parseAmount
 
     func testParseAmountThousandsAndDecimalTogetherDotDecimal() {

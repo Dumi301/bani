@@ -1,4 +1,21 @@
-# PLAN.md — Bani "commit everything at once" master plan
+# PLAN.md — Bani
+
+## v0.3 push (approved by D 2026-09-27) — "Bancă / numerar / avans"
+Version line reset 2.3 → **0.3** (new integer, app not functional yet). Frozen seam:
+additive optional columns only; RO+EN strings; one commit + CI gate per phase.
+| Ph | Scope | Gate |
+|---|---|---|
+| 0 | push cc10402 · `LATEST.md` · `BankSyncGate.runs` history (UserDefaults JSON, cap 20) + Settings list | `BankSyncThrottleTests` run-history tests |
+| 1 | `Transaction.paymentMethodRaw` (bank/cash) + `PaymentMethodInference` (autoLogged→bank; import cash-ledger/numerar→cash; voice/manual keywords; nil=bank) + toggle on card/manual/edit | inference matrix test; nil rows decode |
+| 2 | `BalanceAnchor.potRaw` (nil=bank, "cash"); per-pot balance via `ReconciliationEngine`; Raport Position shows Bancă · Numerar · Total | 5000 cash anchor −1200 cash −300 bank → 3800 / bank−300 |
+| 3 | proxy whitelists `GET /accounts/{id}/balances`; `EnableBankingClient.balances`; `BankLink.lastBalanceByAccount`; bank pot = Σ balances when fresh ≤ 6h else anchor | proxy `node --test`; decode fixture; one real sync |
+| 4 | Raport card "Avans disponibil la <horizon>" = max(0, freeLiquidity − reserve), reserve default = 30d expectedOut; `RaportProjectRow.firstDate/lastDate` | clamp + default tests; date-range test |
+| 5 | `BANI_MARKETING_VERSION` "0.3"; HANDOFF/ROADMAP; release; **phones need backup → delete → install → restore** (AltStore won't offer 0.3.N over 2.3.72) | CI green on main; source.json == IPA version |
+Sidelined by D: project milestones (precontract/contract/sale), typical-duration estimate, budget vs Depășire.
+
+---
+
+# (2026-08-24) "commit everything at once" master plan
 
 Written 2026-08-24 by Fable (orchestrator). Source of truth for the next big push.
 Ground truth pulled from: repo history, `build-notes.md`, `pipeline/*.md` (local-only),
