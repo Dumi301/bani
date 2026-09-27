@@ -163,6 +163,16 @@ final class BankLink {
     /// `.expired` whenever this is `true`, regardless of `consentValidUntil`.
     var sessionRevoked: Bool?
 
+    // MARK: v0.3 additive column
+
+    /// Latest balance per account as JSON (`[String: BankBalance]`). Optional
+    /// `Data` is the most migration-proof shape for a dictionary of structs.
+    var balancesJSON: Data?
+    var balancesByAccount: [String: BankBalance] {
+        get { balancesJSON.flatMap { try? JSONDecoder().decode([String: BankBalance].self, from: $0) } ?? [:] }
+        set { balancesJSON = try? JSONEncoder().encode(newValue) }
+    }
+
     init(
         id: UUID = UUID(),
         institutionID: String? = nil,
@@ -180,7 +190,8 @@ final class BankLink {
         aspspName: String? = nil,
         aspspCountry: String? = nil,
         consentValidUntil: Date? = nil,
-        sessionRevoked: Bool? = nil
+        sessionRevoked: Bool? = nil,
+        balancesJSON: Data? = nil
     ) {
         self.id = id
         self.institutionID = institutionID
@@ -199,9 +210,28 @@ final class BankLink {
         self.aspspCountry = aspspCountry
         self.consentValidUntil = consentValidUntil
         self.sessionRevoked = sessionRevoked
+        self.balancesJSON = balancesJSON
     }
 
     /// The secret-free snapshot this row represents, for the pure state machine.
+    /// v0.3 — Σ of balances fetched within `maxAge`, in RON (EUR via `rate`);
+    /// nil when nothing fresh or an EUR balance has no rate. Drives the bank pot.
+    func liveBalanceRON(rate: Decimal?, maxAge: TimeInterval = BankSyncGate.minInterval, now: Date = .now) -> Decimal? {
+        let fresh = balancesByAccount.values.filter { now.timeIntervalSince($0.fetchedAt) <= maxAge }
+        guard !fresh.isEmpty else { return nil }
+        var sum: Decimal = 0
+        for balance in fresh {
+            switch Currency(rawValue: balance.currency.uppercased()) {
+            case .ron: sum += balance.amount
+            case .eur:
+                guard let rate else { return nil }
+                sum += balance.amount * rate
+            case nil: return nil
+            }
+        }
+        return sum
+    }
+
     var snapshot: BankLinkSnapshot {
         BankLinkSnapshot(
             authorizationID: authorizationID,
@@ -354,4 +384,11 @@ final class BankLinkStore {
         if let date = withFraction.date(from: raw) { return date }
         return EnableBankingClient.rfc3339Formatter.date(from: raw)
     }
+}
+
+/// One account's latest bank-reported balance — see `BankLink.balancesByAccount`.
+struct BankBalance: Codable, Equatable, Sendable {
+    var amount: Decimal
+    var currency: String
+    var fetchedAt: Date
 }

@@ -161,10 +161,19 @@ struct BankLinkView: View {
     private var accountsSection: some View {
         Section {
             ForEach(currentAccounts, id: \.self) { account in
-                Text(account)
-                    .font(.footnote.monospaced())
-                    .foregroundStyle(Palette.secondaryInk)
-                    .listRowBackground(Palette.surface)
+                HStack {
+                    Text(account)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(Palette.secondaryInk)
+                    Spacer()
+                    // v0.3: the bank-reported balance from the last sync.
+                    if let balance = store?.link?.balancesByAccount[account] {
+                        Text("\(balance.amount.formatted(.number.precision(.fractionLength(0...2)))) \(balance.currency)")
+                            .font(.footnote.monospaced())
+                            .foregroundStyle(Palette.ink)
+                    }
+                }
+                .listRowBackground(Palette.surface)
             }
         } header: {
             Text("bank.accounts.title").foregroundStyle(Palette.secondaryInk)

@@ -165,6 +165,8 @@ enum RaportHubBuilder {
         cashflowInterval: DateInterval,
         // v0.3: pot anchors (bank / cash) for the Position pots row.
         anchors: [BalanceAnchorSnapshot] = [],
+        // v0.3: Σ fresh bank-reported balances (RON); when present it IS the bank pot.
+        liveBank: Decimal? = nil,
         // IDs of scheduled items that are loan payments (`ScheduledItem.loanID != nil`).
         // `ScheduledItemSnapshot` intentionally omits `loanID`, so the caller passes
         // this set; the project budgeting rows exclude these so loan debt-service is
@@ -213,6 +215,10 @@ enum RaportHubBuilder {
         position.bankBalance = bank.balance
         position.cashBalance = cash.balance
         position.hasBankAnchor = bank.hasAnchor
+        if let liveBank {
+            position.bankBalance = liveBank
+            position.hasBankAnchor = true
+        }
         position.hasCashAnchor = cash.hasAnchor
 
         // ── Receivables (reuses the P6 rollup unchanged) ──

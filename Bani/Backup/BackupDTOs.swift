@@ -500,6 +500,8 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
     var aspspCountry: String?
     var consentValidUntil: Date?
     var sessionRevoked: Bool?
+    /// v0.3 — optional so pre-0.3 archives decode.
+    var balancesJSON: Data?
 
     init(_ link: BankLink) {
         id = link.id
@@ -519,6 +521,7 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
         aspspCountry = link.aspspCountry
         consentValidUntil = link.consentValidUntil
         sessionRevoked = link.sessionRevoked
+        balancesJSON = link.balancesJSON
     }
 
     func makeModel() -> BankLink {
@@ -527,6 +530,7 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
                  accountIDs: accountIDs, agreementExpiresAt: agreementExpiresAt, linkURL: linkURL,
                  lastSyncByAccount: lastSyncByAccount, createdAt: createdAt,
                  sessionID: sessionID, authorizationID: authorizationID, aspspName: aspspName,
-                 aspspCountry: aspspCountry, consentValidUntil: consentValidUntil, sessionRevoked: sessionRevoked)
+                 aspspCountry: aspspCountry, consentValidUntil: consentValidUntil, sessionRevoked: sessionRevoked,
+                 balancesJSON: balancesJSON)
     }
 }

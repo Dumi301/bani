@@ -208,6 +208,36 @@ struct EBTransaction: Codable, Equatable, Sendable {
     }
 }
 
+/// GET /accounts/{uid}/balances response (v0.3). Banks return several balance
+/// types; `preferred` picks the closing-booked one first (statement truth).
+struct BalancesResponse: Codable, Equatable, Sendable {
+    let balances: [EBBalance]
+
+    var preferred: EBBalance? {
+        for type in EBBalance.preferredTypes {
+            if let match = balances.first(where: { $0.balanceType == type }) { return match }
+        }
+        return balances.first
+    }
+}
+
+struct EBBalance: Codable, Equatable, Sendable {
+    let name: String?
+    let balanceAmount: EBTransaction.TransactionAmount
+    let balanceType: String?
+    let referenceDate: String?
+
+    /// CLBD closing booked · XPCD expected · ITAV interim available · ITBD interim booked.
+    static let preferredTypes = ["CLBD", "XPCD", "ITAV", "ITBD"]
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case balanceAmount = "balance_amount"
+        case balanceType = "balance_type"
+        case referenceDate = "reference_date"
+    }
+}
+
 // MARK: - Client
 
 struct EnableBankingClient: Sendable {
@@ -310,6 +340,12 @@ struct EnableBankingClient: Sendable {
         if let continuationKey { query["continuation_key"] = continuationKey }
         let request = try jsonRequest("GET", path: "/accounts/\(accountUID)/transactions", query: query)
         return try await decode(TransactionsPage.self, request: request)
+    }
+
+    /// GET /accounts/{uid}/balances — v0.3, feeds `BankLink.balancesByAccount`.
+    func balances(accountUID: String) async throws -> BalancesResponse {
+        let request = try jsonRequest("GET", path: "/accounts/\(accountUID)/balances")
+        return try await decode(BalancesResponse.self, request: request)
     }
 
     // MARK: Formatting

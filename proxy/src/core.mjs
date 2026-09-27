@@ -175,6 +175,10 @@ export function matchRoute(method, pathname) {
   if (method === "GET" && /^\/accounts\/[^/]+\/transactions$/.test(pathname)) {
     return "passthrough";
   }
+  // v0.3: account balances feed the bank pot on Raport.
+  if (method === "GET" && /^\/accounts\/[^/]+\/balances$/.test(pathname)) {
+    return "passthrough";
+  }
 
   return "notfound";
 }

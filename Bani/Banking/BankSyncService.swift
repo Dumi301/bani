@@ -363,6 +363,16 @@ actor BankSyncService {
 
             if accountSucceeded { outcome.accountsSynced += 1 }
 
+            // v0.3: live balance for the bank pot — best effort, never marks the
+            // sync errored (the transactions above are the data that matters).
+            if accountSucceeded, let linkRow,
+               let balance = try? await client.balances(accountUID: accountID).preferred,
+               let amount = Decimal(string: balance.balanceAmount.amount) {
+                var all = linkRow.balancesByAccount
+                all[accountID] = BankBalance(amount: amount, currency: balance.balanceAmount.currency ?? "RON", fetchedAt: Date())
+                linkRow.balancesByAccount = all
+            }
+
             // Since-last-sync bookkeeping.
             if let linkRow, let newestBooking {
                 linkRow.lastSyncByAccount[accountID] = max(linkRow.lastSyncByAccount[accountID] ?? .distantPast, newestBooking)

@@ -25,6 +25,7 @@ struct RaportHubView: View {
     private var projects: [Project]
     @Query private var scheduledItems: [ScheduledItem]
     @Query private var anchors: [BalanceAnchor]
+    @Query private var bankLinks: [BankLink]
     /// v0.3 — the "adaugă numerar" CTA on the cash tile opens the reconcile
     /// sheet pre-set to the cash pot.
     @State private var showCashAnchor = false
@@ -125,6 +126,7 @@ struct RaportHubView: View {
             horizon: horizon,
             cashflowInterval: cashflowInterval,
             anchors: anchors.map(\.snapshot),
+            liveBank: bankLinks.max(by: { $0.createdAt < $1.createdAt })?.liveBalanceRON(rate: rates.rateDecimal),
             loanItemIDs: Set(scheduledItems.filter { $0.loanID != nil }.map(\.id)),
             nextLoanPaymentIndex: RaportHubBuilder.nextLoanPaymentIndex(pendingStampsByLoan: pendingStampsByLoan),
             now: Date(),
