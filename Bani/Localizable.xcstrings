@@ -2,6 +2,36 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "raport.pots.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Where the money is" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Unde sunt banii" } }
+      }
+    },
+    "raport.pots.bank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Bancă" } }
+      }
+    },
+    "raport.pots.cash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cash" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Numerar" } }
+      }
+    },
+    "raport.pots.total": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Total" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Total" } }
+      }
+    },
+    "raport.pots.addCash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add cash on hand" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă numerar" } }
+      }
+    },
     "payment.bank": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Bank" } },

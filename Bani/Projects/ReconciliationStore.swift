@@ -27,9 +27,9 @@ enum ReconciliationStore {
     /// Snapshot every logged transaction as a reconciliation flow (pure value types
     /// for the engine). All-time; the engine windows by the anchor date.
     @MainActor
-    static func flows(in modelContext: ModelContext) -> [ReconciliationFlow] {
+    static func flows(pot: PaymentMethod = .bank, in modelContext: ModelContext) -> [ReconciliationFlow] {
         let all = (try? modelContext.fetch(FetchDescriptor<Transaction>())) ?? []
-        return all.map {
+        return all.filter { $0.pot == pot }.map {
             ReconciliationFlow(amount: $0.amount, currency: $0.currency,
                                direction: $0.direction, date: $0.date)
         }
@@ -41,9 +41,9 @@ enum ReconciliationStore {
     /// filter keeps enum/optional comparisons out of `#Predicate` keypaths, the
     /// codebase convention.
     @MainActor
-    static func latestAnchor(currency: Currency, in modelContext: ModelContext) -> BalanceAnchor? {
+    static func latestAnchor(currency: Currency, pot: PaymentMethod = .bank, in modelContext: ModelContext) -> BalanceAnchor? {
         let all = (try? modelContext.fetch(FetchDescriptor<BalanceAnchor>())) ?? []
-        return all.filter { $0.currency == currency }.max { $0.anchoredAt < $1.anchoredAt }
+        return all.filter { $0.currency == currency && $0.pot == pot }.max { $0.anchoredAt < $1.anchoredAt }
     }
 
     /// Every anchor, newest first — the anchor-history list (date, amount,
@@ -62,9 +62,10 @@ enum ReconciliationStore {
     static func result(
         actual: Decimal,
         currency: Currency,
+        pot: PaymentMethod = .bank,
         in modelContext: ModelContext
     ) -> ReconciliationResult {
-        let anchorSnapshot = latestAnchor(currency: currency, in: modelContext).map {
+        let anchorSnapshot = latestAnchor(currency: currency, pot: pot, in: modelContext).map {
             ReconciliationAnchor(amount: $0.amount, currency: $0.currency, anchoredAt: $0.anchoredAt)
         }
         return ReconciliationEngine.reconcile(
@@ -99,6 +100,7 @@ enum ReconciliationStore {
         note: String? = nil,
         now: Date = .now,
         referenceDate: Date? = nil,
+        pot: PaymentMethod = .bank,
         in modelContext: ModelContext
     ) -> Commit {
         var adjustment: Transaction?
@@ -117,6 +119,7 @@ enum ReconciliationStore {
                 direction: direction,
                 projectID: nil,   // NEVER a project — must not pollute any project P&L
                 loanID: nil,
+                paymentMethod: pot,   // v0.3: the adjustment lands in the pot it reconciles
                 createdAt: now
             )
             modelContext.insert(tx)
@@ -124,7 +127,7 @@ enum ReconciliationStore {
         }
         // L3: the drift was CLOSED by the adjustment above (or there was none to
         // close) — never an open residual on this path.
-        let anchor = insertAnchor(result: result, note: note, now: now, residual: nil, in: modelContext)
+        let anchor = insertAnchor(result: result, note: note, now: now, residual: nil, pot: pot, in: modelContext)
         try? modelContext.save()
         return Commit(anchor: anchor, adjustment: adjustment)
     }
@@ -143,10 +146,11 @@ enum ReconciliationStore {
         result: ReconciliationResult,
         note: String? = nil,
         now: Date = .now,
+        pot: PaymentMethod = .bank,
         in modelContext: ModelContext
     ) -> BalanceAnchor {
         let residual = result.drift == 0 ? nil : result.drift
-        let anchor = insertAnchor(result: result, note: note, now: now, residual: residual, in: modelContext)
+        let anchor = insertAnchor(result: result, note: note, now: now, residual: residual, pot: pot, in: modelContext)
         try? modelContext.save()
         return anchor
     }
@@ -163,6 +167,7 @@ enum ReconciliationStore {
         note: String?,
         now: Date,
         residual: Decimal?,
+        pot: PaymentMethod = .bank,
         in modelContext: ModelContext
     ) -> BalanceAnchor {
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -172,7 +177,8 @@ enum ReconciliationStore {
             anchoredAt: now,
             driftAtAnchor: result.drift,
             note: (trimmed?.isEmpty ?? true) ? nil : trimmed,
-            unresolvedResidual: residual
+            unresolvedResidual: residual,
+            pot: pot
         )
         modelContext.insert(anchor)
         return anchor

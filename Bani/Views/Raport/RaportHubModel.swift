@@ -13,6 +13,8 @@ struct RaportTxLine: Equatable, Sendable {
     var projectID: UUID?
     var loanID: UUID?
     var date: Date
+    /// v0.3 — pot the row moved through; `nil` (unknown) counts as bank.
+    var paymentMethod: PaymentMethod? = nil
 
     /// The `ProjectTxLine` view of this line, for the shared project aggregators.
     var projectLine: ProjectTxLine {
@@ -33,6 +35,12 @@ struct RaportPosition: Equatable, Sendable {
     var cashHasUnconvertible: Bool
     /// Net cash flow over the period (in − out).
     var cashNet: Decimal { cashIn - cashOut }
+    /// v0.3 — the two pots (RON): latest pot anchor + pot flows since it.
+    var bankBalance: Decimal = 0
+    var cashBalance: Decimal = 0
+    var hasBankAnchor: Bool = false
+    var hasCashAnchor: Bool = false
+    var potsTotal: Decimal { bankBalance + cashBalance }
 }
 
 /// One debt line (bank or investor loan): live position + the split of the next
@@ -155,6 +163,8 @@ enum RaportHubBuilder {
         rate: Decimal?,
         horizon: LiquidityHorizon,
         cashflowInterval: DateInterval,
+        // v0.3: pot anchors (bank / cash) for the Position pots row.
+        anchors: [BalanceAnchorSnapshot] = [],
         // IDs of scheduled items that are loan payments (`ScheduledItem.loanID != nil`).
         // `ScheduledItemSnapshot` intentionally omits `loanID`, so the caller passes
         // this set; the project budgeting rows exclude these so loan debt-service is
@@ -194,10 +204,16 @@ enum RaportHubBuilder {
             }
             if line.direction == .income { cashIn += value } else { cashOut += value }
         }
-        let position = RaportPosition(
+        var position = RaportPosition(
             netLoggedPosition: netLogged, liquidity: liquidity,
             cashIn: cashIn, cashOut: cashOut, cashHasUnconvertible: cashUnconvertible
         )
+        let bank = potBalance(.bank, lines: lines, anchors: anchors, rate: rate)
+        let cash = potBalance(.cash, lines: lines, anchors: anchors, rate: rate)
+        position.bankBalance = bank.balance
+        position.cashBalance = cash.balance
+        position.hasBankAnchor = bank.hasAnchor
+        position.hasCashAnchor = cash.hasAnchor
 
         // ── Receivables (reuses the P6 rollup unchanged) ──
         let receivables = ReceivablesRollup.build(items, rate: rate)
@@ -229,6 +245,27 @@ enum RaportHubBuilder {
     }
 
     // MARK: - Per-loan
+
+    /// v0.3 — one pot's RON balance: the latest RON anchor for that pot (if any)
+    /// plus the pot's non-neutral flows after it, converted like every other
+    /// Raport number. Mirrors `ReconciliationEngine.reconcile` minus the drift.
+    static func potBalance(
+        _ pot: PaymentMethod,
+        lines: [RaportTxLine],
+        anchors: [BalanceAnchorSnapshot],
+        rate: Decimal?
+    ) -> (balance: Decimal, hasAnchor: Bool) {
+        let anchor = anchors
+            .filter { $0.pot == pot && $0.currency == .ron }
+            .max { $0.anchoredAt < $1.anchoredAt }
+        var net: Decimal = anchor?.amount ?? 0
+        for line in lines where (line.paymentMethod ?? .bank) == pot && line.direction != .neutral {
+            if let anchor, line.date <= anchor.anchoredAt { continue }
+            guard let value = ron(line.amount, line.currency, rate: rate) else { continue }
+            net += line.direction == .income ? value : -value
+        }
+        return (net, anchor != nil)
+    }
 
     private static func debtRow(
         for loan: LoanSnapshot,

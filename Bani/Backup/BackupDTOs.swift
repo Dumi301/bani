@@ -395,6 +395,8 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
     /// decodes to `nil` via Swift's synthesized `Decodable`, matching how
     /// `ScheduledItemDTO.scheduleIndex` round-trips a legacy archive).
     var unresolvedResidual: String?
+    /// v0.3 — optional so pre-0.3 archives decode (nil → bank).
+    var pot: PaymentMethod?
     var createdAt: Date
 
     init(_ anchor: BalanceAnchor) {
@@ -405,6 +407,7 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
         driftAtAnchor = BackupDecimalCodec.encode(anchor.driftAtAnchor)
         note = anchor.note
         unresolvedResidual = anchor.unresolvedResidualRaw.map(BackupDecimalCodec.encode)
+        pot = anchor.pot
         createdAt = anchor.createdAt
     }
 
@@ -413,7 +416,7 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
             id: id, amount: try BackupDecimalCodec.decode(amount), currency: currency,
             anchoredAt: anchoredAt, driftAtAnchor: try BackupDecimalCodec.decode(driftAtAnchor),
             note: note, unresolvedResidual: try BackupDecimalCodec.decodeOptional(unresolvedResidual),
-            createdAt: createdAt
+            pot: pot ?? .bank, createdAt: createdAt
         )
     }
 }

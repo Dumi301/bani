@@ -24,6 +24,10 @@ struct RaportHubView: View {
     @Query(sort: [SortDescriptor(\Project.sortOrder), SortDescriptor(\Project.createdAt, order: .reverse)])
     private var projects: [Project]
     @Query private var scheduledItems: [ScheduledItem]
+    @Query private var anchors: [BalanceAnchor]
+    /// v0.3 — the "adaugă numerar" CTA on the cash tile opens the reconcile
+    /// sheet pre-set to the cash pot.
+    @State private var showCashAnchor = false
     @Query private var customCategories: [CustomCategory]
     /// P11 — the People registry (P6) feeds smart-search person verification.
     @Query private var people: [Person]
@@ -111,7 +115,8 @@ struct RaportHubView: View {
         return RaportHubBuilder.build(
             lines: transactions.map {
                 RaportTxLine(amount: $0.amount, currency: $0.currency, direction: $0.direction,
-                             projectID: $0.projectID, loanID: $0.loanID, date: $0.date)
+                             projectID: $0.projectID, loanID: $0.loanID, date: $0.date,
+                             paymentMethod: $0.paymentMethod)
             },
             loans: loans.map(\.snapshot),
             projects: projects.map(\.snapshot),
@@ -119,6 +124,7 @@ struct RaportHubView: View {
             rate: rates.rateDecimal,
             horizon: horizon,
             cashflowInterval: cashflowInterval,
+            anchors: anchors.map(\.snapshot),
             loanItemIDs: Set(scheduledItems.filter { $0.loanID != nil }.map(\.id)),
             nextLoanPaymentIndex: RaportHubBuilder.nextLoanPaymentIndex(pendingStampsByLoan: pendingStampsByLoan),
             now: Date(),
@@ -334,8 +340,48 @@ struct RaportHubView: View {
                 bnrDate: rates.bnrPublishingDate,
                 rate: rates.rate
             )
+            potsCard(position)
             cashflowCard(position)
         }
+        .sheet(isPresented: $showCashAnchor) { ReconciliationSheet(pot: .cash) }
+    }
+
+    /// v0.3 — Bancă · Numerar · Total. The bank pot is automated (sync + anchor);
+    /// cash can only be what the client tells us, so an unanchored cash pot is a
+    /// CTA, never a silent 0.
+    private func potsCard(_ position: RaportPosition) -> some View {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+            Text("raport.pots.title")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryInk)
+            HStack(spacing: metrics.sectionSpacing) {
+                cashStat(labelKey: "raport.pots.bank", value: position.bankBalance,
+                         sign: position.bankBalance < 0 ? "−" : "")
+                if position.hasCashAnchor {
+                    cashStat(labelKey: "raport.pots.cash", value: position.cashBalance,
+                             sign: position.cashBalance < 0 ? "−" : "")
+                } else {
+                    Button { showCashAnchor = true } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("raport.pots.cash")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(Palette.secondaryInk)
+                            Text("raport.pots.addCash")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.accent)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("raport.pots.addCash")
+                }
+                cashStat(labelKey: "raport.pots.total", value: position.potsTotal,
+                         sign: position.potsTotal < 0 ? "−" : "")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
+        .accessibilityIdentifier("raport.pots")
     }
 
     private func cashflowCard(_ position: RaportPosition) -> some View {

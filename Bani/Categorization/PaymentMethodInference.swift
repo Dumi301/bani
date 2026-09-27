@@ -15,6 +15,11 @@ enum PaymentMethod: String, Codable, CaseIterable, Hashable, Sendable {
     }
 }
 
+extension Transaction {
+    /// The pot every balance consumer counts this row against: unknown = bank.
+    var pot: PaymentMethod { paymentMethod ?? .bank }
+}
+
 /// Deterministic, offline guess of the pot from what the row already carries.
 /// Runs inside `Transaction.init` whenever no explicit method is passed, so
 /// every creation site (voice, manual, import, auto-log, bank sync, restore)
