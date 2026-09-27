@@ -1,4 +1,21 @@
-# Bani — Roadmap (V2 push edition, 2026-08-24)
+# Bani — Roadmap (v0.3 edition, 2026-09-27)
+
+**Version line reset 2.3 → 0.3 (D, 2026-09-27):** not functional for the client
+yet → new integer line. See HANDOFF.md for the reinstall path (0.3 is not an
+AltStore "update" over 2.3.72).
+
+## v0.3 — Bancă / numerar / avans (shipped 2026-09-27, PR #7)
+Sync-run history · bank/cash payment method with inference · cash pot + bank pot
+on Raport · Enable Banking balances as the bank pot · avans disponibil card ·
+per-project Încasat/Net + activity span.
+
+## After v0.3 (sidelined by D)
+Project milestones (precontract → contract → sale) · typical precontract→contract
+duration · budget vs Depășire · payment-method learning loop.
+
+---
+
+# (2026-08-24) V2 push edition
 
 Three lanes: shipped · in the V2 push · after V2. Destination: [VISION.md](VISION.md).
 Execution detail for the push: PLAN.md (orchestrator) + pipeline/prompts-v2/.

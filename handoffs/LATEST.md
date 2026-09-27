@@ -1,5 +1,5 @@
 # LATEST — Bani (2026-09-27)
-State: v0.3 push in flight on branch `v0.3` (version line reset 2.3 → 0.3 per D; app "not functional yet"). Last live release: 2.3.72 (AltStore, 2026-09-02).
-Last commit: see `git log -1`; Phase 0 = sync-run history in `BankSyncGate.runs` + Settings → Bank list.
-Next phase: 1 — `Transaction.paymentMethod` (bank/cash) + inference (see PLAN.md § v0.3).
-Open items: D on-device checklist (share sheet · Whisper · Raiffeisen notif · real bank link · cross-phone restore) · client 6-question conversation · seal: 0.3.N will NOT show as an AltStore update over 2.3.72 → backup → delete → fresh install → restore on both phones.
+State: v0.3 push on branch `v0.3` (PR #7), phases 0–5 committed; awaiting CI gate then squash-merge to main. Version line reset 2.3 → 0.3.
+Last commit: see `git log -1`.
+Next step: merge PR #7 when CI is green → release job publishes 0.3.<run> → phones: backup → delete → install → restore (0.3 is NOT an AltStore update over 2.3.72).
+Open items: D on-device checklist (+ one "Sync now" showing a balance, one cash anchor) · client 6-question conversation · sidelined: project milestones / durations / budget vs Depășire.
