@@ -29,6 +29,9 @@ struct RaportHubView: View {
     /// v0.3 — the "adaugă numerar" CTA on the cash tile opens the reconcile
     /// sheet pre-set to the cash pot.
     @State private var showCashAnchor = false
+    /// v0.3 — the avans reserve in RON; < 0 means "use the default" (see
+    /// `RaportHubBuilder.defaultReserve`).
+    @AppStorage("raportReserve") private var reserveRaw: Double = -1
     @Query private var customCategories: [CustomCategory]
     /// P11 — the People registry (P6) feeds smart-search person verification.
     @Query private var people: [Person]
@@ -343,6 +346,7 @@ struct RaportHubView: View {
                 rate: rates.rate
             )
             potsCard(position)
+            avansCard(position)
             cashflowCard(position)
         }
         .sheet(isPresented: $showCashAnchor) { ReconciliationSheet(pot: .cash) }
@@ -384,6 +388,36 @@ struct RaportHubView: View {
         .padding(metrics.cardPadding)
         .metalSurface(cornerRadius: Radius.card)
         .accessibilityIdentifier("raport.pots")
+    }
+
+    /// v0.3 — planning: "Avans disponibil la <horizon>" = free liquidity − reserve.
+    private func avansCard(_ position: RaportPosition) -> some View {
+        let liquidity = position.liquidity
+        let reserve: Decimal = reserveRaw < 0 ? RaportHubBuilder.defaultReserve(liquidity) : Decimal(reserveRaw)
+        let avans = RaportHubBuilder.availableDownPayment(freeLiquidity: liquidity.freeLiquidity, reserve: reserve)
+        let reserveBinding = Binding<Double>(
+            get: { reserveRaw < 0 ? NSDecimalNumber(decimal: reserve).doubleValue : reserveRaw },
+            set: { reserveRaw = max(0, $0) }
+        )
+        return VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+            Text("raport.avans.title \(horizon.dayCount)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryInk)
+            Text("\(avans.formatted(.number.precision(.fractionLength(0...0)))) \(Currency.ron.displayCode)")
+                .font(Typography.amount(.title2, weight: .semibold))
+                .foregroundStyle(Palette.ink)
+                .accessibilityIdentifier("raport.avans.value")
+            Stepper(value: reserveBinding, in: 0...100_000_000, step: 1000) {
+                Text("raport.avans.formula \(liquidity.freeLiquidity.formatted(.number.precision(.fractionLength(0...0)))) \(reserve.formatted(.number.precision(.fractionLength(0...0))))")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryInk)
+            }
+            .accessibilityIdentifier("raport.avans.reserveStepper")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
+        .accessibilityIdentifier("raport.avans")
     }
 
     private func cashflowCard(_ position: RaportPosition) -> some View {
@@ -603,6 +637,18 @@ struct RaportHubView: View {
                     .lineLimit(1)
                 Spacer(minLength: 6)
                 statPair(labelKey: "raport.projects.invested", value: row.invested)
+            }
+            // v0.3: spent · received · net + the activity span (first → last entry).
+            HStack(spacing: 6) {
+                statPair(labelKey: "raport.projects.received", value: row.invested + row.net)
+                statPair(labelKey: "raport.projects.net", value: row.net)
+                Spacer(minLength: 6)
+                if let first = row.firstDate, let last = row.lastDate {
+                    Text("\(first.formatted(.dateTime.day().month(.abbreviated).year(.twoDigits).locale(locale))) → \(last.formatted(.dateTime.day().month(.abbreviated).year(.twoDigits).locale(locale)))")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryInk)
+                        .lineLimit(1)
+                }
             }
             if row.hasBudget {
                 ProgressView(value: min(1, max(0, NSDecimalNumber(decimal: row.percentPaid).doubleValue / 100)))

@@ -114,6 +114,9 @@ struct RaportProjectRow: Equatable, Sendable, Identifiable {
     /// Percent of the committed total already paid, 0…100 (0 when nothing committed).
     var percentPaid: Decimal
     var nextDueDate: Date?
+    /// v0.3 — first/last transaction dates on the project (activity span).
+    var firstDate: Date? = nil
+    var lastDate: Date? = nil
 
     var id: UUID { projectID }
     /// Total committed outgoing = paid + due.
@@ -398,7 +401,21 @@ enum RaportHubBuilder {
             paid: paid,
             due: due,
             percentPaid: percentPaid,
-            nextDueDate: nextDue
+            nextDueDate: nextDue,
+            firstDate: scoped.map(\.date).min(),
+            lastDate: scoped.map(\.date).max()
         )
     }
+
+    // MARK: - v0.3 planning
+
+    /// "Avans disponibil": what the client can put down on the next deal at the
+    /// chosen horizon — free liquidity minus a safety reserve, never negative.
+    static func availableDownPayment(freeLiquidity: Decimal, reserve: Decimal) -> Decimal {
+        max(0, freeLiquidity - reserve)
+    }
+
+    /// Default reserve when the client has not set one: the horizon's committed
+    /// outgoings once more as a cushion (rent, rates, salaries).
+    static func defaultReserve(_ liquidity: LiquidityResult) -> Decimal { liquidity.expectedOut }
 }

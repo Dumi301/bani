@@ -2,6 +2,30 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "raport.avans.title %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Down payment available at %lld days" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Avans disponibil la %lld zile" } }
+      }
+    },
+    "raport.avans.formula %@ %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Free liquidity %@ − reserve %@ (adjust the reserve)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Lichiditate liberă %@ − rezervă %@ (ajustează rezerva)" } }
+      }
+    },
+    "raport.projects.received": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Received" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Încasat" } }
+      }
+    },
+    "raport.projects.net": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Net" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Net" } }
+      }
+    },
     "raport.pots.title": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Where the money is" } },
