@@ -76,6 +76,8 @@ struct TransactionDTO: Codable, Equatable, Sendable {
     var projectID: UUID?
     var loanID: UUID?
     var duplicateOfID: UUID?
+    /// v0.3 — optional so archives written before 0.3 decode (→ nil → re-inferred).
+    var paymentMethod: PaymentMethod?
     var createdAt: Date
 
     init(_ tx: Transaction) {
@@ -97,6 +99,7 @@ struct TransactionDTO: Codable, Equatable, Sendable {
         projectID = tx.projectID
         loanID = tx.loanID
         duplicateOfID = tx.duplicateOfID
+        paymentMethod = tx.paymentMethod
         createdAt = tx.createdAt
     }
 
@@ -107,7 +110,8 @@ struct TransactionDTO: Codable, Equatable, Sendable {
             descriptionText: descriptionText, merchant: merchant, date: date,
             rawTranscript: rawTranscript, source: source, direction: direction,
             counterparty: counterparty, attachmentID: attachmentID, importBatchID: importBatchID,
-            projectID: projectID, loanID: loanID, duplicateOfID: duplicateOfID, createdAt: createdAt
+            projectID: projectID, loanID: loanID, duplicateOfID: duplicateOfID,
+            paymentMethod: paymentMethod, createdAt: createdAt
         )
     }
 }

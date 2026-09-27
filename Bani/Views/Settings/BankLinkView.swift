@@ -177,9 +177,7 @@ struct BankLinkView: View {
         Section {
             ForEach(bankSyncGate.runs) { run in
                 LabeledContent {
-                    Text(String(format: String(localized: "bank.sync.history.row %lld %lld"),
-                                run.outcome.inserted, run.outcome.skippedDuplicates)
-                         + Text(run.outcome.hadError ? " · " + String(localized: "bank.sync.history.error") : ""))
+                    Text(historyLine(for: run))
                         .font(.footnote)
                         .foregroundStyle(Palette.secondaryInk)
                 } label: {
@@ -191,6 +189,13 @@ struct BankLinkView: View {
         } header: {
             Text("bank.sync.history.title").foregroundStyle(Palette.secondaryInk)
         }
+    }
+
+    private func historyLine(for run: BankSyncRun) -> String {
+        var line = String(format: String(localized: "bank.sync.history.row %lld %lld"),
+                          run.outcome.inserted, run.outcome.skippedDuplicates)
+        if run.outcome.hadError { line += " · " + String(localized: "bank.sync.history.error") }
+        return line
     }
 
     private var actionsSection: some View {

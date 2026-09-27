@@ -2,6 +2,24 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "payment.bank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Bancă" } }
+      }
+    },
+    "payment.cash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cash" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Numerar" } }
+      }
+    },
+    "payment.method": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paid from" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plătit din" } }
+      }
+    },
     "bank.accounts.title": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Accounts" } },

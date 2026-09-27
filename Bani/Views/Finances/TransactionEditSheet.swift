@@ -24,6 +24,8 @@ struct TransactionEditSheet: View {
     @State private var context: TransactionContext
     /// A1 — money direction, editable.
     @State private var direction: TransactionDirection
+    /// v0.3 — pot (unknown rows show as bank).
+    @State private var paymentMethod: PaymentMethod
     /// The unified category (preset OR custom, C3).
     @State private var categoryRef: CategoryRef?
     @State private var descriptionText: String
@@ -42,6 +44,7 @@ struct TransactionEditSheet: View {
         _currency = State(initialValue: transaction.currency)
         _context = State(initialValue: transaction.context)
         _direction = State(initialValue: transaction.direction)
+        _paymentMethod = State(initialValue: transaction.paymentMethod ?? .bank)
         _categoryRef = State(initialValue: transaction.categoryRef)
         _descriptionText = State(initialValue: transaction.descriptionText)
         _merchant = State(initialValue: transaction.merchant ?? "")
@@ -104,6 +107,7 @@ struct TransactionEditSheet: View {
 
                     // A1: direction editor.
                     DirectionPicker(selection: $direction)
+                    PaymentMethodPicker(selection: $paymentMethod)
                         .accessibilityIdentifier("editDirectionPicker")
                 }
 
@@ -152,6 +156,7 @@ struct TransactionEditSheet: View {
         transaction.currency = currency
         transaction.context = context
         transaction.direction = direction
+        transaction.paymentMethod = paymentMethod
         transaction.categoryRef = categoryRef
         transaction.descriptionText = cleanDescription
         transaction.merchant = merchant.isEmpty ? nil : merchant

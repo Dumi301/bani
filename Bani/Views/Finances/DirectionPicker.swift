@@ -18,6 +18,22 @@ struct DirectionPicker: View {
     }
 }
 
+/// v0.3 — Bancă / Numerar segmented picker; sits next to `DirectionPicker`.
+struct PaymentMethodPicker: View {
+    @Binding var selection: PaymentMethod
+
+    var body: some View {
+        Picker("payment.method", selection: $selection) {
+            ForEach(PaymentMethod.allCases, id: \.self) { method in
+                Text(method.label).tag(method)
+            }
+        }
+        .pickerStyle(.segmented)
+        .tint(Palette.accent)
+        .accessibilityIdentifier("paymentMethodPicker")
+    }
+}
+
 /// A counterparty text field with tap-to-fill suggestions from the parties already
 /// used (B2). Empty is fine — counterparty is optional everywhere.
 struct CounterpartyField: View {

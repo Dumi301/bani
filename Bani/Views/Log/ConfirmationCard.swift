@@ -65,6 +65,8 @@ struct ConfirmationCard: View {
     @State private var editingContext: TransactionContext
     /// A3 — direction, default expense (zero new friction), editable in edit mode.
     @State private var direction: TransactionDirection = .expense
+    /// v0.3 — pot, inferred from the transcript in `init`; editable.
+    @State private var paymentMethod: PaymentMethod
     @State private var isEditing: Bool
     /// The transaction date+time (C1). Defaults to now; editable in edit mode so
     /// past expenses can be logged.
@@ -191,6 +193,8 @@ struct ConfirmationCard: View {
         _categoryRef = State(initialValue: categoryRef)
         _date = State(initialValue: now)
         _selectedProjectID = State(initialValue: initialProject)
+        // v0.3: pot guess from the spoken words; the card's picker can flip it.
+        _paymentMethod = State(initialValue: PaymentMethodInference.infer(source: .voice, text: transcript) ?? .bank)
         // Never invent a number, never hide a failure: no parsed amount OR a
         // transcription error → open directly in edit mode. Shared derivation
         // so the view and the A2 unit tests can never drift.
@@ -620,6 +624,9 @@ struct ConfirmationCard: View {
             // A3: direction (expense default), editable for income/neutral entries.
             DirectionPicker(selection: $direction)
                 .accessibilityIdentifier("confirmationCard.directionPicker")
+            // v0.3: pot, pre-set from the transcript ("cash"/"numerar" → Numerar).
+            PaymentMethodPicker(selection: $paymentMethod)
+                .accessibilityIdentifier("confirmationCard.paymentMethodPicker")
 
             // C1: date+time is editable so past expenses can be logged.
             DatePicker(
@@ -766,6 +773,7 @@ struct ConfirmationCard: View {
             date: date,
             direction: direction,
             projectID: finalProject,
+            paymentMethod: paymentMethod,
             into: modelContext
         )
         // Remember the last-used project so the next Work card defaults to it.
@@ -900,6 +908,7 @@ func saveVoiceTransaction(
     date: Date = .now,
     direction: TransactionDirection = .expense,
     projectID: UUID? = nil,
+    paymentMethod: PaymentMethod? = nil,
     into modelContext: ModelContext
 ) -> Transaction? {
     guard let amount = parsed.amount else { return nil }
@@ -914,7 +923,8 @@ func saveVoiceTransaction(
         rawTranscript: transcript,
         source: .voice,
         direction: direction,
-        projectID: projectID
+        projectID: projectID,
+        paymentMethod: paymentMethod
     )
     // A custom-aware ref (C3) overrides the preset `category` param when given.
     if let categoryRef {
