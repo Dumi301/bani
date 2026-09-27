@@ -63,6 +63,25 @@ final class EnableBankingClientTests: XCTestCase {
         XCTAssertTrue(session.requestLog.last?.url.contains("country=RO") == true, "country is sent uppercased")
     }
 
+    // MARK: - v0.3 balances
+
+    func testBalancesDecodeAndPreferClosingBooked() async throws {
+        let secrets = BankTestSupport.credentialedSecrets()
+        let json = """
+        {"balances":[
+          {"name":"Available","balance_amount":{"currency":"RON","amount":"900.00"},"balance_type":"ITAV"},
+          {"name":"Booked","balance_amount":{"currency":"RON","amount":"1234.56"},"balance_type":"CLBD","reference_date":"2026-09-27"}
+        ]}
+        """
+        let session = MockHTTPSession([.get("/accounts/acc-ron-1/balances", json: json)])
+
+        let response = try await client(session, secrets: secrets).balances(accountUID: "acc-ron-1")
+
+        XCTAssertEqual(response.balances.count, 2)
+        XCTAssertEqual(response.preferred?.balanceAmount.amount, "1234.56")
+        XCTAssertEqual(response.preferred?.balanceType, "CLBD")
+    }
+
     // MARK: - startAuth request-body shape
 
     func testStartAuthSendsValidUntilASPSPNameCountryAndWorkerCallbackRedirect() async throws {

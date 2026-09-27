@@ -229,6 +229,15 @@ final class Transaction {
     /// save — the never-drop law: a flagged transaction is already a real,
     /// fully-saved row the instant it lands here.
     var duplicateOfID: UUID?
+    /// v0.3 — which pot the money moved through (`PaymentMethod.rawValue`):
+    /// bank account or cash on hand. Optional + additive (same law as every
+    /// column above); `nil` = unknown, read as bank by every balance consumer.
+    /// Filled by `PaymentMethodInference` at init when not given explicitly.
+    var paymentMethodRaw: String?
+    var paymentMethod: PaymentMethod? {
+        get { paymentMethodRaw.flatMap(PaymentMethod.init(rawValue:)) }
+        set { paymentMethodRaw = newValue?.rawValue }
+    }
     var createdAt: Date
 
     init(
@@ -250,6 +259,7 @@ final class Transaction {
         projectID: UUID? = nil,
         loanID: UUID? = nil,
         duplicateOfID: UUID? = nil,
+        paymentMethod: PaymentMethod? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -270,6 +280,8 @@ final class Transaction {
         self.projectID = projectID
         self.loanID = loanID
         self.duplicateOfID = duplicateOfID
+        self.paymentMethodRaw = (paymentMethod
+            ?? PaymentMethodInference.infer(source: source, text: descriptionText + " " + (rawTranscript ?? "")))?.rawValue
         self.createdAt = createdAt
     }
 }

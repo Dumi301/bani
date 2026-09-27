@@ -1,46 +1,45 @@
 # HANDOFF — Bani
 
-Updated: 2026-08-29 (v2.2 fix-all pass; supersedes the stale 08-24 handoff that
-still listed P1 backup as parked — backup shipped in 2.1.64 on 08-25).
+Updated: 2026-09-27 (v0.3 push — "Bancă / numerar / avans"; supersedes the
+08-29 v2.2 handoff).
 
-## Shipped state
-- **main @ 04d4540 — "Bani 2.2"** (squash of PR #4, branch `v2.2-bugfix`):
-  fixes ALL 12 findings of the 2026-08-29 full diagnostic (2 HIGH, 5 MED,
-  5 LOW) + D-approved launch-tab flip.
-- **Release v2.2.70 LIVE on AltStore — verified 2026-08-30**: Pages feed
-  `version` 2.2.70 (HTTP 200) == release tag v2.2.70 == IPA
-  `CFBundleShortVersionString` 2.2.70 / `CFBundleVersion` 70; Bani.ipa
-  downloads HTTP 200, 3,155,226 bytes (matches the release asset exactly).
-- Previous: 2.1.64 live on AltStore since 08-25 (full backup/restore).
+## Version line reset (D, 2026-09-27)
+The app is "not functional yet" for the client → new integer line **0.3**
+(`BANI_MARKETING_VERSION` in `ci.yml`; CI stamps `0.3.<run>`). Last live
+release before the reset: **2.3.72** (AltStore, 2026-09-02).
+**AltStore only offers an update when the version compares HIGHER, so 0.3.N
+will NOT appear as an update on a phone running 2.3.72.** Install path for both
+phones: Settings → Backup → export archive · delete Bani · install 0.3.N from the
+AltStore source · Settings → Backup → restore. Backup DTOs carry every 0.3 column
+(optional → older archives restore too).
 
-## The v2.2 pass (one commit per phase on the PR)
-| Phase | Fixes | Commit |
+## Shipped in this push (branch `v0.3`, PR #7, one commit per phase)
+| Ph | What | Gate |
 |---|---|---|
-| A banking | H1 6h foreground sync throttle (GoCardless ~4/day quota), last-sync + error in settings, manual bypass; L4 AmountLexer-hardened bank amount parsing | c1c4ddd |
-| B backup | H2 atomic restore: erase+insert in ONE save, blobs staged & swapped post-commit — failed restore leaves data intact | 6cab58f |
-| C loans | M1 markDone/undoDone idempotence; M3 schedule-row stamps (out-of-order/edit-proof exact splits); M4 preview from stamps; M5 non-amortizing terms rejected + isTruncated flag | 182d34c |
-| D smalls | M2 dedup docs match code; L1 DateFieldParser ternary; L2 merge repoints refs; L3 anchor-only residual recorded+shown; L5 exact Decimal FX everywhere displayed; gate timestamp bit-exact (refDate) | 6fb9b3e + 2beed1a |
-| E launch | Launch tab Log→Raport (D sign-off 08-29), UI suites self-navigate; PeopleAnalytics Decimal FX; comision confirmed as-shipped | 8ac9569 (2nd PC session) |
-
-Fix cycles: 2 (gate ULP date round-trip → refDate persistence; test arg order).
-CI evidence: run 33264007766 full green (gate, screenshots, ipa, whisper).
+| 0 | `BankSyncGate.runs` — last 20 sync outcomes (UserDefaults JSON) + "Istoric sincronizări" list in Settings → Bank | `BankSyncThrottleTests` run-history tests |
+| 1 | `Transaction.paymentMethodRaw` (bank/cash, optional) + `PaymentMethodInference` at init (autoLogged→bank · numerar/cash→cash · card/pos/transfer→bank · imported→bank · else nil=bank); Bancă/Numerar picker on voice card, manual entry, edit sheet | `PaymentMethodInferenceTests` |
+| 2 | `BalanceAnchor.potRaw` (nil=bank, "cash"); pot-aware `ReconciliationStore/Sheet`; Raport "Unde sunt banii" card Bancă · Numerar · Total, cash tile = "Adaugă numerar" until anchored | `PotBalanceTests` |
+| 3 | Proxy whitelists `GET /accounts/{id}/balances` (deployed 2026-09-27, health 200, route 401-gated); `EnableBankingClient.balances`; `BankLink.balancesJSON`; sync stores the CLBD-first balance per account; `liveBalanceRON` (≤6h fresh) IS the bank pot when present | proxy `node --test` 18/18 · `BankSyncTests` balances tests · `EnableBankingClientTests` |
+| 4 | Raport "Avans disponibil la <horizon>" = max(0, freeLiquidity − reserve), reserve default = horizon outgoings, stepper (`@AppStorage raportReserve`); project rows: Încasat · Net · first → last date | `PlanningCardTests` |
+| 5 | version 0.3, this file, ROADMAP, LATEST | CI green on main; source.json == IPA version |
 
 ## Open items
-- **D on-device checklist** (needs both phones on 2.2): share sheet shows Bani ·
-  Whisper e2e · real Raiffeisen notification text into the parser hatch ·
-  GoCardless real bank link · cross-phone backup/restore.
-- `seenKeys` full-store fetch in `BankSyncService.sync` — correct but
-  unbounded; a `#Predicate` narrowing is flagged inline for a toolchain session.
-- Loan-aware undo for booked loan payments (generic undoDone deletes only the
-  interest tx) — flagged in `ScheduledItemStore.undoDone` comment.
-- `syncPendingPayment` regeneration after out-of-order booking + subsequent
-  loan edit (UI can't reach it today) — noted in phase C report.
-- `pipeline/` still git-ignored (specs/prompts local-only) — standing PLAN item.
+- **D on-device checklist** (unchanged since 08-29, never run): share sheet shows
+  Bani · Whisper e2e · real Raiffeisen notification → parser · real bank link (now
+  Enable Banking) · cross-phone backup/restore. Plus new: one manual "Sync now"
+  showing an account balance under Settings → Bank; anchor cash once on Raport.
+- **Client conversation** — 6 questions in
+  `<vault>/Claude/AI outputs/2026-08-29 bani-client-verdict-pack.md`; gates App Store.
+- Sidelined by D (2026-09-27): project milestones (precontract → contract → sale),
+  typical-duration estimate, budget vs Depășire. `ponytail:` payment-method
+  learning loop (merchant → method memory) — add when the client corrects the
+  same vendor twice.
+- Older debts: `seenKeys` unbounded fetch in `BankSyncService.sync` · loan-aware
+  undo · `syncPendingPayment` regen · `pipeline/` still git-ignored.
 
 ## Known context
-- Two sessions worked this pass on 08-29 (this one + a second PC Fable session
-  that shipped phase E during a rate-limit gap). Coordination notes in
-  `<vault>/pc/pc-note-bani-*.md`.
-- Frozen-seam discipline: additive optional-backed columns only
-  (`ScheduledItem.scheduleIndexRaw`, `BalanceAnchor.unresolvedResidualRaw` are
-  the newest examples). Backup DTOs carry both.
+- Frozen-seam discipline: additive optional columns only. 0.3 added
+  `Transaction.paymentMethodRaw`, `BalanceAnchor.potRaw`, `BankLink.balancesJSON`.
+- Unknown payment method reads as bank everywhere (`Transaction.pot`), ONE place.
+- Reserve semantics: freeLiquidity already nets the horizon's expected in/out; the
+  reserve is an extra cushion on top, D-adjustable.

@@ -57,6 +57,13 @@ final class BalanceAnchor {
     /// non-zero. Reconciliation math itself is byte-identical — this is
     /// visibility only (see `ReconciliationStore` / `ReconciliationHistoryView`).
     var unresolvedResidualRaw: Decimal?
+    /// v0.3 — which pot this anchor states the truth for. Optional + additive:
+    /// `nil` = bank (every pre-0.3 anchor), `"cash"` = cash on hand.
+    var potRaw: String?
+    var pot: PaymentMethod {
+        get { potRaw.flatMap(PaymentMethod.init(rawValue:)) ?? .bank }
+        set { potRaw = newValue == .bank ? nil : newValue.rawValue }
+    }
     var createdAt: Date
 
     /// Public accessor over the optional backing store. Kept a plain computed
@@ -75,6 +82,7 @@ final class BalanceAnchor {
         driftAtAnchor: Decimal = 0,
         note: String? = nil,
         unresolvedResidual: Decimal? = nil,
+        pot: PaymentMethod = .bank,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -84,6 +92,7 @@ final class BalanceAnchor {
         self.driftAtAnchor = driftAtAnchor
         self.note = note
         self.unresolvedResidualRaw = unresolvedResidual
+        self.potRaw = pot == .bank ? nil : pot.rawValue
         self.createdAt = createdAt
     }
 }
@@ -104,6 +113,7 @@ struct BalanceAnchorSnapshot: Identifiable, Hashable, Sendable {
     /// `nil` — mirrors `BalanceAnchor.unresolvedResidual`.
     let unresolvedResidual: Decimal?
     let createdAt: Date
+    var pot: PaymentMethod = .bank
 }
 
 extension BalanceAnchor {
@@ -111,7 +121,7 @@ extension BalanceAnchor {
         BalanceAnchorSnapshot(
             id: id, amount: amount, currency: currency, anchoredAt: anchoredAt,
             driftAtAnchor: driftAtAnchor, note: note,
-            unresolvedResidual: unresolvedResidual, createdAt: createdAt
+            unresolvedResidual: unresolvedResidual, createdAt: createdAt, pot: pot
         )
     }
 }

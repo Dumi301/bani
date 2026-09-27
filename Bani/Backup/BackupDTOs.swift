@@ -76,6 +76,8 @@ struct TransactionDTO: Codable, Equatable, Sendable {
     var projectID: UUID?
     var loanID: UUID?
     var duplicateOfID: UUID?
+    /// v0.3 — optional so archives written before 0.3 decode (→ nil → re-inferred).
+    var paymentMethod: PaymentMethod?
     var createdAt: Date
 
     init(_ tx: Transaction) {
@@ -97,6 +99,7 @@ struct TransactionDTO: Codable, Equatable, Sendable {
         projectID = tx.projectID
         loanID = tx.loanID
         duplicateOfID = tx.duplicateOfID
+        paymentMethod = tx.paymentMethod
         createdAt = tx.createdAt
     }
 
@@ -107,7 +110,8 @@ struct TransactionDTO: Codable, Equatable, Sendable {
             descriptionText: descriptionText, merchant: merchant, date: date,
             rawTranscript: rawTranscript, source: source, direction: direction,
             counterparty: counterparty, attachmentID: attachmentID, importBatchID: importBatchID,
-            projectID: projectID, loanID: loanID, duplicateOfID: duplicateOfID, createdAt: createdAt
+            projectID: projectID, loanID: loanID, duplicateOfID: duplicateOfID,
+            paymentMethod: paymentMethod, createdAt: createdAt
         )
     }
 }
@@ -391,6 +395,8 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
     /// decodes to `nil` via Swift's synthesized `Decodable`, matching how
     /// `ScheduledItemDTO.scheduleIndex` round-trips a legacy archive).
     var unresolvedResidual: String?
+    /// v0.3 — optional so pre-0.3 archives decode (nil → bank).
+    var pot: PaymentMethod?
     var createdAt: Date
 
     init(_ anchor: BalanceAnchor) {
@@ -401,6 +407,7 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
         driftAtAnchor = BackupDecimalCodec.encode(anchor.driftAtAnchor)
         note = anchor.note
         unresolvedResidual = anchor.unresolvedResidualRaw.map(BackupDecimalCodec.encode)
+        pot = anchor.pot
         createdAt = anchor.createdAt
     }
 
@@ -409,7 +416,7 @@ struct BalanceAnchorDTO: Codable, Equatable, Sendable {
             id: id, amount: try BackupDecimalCodec.decode(amount), currency: currency,
             anchoredAt: anchoredAt, driftAtAnchor: try BackupDecimalCodec.decode(driftAtAnchor),
             note: note, unresolvedResidual: try BackupDecimalCodec.decodeOptional(unresolvedResidual),
-            createdAt: createdAt
+            pot: pot ?? .bank, createdAt: createdAt
         )
     }
 }
@@ -493,6 +500,8 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
     var aspspCountry: String?
     var consentValidUntil: Date?
     var sessionRevoked: Bool?
+    /// v0.3 — optional so pre-0.3 archives decode.
+    var balancesJSON: Data?
 
     init(_ link: BankLink) {
         id = link.id
@@ -512,6 +521,7 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
         aspspCountry = link.aspspCountry
         consentValidUntil = link.consentValidUntil
         sessionRevoked = link.sessionRevoked
+        balancesJSON = link.balancesJSON
     }
 
     func makeModel() -> BankLink {
@@ -520,6 +530,7 @@ struct BankLinkDTO: Codable, Equatable, Sendable {
                  accountIDs: accountIDs, agreementExpiresAt: agreementExpiresAt, linkURL: linkURL,
                  lastSyncByAccount: lastSyncByAccount, createdAt: createdAt,
                  sessionID: sessionID, authorizationID: authorizationID, aspspName: aspspName,
-                 aspspCountry: aspspCountry, consentValidUntil: consentValidUntil, sessionRevoked: sessionRevoked)
+                 aspspCountry: aspspCountry, consentValidUntil: consentValidUntil, sessionRevoked: sessionRevoked,
+                 balancesJSON: balancesJSON)
     }
 }

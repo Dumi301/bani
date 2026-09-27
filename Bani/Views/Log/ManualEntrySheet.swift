@@ -17,6 +17,8 @@ struct ManualEntrySheet: View {
     @State private var context: TransactionContext = .personal
     /// A3 — default expense (zero new friction), editable for income/neutral.
     @State private var direction: TransactionDirection = .expense
+    /// v0.3 — pot; bank by default, one tap to flip to cash.
+    @State private var paymentMethod: PaymentMethod = .bank
     /// C2: date+time for the manual entry, default now, editable for logging past
     /// expenses.
     @State private var date = Date()
@@ -89,6 +91,8 @@ struct ManualEntrySheet: View {
                     // A3: direction (expense default), editable for income/neutral.
                     DirectionPicker(selection: $direction)
                         .accessibilityIdentifier("manualEntry.directionPicker")
+                    PaymentMethodPicker(selection: $paymentMethod)
+                        .accessibilityIdentifier("manualEntry.paymentMethodPicker")
 
                     // C2: locale-aware date+time picker, pre-filled with now.
                     DatePicker("Date & time", selection: $date, displayedComponents: [.date, .hourAndMinute])
@@ -160,7 +164,8 @@ struct ManualEntrySheet: View {
             source: .manual,
             direction: direction,
             counterparty: cleanCounterparty.isEmpty ? nil : cleanCounterparty,
-            projectID: projectID
+            projectID: projectID,
+            paymentMethod: paymentMethod
         )
         modelContext.insert(transaction)
         try? modelContext.save()

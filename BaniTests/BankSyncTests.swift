@@ -182,6 +182,52 @@ final class BankSyncTests: XCTestCase {
 
     // MARK: - (a) Pagination walk inserts rows from both pages
 
+    // MARK: - v0.3 balances → bank pot
+
+    func testSyncStoresPreferredBalancePerAccountAndLiveSumUsesOnlyFreshOnes() async throws {
+        let container = try makeContainer()
+        let secrets = BankTestSupport.credentialedSecrets()
+        let balancesJSON = """
+        {"balances":[{"balance_amount":{"currency":"RON","amount":"1234.56"},"balance_type":"CLBD"}]}
+        """
+        let session = MockHTTPSession([
+            .get("/accounts/acc-ron-1/transactions", json: BankFixtures.transactionsMixed, reusable: true),
+            .get("/accounts/acc-ron-1/balances", json: balancesJSON, reusable: true),
+        ])
+        let client = EnableBankingClient(session: session, secrets: secrets)
+        let service = BankSyncService(modelContainer: container)
+
+        let seed = ModelContext(container)
+        seed.insert(BankLink(accountIDs: ["acc-ron-1"], sessionID: "sess-1"))
+        try seed.save()
+
+        let outcome = await service.sync(accountIDs: ["acc-ron-1"], client: client)
+        XCTAssertFalse(outcome.hadError)
+
+        let ctx = ModelContext(container)
+        let stored = try XCTUnwrap((try? ctx.fetch(FetchDescriptor<BankLink>()))?.first)
+        XCTAssertEqual(stored.balancesByAccount["acc-ron-1"]?.amount, Decimal(string: "1234.56"))
+        XCTAssertEqual(stored.liveBalanceRON(rate: nil), Decimal(string: "1234.56"))
+        XCTAssertNil(stored.liveBalanceRON(rate: nil, now: Date().addingTimeInterval(7 * 3600)), "stale after 6h")
+    }
+
+    func testBalancesEndpointFailureNeverMarksSyncErrored() async throws {
+        let container = try makeContainer()
+        let secrets = BankTestSupport.credentialedSecrets()
+        let client = EnableBankingClient(session: ronSession(), secrets: secrets)   // no balances stub → 404
+        let service = BankSyncService(modelContainer: container)
+        let seed = ModelContext(container)
+        seed.insert(BankLink(accountIDs: ["acc-ron-1"], sessionID: "sess-1"))
+        try seed.save()
+
+        let outcome = await service.sync(accountIDs: ["acc-ron-1"], client: client)
+
+        XCTAssertFalse(outcome.hadError)
+        let ctx = ModelContext(container)
+        let stored = try XCTUnwrap((try? ctx.fetch(FetchDescriptor<BankLink>()))?.first)
+        XCTAssertTrue(stored.balancesByAccount.isEmpty)
+    }
+
     func testContinuationKeyPaginationWalkInsertsRowsFromBothPages() async throws {
         let container = try makeContainer()
         let secrets = BankTestSupport.credentialedSecrets()

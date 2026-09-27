@@ -21,6 +21,14 @@ struct ReconciliationSheet: View {
     @Query(sort: [SortDescriptor(\BalanceAnchor.anchoredAt, order: .reverse)])
     private var anchors: [BalanceAnchor]
 
+    /// v0.3 — which pot this sheet anchors (bank by default; Raport's cash tile
+    /// opens it with `.cash`). Flows and anchors are filtered to this pot.
+    let pot: PaymentMethod
+
+    /// Explicit because the private `@Query`/`@State` members make the synthesized
+    /// memberwise init private — `ReconciliationSheet(pot: .cash)` must be callable.
+    init(pot: PaymentMethod = .bank) { self.pot = pot }
+
     @State private var amountText: String = ""
     @State private var currency: Currency = .ron
     @State private var note: String = ""
@@ -37,11 +45,11 @@ struct ReconciliationSheet: View {
     }
 
     private var latestAnchorForCurrency: BalanceAnchor? {
-        anchors.first { $0.currency == currency }   // anchors are sorted newest-first
+        anchors.first { $0.currency == currency && $0.pot == pot }   // anchors are sorted newest-first
     }
 
     private var reconFlows: [ReconciliationFlow] {
-        transactions.map {
+        transactions.filter { $0.pot == pot }.map {
             ReconciliationFlow(amount: $0.amount, currency: $0.currency,
                                direction: $0.direction, date: $0.date)
         }
@@ -112,7 +120,7 @@ struct ReconciliationSheet: View {
                 .accessibilityIdentifier("reconcile.currencyToggle")
             }
         } header: {
-            Text("reconcile.section.actual")
+            Text("\(String(localized: "reconcile.section.actual")) · \(pot.label)")
         } footer: {
             Text("reconcile.section.actual.help")
         }
@@ -217,20 +225,20 @@ struct ReconciliationSheet: View {
     private func createAdjustment(_ result: ReconciliationResult) {
         ReconciliationStore.createAdjustmentAndAnchor(
             result: result, note: note, now: Date(),
-            referenceDate: latestAnchorForCurrency?.anchoredAt, in: modelContext
+            referenceDate: latestAnchorForCurrency?.anchoredAt, pot: pot, in: modelContext
         )
         dismiss()
     }
 
     private func justAnchor(_ result: ReconciliationResult) {
-        ReconciliationStore.anchorOnly(result: result, note: note, now: Date(), in: modelContext)
+        ReconciliationStore.anchorOnly(result: result, note: note, now: Date(), pot: pot, in: modelContext)
         dismiss()
     }
 
     private func seedCurrencyIfNeeded() {
         guard !didSeedCurrency else { return }
         didSeedCurrency = true
-        if let latest = anchors.first { currency = latest.currency }
+        if let latest = anchors.first(where: { $0.pot == pot }) { currency = latest.currency }
     }
 }
 

@@ -13,6 +13,8 @@ struct RaportTxLine: Equatable, Sendable {
     var projectID: UUID?
     var loanID: UUID?
     var date: Date
+    /// v0.3 — pot the row moved through; `nil` (unknown) counts as bank.
+    var paymentMethod: PaymentMethod? = nil
 
     /// The `ProjectTxLine` view of this line, for the shared project aggregators.
     var projectLine: ProjectTxLine {
@@ -33,6 +35,12 @@ struct RaportPosition: Equatable, Sendable {
     var cashHasUnconvertible: Bool
     /// Net cash flow over the period (in − out).
     var cashNet: Decimal { cashIn - cashOut }
+    /// v0.3 — the two pots (RON): latest pot anchor + pot flows since it.
+    var bankBalance: Decimal = 0
+    var cashBalance: Decimal = 0
+    var hasBankAnchor: Bool = false
+    var hasCashAnchor: Bool = false
+    var potsTotal: Decimal { bankBalance + cashBalance }
 }
 
 /// One debt line (bank or investor loan): live position + the split of the next
@@ -106,6 +114,9 @@ struct RaportProjectRow: Equatable, Sendable, Identifiable {
     /// Percent of the committed total already paid, 0…100 (0 when nothing committed).
     var percentPaid: Decimal
     var nextDueDate: Date?
+    /// v0.3 — first/last transaction dates on the project (activity span).
+    var firstDate: Date? = nil
+    var lastDate: Date? = nil
 
     var id: UUID { projectID }
     /// Total committed outgoing = paid + due.
@@ -155,6 +166,10 @@ enum RaportHubBuilder {
         rate: Decimal?,
         horizon: LiquidityHorizon,
         cashflowInterval: DateInterval,
+        // v0.3: pot anchors (bank / cash) for the Position pots row.
+        anchors: [BalanceAnchorSnapshot] = [],
+        // v0.3: Σ fresh bank-reported balances (RON); when present it IS the bank pot.
+        liveBank: Decimal? = nil,
         // IDs of scheduled items that are loan payments (`ScheduledItem.loanID != nil`).
         // `ScheduledItemSnapshot` intentionally omits `loanID`, so the caller passes
         // this set; the project budgeting rows exclude these so loan debt-service is
@@ -194,10 +209,20 @@ enum RaportHubBuilder {
             }
             if line.direction == .income { cashIn += value } else { cashOut += value }
         }
-        let position = RaportPosition(
+        var position = RaportPosition(
             netLoggedPosition: netLogged, liquidity: liquidity,
             cashIn: cashIn, cashOut: cashOut, cashHasUnconvertible: cashUnconvertible
         )
+        let bank = potBalance(.bank, lines: lines, anchors: anchors, rate: rate)
+        let cash = potBalance(.cash, lines: lines, anchors: anchors, rate: rate)
+        position.bankBalance = bank.balance
+        position.cashBalance = cash.balance
+        position.hasBankAnchor = bank.hasAnchor
+        if let liveBank {
+            position.bankBalance = liveBank
+            position.hasBankAnchor = true
+        }
+        position.hasCashAnchor = cash.hasAnchor
 
         // ── Receivables (reuses the P6 rollup unchanged) ──
         let receivables = ReceivablesRollup.build(items, rate: rate)
@@ -229,6 +254,27 @@ enum RaportHubBuilder {
     }
 
     // MARK: - Per-loan
+
+    /// v0.3 — one pot's RON balance: the latest RON anchor for that pot (if any)
+    /// plus the pot's non-neutral flows after it, converted like every other
+    /// Raport number. Mirrors `ReconciliationEngine.reconcile` minus the drift.
+    static func potBalance(
+        _ pot: PaymentMethod,
+        lines: [RaportTxLine],
+        anchors: [BalanceAnchorSnapshot],
+        rate: Decimal?
+    ) -> (balance: Decimal, hasAnchor: Bool) {
+        let anchor = anchors
+            .filter { $0.pot == pot && $0.currency == .ron }
+            .max { $0.anchoredAt < $1.anchoredAt }
+        var net: Decimal = anchor?.amount ?? 0
+        for line in lines where (line.paymentMethod ?? .bank) == pot && line.direction != .neutral {
+            if let anchor, line.date <= anchor.anchoredAt { continue }
+            guard let value = ron(line.amount, line.currency, rate: rate) else { continue }
+            net += line.direction == .income ? value : -value
+        }
+        return (net, anchor != nil)
+    }
 
     private static func debtRow(
         for loan: LoanSnapshot,
@@ -355,7 +401,21 @@ enum RaportHubBuilder {
             paid: paid,
             due: due,
             percentPaid: percentPaid,
-            nextDueDate: nextDue
+            nextDueDate: nextDue,
+            firstDate: scoped.map(\.date).min(),
+            lastDate: scoped.map(\.date).max()
         )
     }
+
+    // MARK: - v0.3 planning
+
+    /// "Avans disponibil": what the client can put down on the next deal at the
+    /// chosen horizon — free liquidity minus a safety reserve, never negative.
+    static func availableDownPayment(freeLiquidity: Decimal, reserve: Decimal) -> Decimal {
+        max(0, freeLiquidity - reserve)
+    }
+
+    /// Default reserve when the client has not set one: the horizon's committed
+    /// outgoings once more as a cushion (rent, rates, salaries).
+    static func defaultReserve(_ liquidity: LiquidityResult) -> Decimal { liquidity.expectedOut }
 }

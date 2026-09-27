@@ -2,6 +2,78 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "raport.avans.title %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Down payment available at %lld days" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Avans disponibil la %lld zile" } }
+      }
+    },
+    "raport.avans.formula %@ %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Free liquidity %@ − reserve %@ (adjust the reserve)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Lichiditate liberă %@ − rezervă %@ (ajustează rezerva)" } }
+      }
+    },
+    "raport.projects.received": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Received" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Încasat" } }
+      }
+    },
+    "raport.projects.net": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Net" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Net" } }
+      }
+    },
+    "raport.pots.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Where the money is" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Unde sunt banii" } }
+      }
+    },
+    "raport.pots.bank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Bancă" } }
+      }
+    },
+    "raport.pots.cash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cash" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Numerar" } }
+      }
+    },
+    "raport.pots.total": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Total" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Total" } }
+      }
+    },
+    "raport.pots.addCash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add cash on hand" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă numerar" } }
+      }
+    },
+    "payment.bank": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bank" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Bancă" } }
+      }
+    },
+    "payment.cash": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cash" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Numerar" } }
+      }
+    },
+    "payment.method": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paid from" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plătit din" } }
+      }
+    },
     "bank.accounts.title": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Accounts" } },
@@ -120,6 +192,24 @@
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Last sync failed — will retry automatically" } },
         "ro": { "stringUnit": { "state": "translated", "value": "Ultima sincronizare a eșuat — se reia automat" } }
+      }
+    },
+    "bank.sync.history.error": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "error" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "eroare" } }
+      }
+    },
+    "bank.sync.history.row %lld %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "+%lld new · %lld skipped" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "+%lld noi · %lld duplicate" } }
+      }
+    },
+    "bank.sync.history.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sync history" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Istoric sincronizări" } }
       }
     },
     "bank.sync.lastSync": {
