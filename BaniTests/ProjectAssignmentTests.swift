@@ -25,6 +25,15 @@ final class ProjectAssignmentTests: XCTestCase {
         XCTAssertNil(ProjectAssignment.smartDefault(context: .work, lastUsedRaw: ""))
     }
 
+    // MARK: - v0.4 labor default
+
+    func testLaborDefaultNeedsWorkAndAPersonAndNoRule() {
+        XCTAssertTrue(ProjectAssignment.laborDefault(context: .work, counterparty: "Ion", ruleMatched: false))
+        XCTAssertFalse(ProjectAssignment.laborDefault(context: .work, counterparty: "Ion", ruleMatched: true), "a keyword rule wins")
+        XCTAssertFalse(ProjectAssignment.laborDefault(context: .work, counterparty: "   ", ruleMatched: false))
+        XCTAssertFalse(ProjectAssignment.laborDefault(context: .personal, counterparty: "Ion", ruleMatched: false))
+    }
+
     func testWorkWithInvalidLastUsedIsNil() {
         XCTAssertNil(ProjectAssignment.smartDefault(context: .work, lastUsedRaw: "not-a-uuid"))
     }

@@ -158,6 +158,10 @@ final class ScheduledItem {
         set { scheduleIndexRaw = newValue }
     }
     var createdAt: Date
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -221,6 +225,11 @@ struct ScheduledItemSnapshot: Identifiable, Hashable, Sendable {
     let status: ScheduledStatus
     let linkedTransactionID: UUID?
     let createdAt: Date
+    // v0.4 — series identity for the recurring-income rollups; defaulted so
+    // existing memberwise call sites keep compiling.
+    var recurrence: RecurrenceRule = .none
+    var seriesID: UUID? = nil
+    var loanID: UUID? = nil
 
     /// COMPUTED overdue, mirroring the model accessor.
     func isOverdue(asOf now: Date = .now) -> Bool {
@@ -234,7 +243,8 @@ extension ScheduledItem {
             id: id, direction: direction, amount: amount, currency: currency,
             title: title, descriptionText: descriptionText, counterparty: counterparty,
             dueDate: dueDate, projectID: projectID, status: status,
-            linkedTransactionID: linkedTransactionID, createdAt: createdAt
+            linkedTransactionID: linkedTransactionID, createdAt: createdAt,
+            recurrence: recurrence, seriesID: seriesID, loanID: loanID
         )
     }
 }

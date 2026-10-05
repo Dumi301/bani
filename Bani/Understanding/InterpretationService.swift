@@ -214,10 +214,15 @@ enum InterpretationService {
         let tokens = Set(Categorizer.tokenize(norm))
         var best: (match: ProjectMatch, weight: Int)?
         for project in projects where !project.archived {
-            guard let confidence = nameConfidence(name: project.name, inNormalized: norm, tokens: tokens) else { continue }
-            let weight = Categorizer.normalize(project.name).count
-            if best == nil || weight > best!.weight {
-                best = (ProjectMatch(id: project.id, name: project.name, confidence: confidence), weight)
+            // v0.4 — the tree gives voice a closed vocabulary: the node's name
+            // AND its aliases ("casa 3", "crangasi"). Longest matched term wins,
+            // so "casa 3" beats a lot named "Casa" when both are mentioned.
+            for term in [project.name] + project.aliases {
+                guard let confidence = nameConfidence(name: term, inNormalized: norm, tokens: tokens) else { continue }
+                let weight = Categorizer.normalize(term).count
+                if best == nil || weight > best!.weight {
+                    best = (ProjectMatch(id: project.id, name: project.name, confidence: confidence), weight)
+                }
             }
         }
         return best?.match
@@ -229,10 +234,22 @@ enum InterpretationService {
         let tokens = Set(Categorizer.tokenize(norm))
         var best: (match: PersonMatch, weight: Int)?
         for person in people {
-            guard let confidence = nameConfidence(name: person.name, inNormalized: norm, tokens: tokens) else { continue }
-            let weight = person.normalizedName.count
-            if best == nil || weight > best!.weight {
-                best = (PersonMatch(name: person.name, confidence: confidence), weight)
+            // v0.4 — the trade ("electrician") is a second name for the person,
+            // so "electricianul" finds Ion. Articulated forms are matched by
+            // stripping the Romanian definite article from the text's tokens.
+            var candidates: [(term: String, confidence: Double?)] = [
+                (person.name, nameConfidence(name: person.name, inNormalized: norm, tokens: tokens)),
+            ]
+            if let role = person.role {
+                candidates.append((role, nameConfidence(name: role, inNormalized: norm, tokens: tokens)
+                                   ?? roleConfidence(role: role, tokens: tokens)))
+            }
+            for (term, confidence) in candidates {
+                guard let confidence else { continue }
+                let weight = Categorizer.normalize(term).count
+                if best == nil || weight > best!.weight {
+                    best = (PersonMatch(name: person.name, confidence: confidence), weight)
+                }
             }
         }
         return best?.match
@@ -257,7 +274,33 @@ enum InterpretationService {
         if let exact = people.first(where: { $0.normalizedName == key }) {
             return PersonMatch(name: exact.name, confidence: 1)
         }
+        // v0.4 — an exact trade ("electrician" / "electricianul") is as good as a name.
+        let keyStem = stripArticle(key)
+        if let byRole = people.first(where: { person in
+            person.role.map { stripArticle(Categorizer.normalize($0)) == keyStem } ?? false
+        }) {
+            return PersonMatch(name: byRole.name, confidence: 1)
+        }
         return inferCounterparty(text: name, people: people)
+    }
+
+    /// v0.4 — role match on article-stripped tokens ("electricianul" →
+    /// "electrician"). Roles shorter than 4 folded characters never match.
+    private static func roleConfidence(role: String, tokens: Set<String>) -> Double? {
+        let stem = stripArticle(Categorizer.normalize(role).trimmingCharacters(in: .whitespacesAndNewlines))
+        guard stem.count >= 4 else { return nil }
+        return tokens.contains { stripArticle($0) == stem } ? tokenMatchConfidence : nil
+    }
+
+    /// Strip a Romanian enclitic definite article from one folded token:
+    /// electricianul → electrician, zidarul → zidar, instalatorului → instalator,
+    /// zugravii → zugrav. Deliberately crude — it only has to make a trade word
+    /// and its articulated form agree; names of ≤ 4 letters are never touched.
+    static func stripArticle(_ token: String) -> String {
+        for suffix in ["ului", "ilor", "ul", "le", "ii", "a"] where token.count > suffix.count + 3 && token.hasSuffix(suffix) {
+            return String(token.dropLast(suffix.count))
+        }
+        return token
     }
 
     /// The confidence that `name` is referenced in the already-normalized `text`

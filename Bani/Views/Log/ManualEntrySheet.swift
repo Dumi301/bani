@@ -32,6 +32,15 @@ struct ManualEntrySheet: View {
     @Query private var allTransactions: [Transaction]
     @Query private var allScheduledItems: [ScheduledItem]
 
+    /// v0.4 — project-first entry ("+ plată" on a project): pre-select the
+    /// project and open in Work context. `nil` = the classic Log-tab path.
+    init(defaultProjectID: UUID? = nil) {
+        if let defaultProjectID {
+            _selectedProjectID = State(initialValue: defaultProjectID)
+            _context = State(initialValue: .work)
+        }
+    }
+
     private var activeProjects: [ProjectSnapshot] { projects.filter { !$0.archived }.map(\.snapshot) }
     private var registeredPeopleNames: [String] { people.map(\.name) }
     private var counterpartySuggestions: [String] {
@@ -119,6 +128,14 @@ struct ManualEntrySheet: View {
             .onAppear {
                 if selectedProjectID == nil { selectedProjectID = UUID(uuidString: lastUsedProjectRaw) }
             }
+            // v0.4 — naming a person on a Work entry flips the pot to cash
+            // (workers are paid in hand); one tap flips it back.
+            .onChange(of: counterparty) { old, new in
+                if context == .work, old.trimmingCharacters(in: .whitespaces).isEmpty,
+                   !new.trimmingCharacters(in: .whitespaces).isEmpty, paymentMethod == .bank {
+                    paymentMethod = .cash
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -139,10 +156,16 @@ struct ManualEntrySheet: View {
 
         // C3: manual saves get a category guess too (no picker here — the guess
         // runs at save time). Reinforce the rule that fired; Other if none.
-        let category: TransactionCategory
+        var category: TransactionCategory?
+        var customCategoryID: UUID?
+        let cleanCounterpartyForRule = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
         if let match = CategoryRuleStore.bestMatch(description: cleanDescription, in: modelContext) {
             CategoryRuleStore.reinforce(keyword: match.keyword, origin: match.origin, in: modelContext)
             category = match.category
+        } else if ProjectAssignment.laborDefault(context: context, counterparty: cleanCounterpartyForRule, ruleMatched: false) {
+            // v0.4 — named worker, no keyword → Manoperă (the seeded custom).
+            customCategoryID = PresetSeeding.resolutionMap(in: modelContext)[.manopera]
+            category = customCategoryID == nil ? .other : nil
         } else {
             category = .other
         }
@@ -158,6 +181,7 @@ struct ManualEntrySheet: View {
             currency: currency,
             context: context,
             category: category,
+            customCategoryID: customCategoryID,
             descriptionText: cleanDescription,
             date: date,
             rawTranscript: nil,
@@ -172,6 +196,11 @@ struct ManualEntrySheet: View {
         // P8 — never silently double-count: flag (never drop) a cross-source
         // possible duplicate for the review surface.
         DedupService.flagIfDuplicate(transaction, in: modelContext)
+        // v0.4 — a Work payment to a named person registers that person, so
+        // "cât i-am dat lui Ion" is answerable without a separate "add to people" tap.
+        if context == .work, !cleanCounterparty.isEmpty {
+            PersonStore.findOrCreate(name: cleanCounterparty, kind: .vendor, in: modelContext)
+        }
         if let projectID { lastUsedProjectRaw = projectID.uuidString }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

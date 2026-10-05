@@ -15,10 +15,16 @@ struct RaportTxLine: Equatable, Sendable {
     var date: Date
     /// v0.3 — pot the row moved through; `nil` (unknown) counts as bank.
     var paymentMethod: PaymentMethod? = nil
+    /// v0.4 — acquisition / labor / materials / other (from the seeded custom
+    /// category; the view resolves it), for the project-tree rollups.
+    var bucket: CostBucket = .other
+    /// v0.4 — Personal-context row, for the "cheltuieli personale" line.
+    var isPersonal: Bool = false
 
     /// The `ProjectTxLine` view of this line, for the shared project aggregators.
     var projectLine: ProjectTxLine {
-        ProjectTxLine(amount: amount, currency: currency, direction: direction, projectID: projectID, date: date)
+        ProjectTxLine(amount: amount, currency: currency, direction: direction, projectID: projectID, date: date,
+                      bucket: bucket)
     }
 }
 
@@ -41,6 +47,8 @@ struct RaportPosition: Equatable, Sendable {
     var hasBankAnchor: Bool = false
     var hasCashAnchor: Bool = false
     var potsTotal: Decimal { bankBalance + cashBalance }
+    /// v0.4 — Personal-context expenses over the cash-flow period (RON).
+    var personalSpend: Decimal = 0
 }
 
 /// One debt line (bank or investor loan): live position + the split of the next
@@ -136,6 +144,11 @@ struct RaportHubModel: Equatable, Sendable {
     var bankDebt: RaportDebtSection
     var investorDebt: RaportDebtSection
     var projects: [RaportProjectRow]
+    /// v0.4 — one rollup per top-level project (lots sum their houses), in
+    /// root order; the home groups them by `bucket`.
+    var rollups: [ProjectRollup] = []
+    /// v0.4 — salary + rents with this month's received / expected.
+    var recurringIncome: [RecurringIncomeSource] = []
 }
 
 // MARK: - Builder
@@ -201,18 +214,23 @@ enum RaportHubBuilder {
         var cashIn: Decimal = 0
         var cashOut: Decimal = 0
         var cashUnconvertible = false
+        var personal: Decimal = 0
         for line in lines where line.date >= cashflowInterval.start && line.date < cashflowInterval.end {
             guard line.direction != .neutral else { continue }
             guard let value = ron(line.amount, line.currency, rate: rate) else {
                 cashUnconvertible = true
                 continue
             }
-            if line.direction == .income { cashIn += value } else { cashOut += value }
+            if line.direction == .income { cashIn += value } else {
+                cashOut += value
+                if line.isPersonal { personal += value }
+            }
         }
         var position = RaportPosition(
             netLoggedPosition: netLogged, liquidity: liquidity,
             cashIn: cashIn, cashOut: cashOut, cashHasUnconvertible: cashUnconvertible
         )
+        position.personalSpend = personal
         let bank = potBalance(.bank, lines: lines, anchors: anchors, rate: rate)
         let cash = potBalance(.cash, lines: lines, anchors: anchors, rate: rate)
         position.bankBalance = bank.balance
@@ -247,9 +265,16 @@ enum RaportHubBuilder {
             .filter { !$0.archived }
             .map { projectRow(for: $0, lines: lines, items: items, loanItemIDs: loanItemIDs, rate: rate, calendar: calendar) }
 
+        // v0.4 — the home's project cards (tree rollups) + recurring income.
+        let rollups = ProjectTree.rootRollups(
+            projects: projects.filter { !$0.archived }, lines: projectLines, items: items, rate: rate
+        )
+        let recurringIncome = RecurringIncome.sources(items: items, month: now, calendar: calendar, rate: rate)
+
         return RaportHubModel(
             position: position, receivables: receivables,
-            bankDebt: bankDebt, investorDebt: investorDebt, projects: projectRows
+            bankDebt: bankDebt, investorDebt: investorDebt, projects: projectRows,
+            rollups: rollups, recurringIncome: recurringIncome
         )
     }
 

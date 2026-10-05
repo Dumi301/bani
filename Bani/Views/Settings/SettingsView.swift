@@ -278,7 +278,10 @@ struct SettingsView: View {
                     .listRowBackground(Palette.surface)
                     .accessibilityIdentifier("settings.importRow")
                 } header: {
-                    Text("import.title")
+                    Text("archive.title")
+                        .foregroundStyle(Palette.secondaryInk)
+                } footer: {
+                    Text("archive.footer")
                         .foregroundStyle(Palette.secondaryInk)
                 }
 

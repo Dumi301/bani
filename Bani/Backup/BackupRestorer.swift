@@ -147,7 +147,7 @@ actor BackupRestorer {
         let correctionMemories = try rows(.correctionMemory, as: CorrectionMemoryDTO.self, from: archive).map { $0.makeModel() }
         let customCategories = try rows(.customCategory, as: CustomCategoryDTO.self, from: archive).map { $0.makeModel() }
         let importBatches = try rows(.importBatch, as: ImportBatchDTO.self, from: archive).map { $0.makeModel() }
-        let projects = try rows(.project, as: ProjectDTO.self, from: archive).map { $0.makeModel() }
+        let projects = try rows(.project, as: ProjectDTO.self, from: archive).map { try $0.makeModel() }
         let people = try rows(.person, as: PersonDTO.self, from: archive).map { $0.makeModel() }
         let scheduledItems = try rows(.scheduledItem, as: ScheduledItemDTO.self, from: archive).map { try $0.makeModel() }
         let balanceAnchors = try rows(.balanceAnchor, as: BalanceAnchorDTO.self, from: archive).map { try $0.makeModel() }

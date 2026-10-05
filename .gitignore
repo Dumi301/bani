@@ -19,3 +19,4 @@ screenshots/
 # macOS / misc
 .DS_Store
 *.log
+proxy/.wrangler/

@@ -116,12 +116,46 @@ struct PersonDetailView: View {
     @Environment(\.metrics) private var metrics
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query private var customCategories: [CustomCategory]
+    // v0.4 — the worker ledger: per project, per month, and the registered
+    // person's trade (editable here so "electricianul" finds them in search).
+    @Query private var projects: [Project]
+    @Query private var people: [Person]
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.locale) private var locale
+    @State private var roleText: String = ""
 
     let counterparty: String
 
     private var transactions: [Transaction] {
         let key = Categorizer.normalize(counterparty)
         return allTransactions.filter { Categorizer.normalize($0.counterparty ?? "") == key }
+    }
+
+    private var registered: Person? {
+        let key = Categorizer.normalize(counterparty)
+        return people.first { $0.normalizedName == key }
+    }
+
+    /// Paid-out RON per project (expenses only), largest first.
+    private var paidByProject: [(name: String, value: Decimal)] {
+        let names = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0.name) })
+        var sums: [String: Decimal] = [:]
+        for tx in transactions where tx.direction == .expense {
+            let name = tx.projectID.flatMap { names[$0] } ?? String(localized: "people.noProject")
+            sums[name, default: 0] += LiquidityCalculator.ronValue(of: tx.amount, currency: tx.currency, rate: rates.rateDecimal) ?? 0
+        }
+        return sums.map { (name: $0.key, value: $0.value) }.sorted { $0.value > $1.value }
+    }
+
+    /// Paid-out RON per month, newest first (last 12 months with activity).
+    private var paidByMonth: [(month: Date, value: Decimal)] {
+        let calendar = Calendar.current
+        var sums: [Date: Decimal] = [:]
+        for tx in transactions where tx.direction == .expense {
+            guard let start = calendar.dateInterval(of: .month, for: tx.date)?.start else { continue }
+            sums[start, default: 0] += LiquidityCalculator.ronValue(of: tx.amount, currency: tx.currency, rate: rates.rateDecimal) ?? 0
+        }
+        return sums.map { (month: $0.key, value: $0.value) }.sorted { $0.month > $1.month }.prefix(12).map { $0 }
     }
 
     private var summary: PersonSummary? {
@@ -133,6 +167,15 @@ struct PersonDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: metrics.sectionSpacing) {
                 if let summary { miniSummary(summary) }
+                if registered != nil { roleCard }
+                if paidByProject.count > 1 || paidByProject.first?.name != String(localized: "people.noProject") {
+                    ledgerCard(titleKey: "people.byProject", rows: paidByProject.map { ($0.name, $0.value) })
+                }
+                if !paidByMonth.isEmpty {
+                    ledgerCard(titleKey: "people.byMonth", rows: paidByMonth.map {
+                        ($0.month.formatted(.dateTime.month(.abbreviated).year().locale(locale)), $0.value)
+                    })
+                }
                 ForEach(transactions, id: \.id) { tx in
                     NavigationLink(value: tx) {
                         TransactionRow(transaction: tx, customs: customCategories.lookup)
@@ -148,6 +191,47 @@ struct PersonDetailView: View {
         .background(Palette.canvas.ignoresSafeArea())
         .navigationTitle(counterparty)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { roleText = registered?.roleRaw ?? "" }
+    }
+
+    private var roleCard: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "hammer.fill").foregroundStyle(Palette.accent)
+            TextField("people.role.placeholder", text: $roleText)
+                .textInputAutocapitalization(.never)
+                .onSubmit { saveRole() }
+                .accessibilityIdentifier("people.roleField")
+        }
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
+    }
+
+    private func saveRole() {
+        guard let person = registered else { return }
+        let clean = roleText.trimmingCharacters(in: .whitespacesAndNewlines)
+        person.roleRaw = clean.isEmpty ? nil : clean
+        try? modelContext.save()
+    }
+
+    private func ledgerCard(titleKey: LocalizedStringKey, rows: [(String, Decimal)]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(titleKey)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryInk)
+            ForEach(Array(rows.enumerated()), id: \.offset) { pair in
+                let row = pair.element
+                HStack {
+                    Text(row.0).font(.subheadline).foregroundStyle(Palette.ink).lineLimit(1)
+                    Spacer(minLength: 6)
+                    Text("\(row.1.formatted(.number.precision(.fractionLength(0...0)))) \(Currency.ron.displayCode)")
+                        .font(Typography.amount(.subheadline, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .metalSurface(cornerRadius: Radius.card)
     }
 
     private func miniSummary(_ s: PersonSummary) -> some View {

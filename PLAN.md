@@ -1,5 +1,34 @@
 # PLAN.md — Bani
 
+## v0.4 → v0.7 redesign (approved by D 2026-10-05) — "Acasă / proiecte / viitor / seif"
+Full plan with the judgment calls: `~/.claude/plans/their-projects-are-mostly-misty-blum.md`
+(PC). Premise: the data layer stays; the Project model and the face are rebuilt around
+D's reMarkable sketch — bank + cash = balance · current projects (acquisition + costs vs
+earnings, per house) · present balance · future planning. Two co-owners, two phones.
+Laws unchanged: optional-only additive columns, id pointers, schema tail-append, Decimal,
+RO+EN, one commit + CI gate per phase, version only via `BANI_MARKETING_VERSION`.
+
+### v0.4 — the face (branch `v0.4`)
+| Ph | Scope | Gate |
+|---|---|---|
+| 0 | Schema prep: `Project.parentProjectID / expectedSalePrice / expectedSaleDate / aliasesRaw`, `ProjectStatus.prospect`, `Person.roleRaw`, `updatedAt` on the 10 user-data entities via ONE `ModelContext.willSave` hook (`SyncStamp`), seeded "Vânzare proprietate", DTOs | `V04SchemaTests` (legacy 0.3 store reopens nil-safe, round-trip, DTOs, stamp) |
+| 1 | `ProjectTree` engine (pure): children/descendants, rollup per node — acquisition, costs by category (Manoperă/Materiale/other, %), earnings (sale + recurring income), realized + expected profit; `RecurringIncome.summary(month)` (salary = no project, rent = project) | `ProjectTreeTests` |
+| 2 | Home tab "Acasă" replaces RaportHub: Sold (Bancă · Numerar · Total, due/expected 30d, personal this month) · Venituri recurente · Proiecte (Șantiere / În chirie / Planificate cards) · Viitor placeholder · Întreabă with totals | `HomeModelTests`, screenshot |
+| 3a | Proiecte tab = tree (lot cards + unit rows; add unit / move / mark planned via context menu); `ProjectEditSheet` gains parent · status · expected sale · voice aliases; node detail: units strip + "+ plată" (`ManualEntrySheet(defaultProjectID:)`); a lot's dashboard covers its units | existing suites compile + pass |
+| 3b | Labor default (Work + named person + no keyword rule → Manoperă, pot flips to cash) and the person is registered (`PersonStore.findOrCreate`); voice/share project inference reads tree aliases | `ProjectAssignmentTests` labor rule, `InterpretationServiceTests` aliases |
+| 4 | People ledger (`PersonDetailView`: paid by project / by month, editable trade); trade words resolve to the person in search (`InterpretationService.verifyPerson/inferCounterparty`, `QueryCompiler`); Întreabă totals line; Settings import section becomes Arhivă (Excel exporters stay under the Home share icon — moving them would duplicate the hub model assembly; onboarding salary question dropped — the interview sheet already schedules rents, salary via the Home CTA) | `InterpretationServiceTests` trade, `QueryCompilerTests` trade, `HomeModelTests` |
+| 5 | `BANI_MARKETING_VERSION` 0.4, HANDOFF/ROADMAP/LATEST, release | CI green on main; source.json == IPA |
+Done condition for v0.4 = adoption: installed on the client's phones (backup → delete → install → restore, first install since 2.3.72), 3 real projects built together, salary + rents entered, one real worker payment logged by voice and found by name/trade, 6 interview answers in the verdict pack.
+
+### After v0.4
+v0.5 shared vault — KV on bani-proxy, push own encrypted backup / pull the other's / merge (LWW on `updatedAt`, `DeletedRecord` tombstones, passphrase-derived AES-GCM key) ·
+v0.6 future — `BalanceTimeline` (12 months, tiers: committed / + expected sales / + prospects), "Pot să angajez X la data D?", `ContractSheet` (advance now + balance scheduled) ·
+v0.7 camera — VisionKit scanner → existing OCR/extractors, dedup on printed CUI + doc number (`Transaction.documentRef`), scanned bill enriches a matching bank/voice row instead of inserting.
+Deferred: ownership % per project between owners · worker advances · payment-method memory · R2/deltas for sync · App Store track.
+
+---
+
+
 ## v0.3 push (approved by D 2026-09-27) — "Bancă / numerar / avans"
 Version line reset 2.3 → **0.3** (new integer, app not functional yet). Frozen seam:
 additive optional columns only; RO+EN strings; one commit + CI gate per phase.

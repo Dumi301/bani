@@ -65,6 +65,10 @@ final class BalanceAnchor {
         set { potRaw = newValue == .bank ? nil : newValue.rawValue }
     }
     var createdAt: Date
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
 
     /// Public accessor over the optional backing store. Kept a plain computed
     /// property (never used in a `#Predicate`/`SortDescriptor` keypath — all

@@ -43,14 +43,43 @@ final class InterpretationServiceTests: XCTestCase {
         CategoryRuleSnapshot(keyword: keyword, category: category, origin: .learned, hitCount: 1)
     }
 
-    private func project(_ name: String, archived: Bool = false) -> ProjectSnapshot {
+    private func project(_ name: String, archived: Bool = false, aliases: [String] = []) -> ProjectSnapshot {
         ProjectSnapshot(id: UUID(), name: name, status: .active, colorIndex: 0,
-                        sortOrder: 0, archived: archived, createdAt: Date())
+                        sortOrder: 0, archived: archived, createdAt: Date(), aliases: aliases)
     }
 
-    private func person(_ name: String) -> PersonSnapshot {
+    // MARK: - v0.4 tree vocabulary (aliases)
+
+    func testInferProjectMatchesAliasesAndPrefersTheLongerTerm() {
+        let lot = project("Lot Crângași", aliases: ["crangasi"])
+        let house = project("Casa 3", aliases: ["casa trei"])
+        let projects = [lot, house]
+        XCTAssertEqual(InterpretationService.inferProject(text: "500 lei lui Ion manoperă casa 3", projects: projects)?.id, house.id)
+        XCTAssertEqual(InterpretationService.inferProject(text: "am plătit la crangasi gardul", projects: projects)?.id, lot.id)
+        XCTAssertEqual(InterpretationService.inferProject(text: "casa trei, 200 lei nisip", projects: projects)?.id, house.id)
+        XCTAssertNil(InterpretationService.inferProject(text: "benzină 300 lei", projects: projects))
+    }
+
+    private func person(_ name: String, role: String? = nil) -> PersonSnapshot {
         PersonSnapshot(id: UUID(), name: name, normalizedName: Categorizer.normalize(name),
-                       kind: nil, notes: nil, createdAt: Date())
+                       kind: nil, notes: nil, createdAt: Date(), role: role)
+    }
+
+    // MARK: - v0.4 trade = second name
+
+    func testPersonIsFoundByTradeIncludingArticulatedForm() {
+        let ion = person("Ion Popescu", role: "electrician")
+        let vasile = person("Vasile", role: "zidar")
+        let people = [ion, vasile]
+        XCTAssertEqual(InterpretationService.inferCounterparty(text: "am plătit electricianul 500 lei", people: people)?.name, "Ion Popescu")
+        XCTAssertEqual(InterpretationService.inferCounterparty(text: "zidarul a terminat gardul", people: people)?.name, "Vasile")
+        XCTAssertEqual(InterpretationService.verifyPerson(name: "electricianul", people: people)?.name, "Ion Popescu")
+        XCTAssertEqual(InterpretationService.verifyPerson(name: "Electrician", people: people)?.confidence, 1)
+        XCTAssertNil(InterpretationService.inferCounterparty(text: "benzină 300 lei", people: people))
+        XCTAssertEqual(InterpretationService.stripArticle("electricianul"), "electrician")
+        XCTAssertEqual(InterpretationService.stripArticle("instalatorului"), "instalator")
+        XCTAssertEqual(InterpretationService.stripArticle("zugravii"), "zugrav")
+        XCTAssertEqual(InterpretationService.stripArticle("ana"), "ana", "short names are never stripped")
     }
 
     private let unavailable = UnavailableAnnotator()

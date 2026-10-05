@@ -276,6 +276,11 @@ struct ProjectDTO: Codable, Equatable, Sendable {
     var sortOrder: Int
     var archived: Bool
     var createdAt: Date
+    // v0.4 — optional so pre-0.4 archives still decode (nil → legacy row).
+    var parentProjectID: UUID?
+    var expectedSalePrice: String?
+    var expectedSaleDate: Date?
+    var aliasesRaw: String?
 
     init(_ project: Project) {
         id = project.id
@@ -285,11 +290,18 @@ struct ProjectDTO: Codable, Equatable, Sendable {
         sortOrder = project.sortOrder
         archived = project.archived
         createdAt = project.createdAt
+        parentProjectID = project.parentProjectID
+        expectedSalePrice = project.expectedSalePrice.map(BackupDecimalCodec.encode)
+        expectedSaleDate = project.expectedSaleDate
+        aliasesRaw = project.aliasesRaw
     }
 
-    func makeModel() -> Project {
+    func makeModel() throws -> Project {
         Project(id: id, name: name, status: status, colorIndex: colorIndex,
-                sortOrder: sortOrder, archived: archived, createdAt: createdAt)
+                sortOrder: sortOrder, archived: archived, createdAt: createdAt,
+                parentProjectID: parentProjectID,
+                expectedSalePrice: try BackupDecimalCodec.decodeOptional(expectedSalePrice),
+                expectedSaleDate: expectedSaleDate, aliasesRaw: aliasesRaw)
     }
 }
 
@@ -304,6 +316,8 @@ struct PersonDTO: Codable, Equatable, Sendable {
     var kindRaw: String?
     var notes: String?
     var createdAt: Date
+    /// v0.4 — optional so pre-0.4 archives still decode.
+    var roleRaw: String?
 
     init(_ person: Person) {
         id = person.id
@@ -312,10 +326,11 @@ struct PersonDTO: Codable, Equatable, Sendable {
         kindRaw = person.kindRaw
         notes = person.notes
         createdAt = person.createdAt
+        roleRaw = person.roleRaw
     }
 
     func makeModel() -> Person {
-        let person = Person(id: id, name: name, normalizedName: normalizedName, kind: nil, notes: notes, createdAt: createdAt)
+        let person = Person(id: id, name: name, normalizedName: normalizedName, kind: nil, notes: notes, createdAt: createdAt, role: roleRaw)
         person.kindRaw = kindRaw
         return person
     }
