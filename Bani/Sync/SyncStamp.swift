@@ -19,24 +19,35 @@ protocol SyncStamped: AnyObject {
 @MainActor
 final class SyncStamp: NSObject {
     static let shared = SyncStamp()
-    private var installed = Set<ObjectIdentifier>()
+
+    /// Weak handles to the installed contexts, keyed by identity, so the
+    /// nonisolated notification handler can re-find a context from inside the
+    /// main-actor hop without sending the (non-Sendable) context across.
+    private final class Handle { weak var context: ModelContext?; init(_ c: ModelContext) { context = c } }
+    private var handles: [ObjectIdentifier: Handle] = [:]
 
     /// Idempotent per context. The app installs on its main context at launch;
     /// tests install on their in-memory context.
     func install(on context: ModelContext) {
-        guard installed.insert(ObjectIdentifier(context)).inserted else { return }
+        let key = ObjectIdentifier(context)
+        guard handles[key]?.context == nil else { return }
+        handles[key] = Handle(context)
         NotificationCenter.default.addObserver(
             self, selector: #selector(willSave(_:)),
             name: ModelContext.willSave, object: context
         )
     }
 
-    /// Posted synchronously on the saving context's thread — the main actor for
+    /// Posted synchronously on the saving context’s thread — the main actor for
     /// every context we install on — so the hop below is an assertion, not a
-    /// dispatch.
+    /// dispatch. Only the Sendable identifier crosses into the isolated closure.
     @objc nonisolated private func willSave(_ note: Notification) {
-        guard let context = note.object as? ModelContext else { return }
-        MainActor.assumeIsolated { Self.stamp(context) }
+        guard let object = note.object else { return }
+        let key = ObjectIdentifier(object as AnyObject)
+        MainActor.assumeIsolated {
+            guard let context = handles[key]?.context else { return }
+            Self.stamp(context)
+        }
     }
 
     /// Stamps every pending insert/change in `context`. Exposed so tests can
