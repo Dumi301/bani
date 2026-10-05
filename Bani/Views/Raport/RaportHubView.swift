@@ -29,6 +29,8 @@ struct RaportHubView: View {
     /// v0.3 — the "adaugă numerar" CTA on the cash tile opens the reconcile
     /// sheet pre-set to the cash pot.
     @State private var showCashAnchor = false
+    /// v0.4 — "+ venit recurent" opens the scheduled-item sheet (monthly, incoming).
+    @State private var showIncomeSheet = false
     /// v0.3 — the avans reserve in RON; < 0 means "use the default" (see
     /// `RaportHubBuilder.defaultReserve`).
     @AppStorage("raportReserve") private var reserveRaw: Double = -1
@@ -64,14 +66,19 @@ struct RaportHubView: View {
             ScrollView {
                 LazyVStack(spacing: metrics.sectionSpacing) {
                     if hasSearched { smartSearchSection }
+                    // v0.4 — D's sketch, top to bottom: Sold (bank + cash = balance) ·
+                    // Venituri recurente · Proiecte (acquisition + costs vs earnings,
+                    // per lot) · Viitor · then the debt/receivable detail.
                     let model = self.model
                     positionSection(model.position)
+                    incomeSection(model.recurringIncome)
+                    projectCardsSection(model.rollups)
+                    futureSection(model.position, prospects: model.rollups.filter { $0.bucket == .planned })
                     owedSection(model.receivables)
                     debtSection(model.bankDebt, title: "raport.section.debtBank",
                                 emptyKey: "raport.empty.debtBank", showCostOfCapital: false)
                     debtSection(model.investorDebt, title: "raport.section.debtInvestors",
                                 emptyKey: "raport.empty.debtInvestors", showCostOfCapital: true)
-                    projectsSection(model.projects)
                     allTransactionsRow
                 }
                 .padding(.horizontal, metrics.screenPadding)
@@ -106,6 +113,7 @@ struct RaportHubView: View {
     // MARK: - Model
 
     private var model: RaportHubModel {
+        let buckets = bucketByCustomID
         // Follow-up 1 (v2.2 M4 wiring): `[loanID: [scheduleIndex of its still-pending
         // payment items]]`, reduced by `RaportHubBuilder.nextLoanPaymentIndex` to each
         // loan's NEXT row so the debt preview matches exactly what `LoanStore.bookPayment`
@@ -120,7 +128,9 @@ struct RaportHubView: View {
             lines: transactions.map {
                 RaportTxLine(amount: $0.amount, currency: $0.currency, direction: $0.direction,
                              projectID: $0.projectID, loanID: $0.loanID, date: $0.date,
-                             paymentMethod: $0.paymentMethod)
+                             paymentMethod: $0.paymentMethod,
+                             bucket: $0.customCategoryID.flatMap { buckets[$0] } ?? .other,
+                             isPersonal: $0.context == .personal)
             },
             loans: loans.map(\.snapshot),
             projects: projects.map(\.snapshot),
@@ -135,6 +145,18 @@ struct RaportHubView: View {
             now: Date(),
             calendar: calendar
         )
+    }
+
+    /// v0.4 — seeded custom category (matched by its display name, the seeding
+    /// idempotency key) → cost bucket. Pure lookup, no ModelContext.
+    private var bucketByCustomID: [UUID: CostBucket] {
+        var out: [UUID: CostBucket] = [:]
+        for custom in customCategories {
+            if let seeded = SeededCustomCategory.allCases.first(where: { $0.displayName == custom.name }) {
+                out[custom.id] = CostBucket(seeded: seeded)
+            }
+        }
+        return out
     }
 
     private var horizon: LiquidityHorizon { LiquidityHorizon(rawValue: horizonRaw) ?? .days30 }
@@ -205,6 +227,7 @@ struct RaportHubView: View {
                 if results.isEmpty {
                     emptyRow("raport.search.empty", systemImage: "magnifyingglass", id: "raport.search.empty")
                 } else {
+                    searchTotalsRow(results)
                     ForEach(results, id: \.id) { transaction in
                         NavigationLink(value: transaction) {
                             TransactionRow(transaction: transaction, customs: customLookup)
@@ -346,7 +369,6 @@ struct RaportHubView: View {
                 rate: rates.rate
             )
             potsCard(position)
-            avansCard(position)
             cashflowCard(position)
         }
         .sheet(isPresented: $showCashAnchor) { ReconciliationSheet(pot: .cash) }
@@ -441,6 +463,12 @@ struct RaportHubView: View {
                 cashStat(labelKey: "raport.cashflow.out", value: position.cashOut, sign: "−")
                 cashStat(labelKey: "raport.cashflow.net", value: position.cashNet, sign: position.cashNet < 0 ? "−" : "+")
             }
+            if position.personalSpend > 0 {
+                Text("\(String(localized: "raport.cashflow.personal")) \(amountText(position.personalSpend))")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryInk)
+                    .accessibilityIdentifier("raport.cashflow.personal")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(metrics.cardPadding)
@@ -462,6 +490,226 @@ struct RaportHubView: View {
 
     private var cashflowBinding: Binding<TimeframePreset> {
         Binding(get: { cashflowPreset }, set: { cashflowRaw = $0.rawValue })
+    }
+
+    // MARK: - v0.4 Venituri recurente (salary + rents)
+
+    @ViewBuilder
+    private func incomeSection(_ sources: [RecurringIncomeSource]) -> some View {
+        sectionCard(title: "raport.section.income") {
+            if sources.isEmpty {
+                Button { showIncomeSheet = true } label: {
+                    emptyRow("raport.income.empty", systemImage: "plus.circle", id: "raport.income.empty")
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: metrics.rowSpacing) {
+                    ForEach(sources) { incomeRow($0) }
+                }
+                Button { showIncomeSheet = true } label: {
+                    Label("raport.income.add", systemImage: "plus")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("raport.income.add")
+            }
+        }
+        .sheet(isPresented: $showIncomeSheet) { ScheduledItemEditSheet(item: nil) }
+    }
+
+    private func incomeRow(_ source: RecurringIncomeSource) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: source.isSalary ? "briefcase.fill" : "house.fill")
+                .foregroundStyle(Palette.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                if let projectID = source.projectID,
+                   let name = projects.first(where: { $0.id == projectID })?.name {
+                    Text(name).font(.caption2).foregroundStyle(Palette.secondaryInk)
+                }
+            }
+            Spacer(minLength: 6)
+            VStack(alignment: .trailing, spacing: 2) {
+                let arrived = source.expectedThisMonth > 0 && source.receivedThisMonth >= source.expectedThisMonth
+                Text("\(amountText(source.receivedThisMonth)) / \(amountText(source.expectedThisMonth))")
+                    .font(Typography.amount(.caption, weight: .semibold))
+                    .foregroundStyle(arrived ? Palette.accent : Palette.ink)
+                if let next = source.nextDueDate {
+                    Text("raport.income.next \(next.formatted(.dateTime.day().month(.abbreviated).locale(locale)))")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("raport.income.row")
+    }
+
+    // MARK: - v0.4 Proiecte (tree rollups: acquisition + costs vs earnings)
+
+    @ViewBuilder
+    private func projectCardsSection(_ rollups: [ProjectRollup]) -> some View {
+        sectionCard(title: "raport.section.projects") {
+            let visible = rollups.filter { $0.bucket != .finished }
+            if visible.isEmpty {
+                emptyRow("raport.empty.projects", systemImage: "folder", id: "raport.projects.empty")
+            } else {
+                VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+                    ForEach([ProjectBucket.building, .renting, .planned], id: \.self) { bucket in
+                        let group = visible.filter { $0.bucket == bucket }
+                        if !group.isEmpty {
+                            Text(bucketTitle(bucket))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Palette.secondaryInk)
+                            ForEach(group) { rollup in
+                                if let project = projects.first(where: { $0.id == rollup.projectID }) {
+                                    NavigationLink { ProjectDetailView(project: project) } label: {
+                                        projectCard(rollup, project: project)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func bucketTitle(_ bucket: ProjectBucket) -> LocalizedStringKey {
+        switch bucket {
+        case .building: "raport.bucket.building"
+        case .renting: "raport.bucket.renting"
+        case .planned: "raport.bucket.planned"
+        case .finished: "raport.bucket.finished"
+        }
+    }
+
+    private func projectCard(_ r: ProjectRollup, project: Project) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Circle().fill(CustomCategoryPalette.color(project.colorIndex)).frame(width: 9, height: 9)
+                Text(project.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                if r.childCount > 0 {
+                    Text("raport.card.units \(r.childCount)")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+                Spacer(minLength: 6)
+                if r.bucket != .renting, let expected = r.expectedProfit {
+                    statPair(labelKey: "raport.card.expectedProfit", value: expected)
+                } else {
+                    statPair(labelKey: "raport.card.profit", value: r.realizedProfit)
+                }
+            }
+            HStack(spacing: 6) {
+                statPair(labelKey: "raport.card.acquisition", value: r.acquisition)
+                statPair(labelKey: "raport.card.costs", value: r.costs)
+                if r.bucket == .renting {
+                    statPair(labelKey: "raport.card.rentMonthly", value: r.monthlyRecurringIncome)
+                } else {
+                    statPair(labelKey: "raport.card.earnings", value: r.earnings)
+                }
+            }
+            if r.costs > 0 || r.pendingOut > 0 {
+                HStack(spacing: 6) {
+                    if r.costs > 0 {
+                        Text("\(percentText(r.laborPercent)) \(String(localized: "raport.card.labor")) · \(percentText(r.materialsPercent)) \(String(localized: "raport.card.materials"))")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryInk)
+                    }
+                    Spacer(minLength: 6)
+                    if r.pendingOut > 0 {
+                        Text("\(String(localized: "raport.projects.due")) \(amountText(r.pendingOut))")
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryInk)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityIdentifier("raport.project.row")
+    }
+
+    // MARK: - v0.4 Viitor (avans + planned projects; the timeline lands in v0.6)
+
+    private func futureSection(_ position: RaportPosition, prospects: [ProjectRollup]) -> some View {
+        VStack(spacing: metrics.elementSpacing) {
+            avansCard(position)
+            sectionCard(title: "raport.section.future") {
+                if prospects.isEmpty {
+                    emptyRow("raport.future.empty", systemImage: "calendar.badge.plus", id: "raport.future.empty")
+                } else {
+                    VStack(spacing: metrics.rowSpacing) {
+                        ForEach(prospects) { r in
+                            if let project = projects.first(where: { $0.id == r.projectID }) {
+                                NavigationLink { ProjectDetailView(project: project) } label: {
+                                    prospectRow(r, project: project)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func prospectRow(_ r: ProjectRollup, project: Project) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "flag.fill").foregroundStyle(Palette.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(project.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                if let price = r.expectedSalePrice {
+                    let when = r.expectedSaleDate.map { " · " + $0.formatted(.dateTime.month(.abbreviated).year().locale(locale)) } ?? ""
+                    Text("\(String(localized: "raport.future.expectedSale")) \(amountText(price))\(when)")
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryInk)
+                }
+            }
+            Spacer(minLength: 6)
+            if r.pendingOut > 0 {
+                statPair(labelKey: "raport.projects.due", value: r.pendingOut)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityIdentifier("raport.future.row")
+    }
+
+    /// v0.4 — the "Întreabă" answer line: how many rows, and the money in / out
+    /// (RON at today's rate; EUR without a rate is counted raw).
+    private func searchTotalsRow(_ results: [Transaction]) -> some View {
+        let rate = rates.rateDecimal
+        var out: Decimal = 0
+        var inc: Decimal = 0
+        for tx in results where tx.direction != .neutral {
+            let ron = LiquidityCalculator.ronValue(of: tx.amount, currency: tx.currency, rate: rate) ?? tx.amount
+            if tx.direction == .income { inc += ron } else { out += ron }
+        }
+        return HStack(spacing: 8) {
+            Text("raport.search.count \(results.count)")
+            if out > 0 { Text("−\(amountText(out))") }
+            if inc > 0 { Text("+\(amountText(inc))") }
+        }
+        .font(Typography.amount(.caption, weight: .semibold))
+        .foregroundStyle(Palette.accent)
+        .accessibilityIdentifier("raport.search.totals")
+    }
+
+    private func amountText(_ value: Decimal) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(0...0)))) \(Currency.ron.displayCode)"
     }
 
     // MARK: - Owed to me (receivables)

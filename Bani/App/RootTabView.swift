@@ -40,7 +40,7 @@ struct RootTabView: View {
         TabView(selection: $selection) {
             RaportHubView()
                 .tag(RootTab.raport)
-                .tabItem { Label("raport.tab.title", systemImage: "doc.text.below.ecg") }
+                .tabItem { Label("raport.tab.title", systemImage: "house.fill") }
 
             LogView()
                 .tag(RootTab.log)

@@ -2,6 +2,264 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "raport.search.count %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld rows" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "%lld înregistrări" } }
+      }
+    },
+    "people.role.placeholder": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Trade (e.g. electrician, mason)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Meserie (ex. electrician, zidar)" } }
+      }
+    },
+    "people.byProject": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paid, by project" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plătit, pe proiecte" } }
+      }
+    },
+    "people.byMonth": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paid, by month" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Plătit, pe luni" } }
+      }
+    },
+    "people.noProject": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No project" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Fără proiect" } }
+      }
+    },
+    "archive.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Archive" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Arhivă" } }
+      }
+    },
+    "archive.footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The old Excel files live here as imported batches. The Excel-shaped exports are under the share icon on Home." } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Fișierele Excel vechi stau aici ca importuri. Exporturile în format Excel sunt sub iconița de partajare de pe Acasă." } }
+      }
+    },
+    "project.action.addUnit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add unit (house, flat)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă unitate (casă, apartament)" } }
+      }
+    },
+    "project.action.move": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move to…" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Mută în…" } }
+      }
+    },
+    "project.action.noParent": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Top level (no lot)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Nivel principal (fără lot)" } }
+      }
+    },
+    "project.action.plan": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Mark as planned" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Marchează planificat" } }
+      }
+    },
+    "project.action.activate": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Mark active" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Marchează activ" } }
+      }
+    },
+    "project.units.title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Units" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Unități" } }
+      }
+    },
+    "project.structure.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Structure" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Structură" } }
+      }
+    },
+    "project.parent.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Part of" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Face parte din" } }
+      }
+    },
+    "project.status.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Status" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Stare" } }
+      }
+    },
+    "project.sale.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expected sale" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Vânzare estimată" } }
+      }
+    },
+    "project.sale.price.placeholder": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Price (RON)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Preț (RON)" } }
+      }
+    },
+    "project.sale.date.toggle": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expected date" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Dată estimată" } }
+      }
+    },
+    "project.aliases.label": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Voice aliases (comma-separated)" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Alias-uri pentru voce (separate prin virgulă)" } }
+      }
+    },
+    "project.aliases.placeholder": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "house 3, crangasi" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "casa 3, crângași" } }
+      }
+    },
+    "project.addPayment": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add payment" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă plată" } }
+      }
+    },
+    "raport.section.income": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Recurring income" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Venituri recurente" } }
+      }
+    },
+    "raport.income.empty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add a salary or a rent" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă salariul sau o chirie" } }
+      }
+    },
+    "raport.income.add": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add recurring income" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Adaugă venit recurent" } }
+      }
+    },
+    "raport.income.next %@": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Next: %@" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Următoarea: %@" } }
+      }
+    },
+    "raport.bucket.building": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Building" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Șantiere" } }
+      }
+    },
+    "raport.bucket.renting": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Rented out" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "În chirie" } }
+      }
+    },
+    "raport.bucket.planned": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Planned" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Planificate" } }
+      }
+    },
+    "raport.bucket.finished": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Finished" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Finalizate" } }
+      }
+    },
+    "raport.card.units %lld": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld units" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "%lld unități" } }
+      }
+    },
+    "raport.card.profit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Profit" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Profit" } }
+      }
+    },
+    "raport.card.expectedProfit": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expected profit" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Profit estimat" } }
+      }
+    },
+    "raport.card.acquisition": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Acquisition" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Achiziție" } }
+      }
+    },
+    "raport.card.costs": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Costs" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Costuri" } }
+      }
+    },
+    "raport.card.earnings": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Earnings" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Încasări" } }
+      }
+    },
+    "raport.card.rentMonthly": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Rent / month" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Chirie / lună" } }
+      }
+    },
+    "raport.card.labor": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "labor" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "manoperă" } }
+      }
+    },
+    "raport.card.materials": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "materials" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "materiale" } }
+      }
+    },
+    "raport.section.future": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Future" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Viitor" } }
+      }
+    },
+    "raport.future.empty": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No planned project yet — set a project's status to Planned" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Niciun proiect planificat — setează un proiect ca Planificat" } }
+      }
+    },
+    "raport.future.expectedSale": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Expected sale" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Vânzare estimată" } }
+      }
+    },
+    "raport.cashflow.personal": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Personal spending" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Cheltuieli personale" } }
+      }
+    },
     "project.status.prospect": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Planned" } },
@@ -7904,14 +8162,14 @@
     },
     "raport.tab.title": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Report" } },
-        "ro": { "stringUnit": { "state": "translated", "value": "Raport" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Home" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acasă" } }
       }
     },
     "raport.title": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Report" } },
-        "ro": { "stringUnit": { "state": "translated", "value": "Raport" } }
+        "en": { "stringUnit": { "state": "translated", "value": "Home" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Acasă" } }
       }
     },
     "raport.section.position": {
