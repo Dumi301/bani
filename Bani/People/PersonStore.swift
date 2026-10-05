@@ -32,10 +32,10 @@ enum PersonStore {
     }
 
     /// Find-or-create by normalized name. Blank/whitespace-only input creates
-    /// nothing (`nil`). This is the ONE deliberate, one-tap way a free-text
-    /// counterparty becomes a registered `Person` — callers (the "add to
-    /// people" affordance) decide when it fires; it is NEVER called
-    /// automatically from logging a transaction or scheduled item.
+    /// nothing (`nil`). Callers decide when it fires: the "add to people"
+    /// affordance, and — v0.4 — a Work-context payment that names a person
+    /// (`ManualEntrySheet.save`), so workers paid in cash become searchable
+    /// without a separate tap. Personal entries never register anyone.
     @MainActor
     @discardableResult
     static func findOrCreate(name: String, kind: PersonKind? = nil, in modelContext: ModelContext) -> Person? {
