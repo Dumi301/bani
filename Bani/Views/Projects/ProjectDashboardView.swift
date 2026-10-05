@@ -15,6 +15,8 @@ struct ProjectDashboardView: View {
 
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query private var customCategories: [CustomCategory]
+    /// v0.4 — a lot's dashboard covers its units (subtree ids).
+    @Query private var allProjects: [Project]
 
     @State private var chartKind: ChartKind = .donut
     @State private var selectedRef: CategoryRef?
@@ -143,8 +145,11 @@ struct ProjectDashboardView: View {
     private var rateDecimal: Decimal? { rates.rateDecimal }
     private var currencyCode: String { Currency.ron.displayCode }
 
+    private var treeIDs: Set<UUID> { ProjectTree.descendantIDs(of: projectID, in: allProjects.map(\.snapshot)) }
+
     private var projectTransactions: [Transaction] {
-        allTransactions.filter { $0.projectID == projectID }
+        let ids = treeIDs
+        return allTransactions.filter { $0.projectID.map { ids.contains($0) } ?? false }
     }
 
     private var scopedLines: [ProjectTxLine] {

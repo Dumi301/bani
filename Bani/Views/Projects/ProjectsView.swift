@@ -24,6 +24,8 @@ struct ProjectsView: View {
     @State private var eurCardIDs: Set<UUID> = []
     @State private var creatingProject = false
     @State private var renamingProject: Project?
+    /// v0.4 — "adaugă unitate" on a lot opens the edit sheet pre-parented.
+    @State private var addingUnitTo: Project?
     /// v1.2b — presents the Loans surface (bank + investor debt) from this tab.
     @State private var showingLoans = false
 
@@ -42,8 +44,11 @@ struct ProjectsView: View {
                     if activeProjects.isEmpty {
                         emptyState
                     } else {
-                        ForEach(activeProjects, id: \.id) { project in
+                        // v0.4 — the tree: one card per lot, its units listed under it.
+                        ForEach(rootProjects, id: \.id) { project in
                             projectCard(project)
+                            let units = childProjects(of: project)
+                            if !units.isEmpty { unitsCard(for: project, units: units) }
                         }
                     }
 
@@ -95,6 +100,9 @@ struct ProjectsView: View {
             }
             .sheet(item: $renamingProject) { project in
                 ProjectEditSheet(project: project)
+            }
+            .sheet(item: $addingUnitTo) { lot in
+                ProjectEditSheet(project: nil, parentID: lot.id)
             }
         }
     }
@@ -148,6 +156,45 @@ struct ProjectsView: View {
             Label("project.action.rename", systemImage: "pencil")
         }
 
+        // v0.4 — tree actions: add a unit under a lot, move between lots, plan.
+        if project.parentProjectID == nil {
+            Button {
+                addingUnitTo = project
+            } label: {
+                Label("project.action.addUnit", systemImage: "plus.square.on.square")
+            }
+        }
+        let lots = rootProjects.filter { $0.id != project.id && $0.parentProjectID == nil }
+        if project.parentProjectID != nil || !lots.isEmpty {
+            Menu {
+                if project.parentProjectID != nil {
+                    Button {
+                        project.parentProjectID = nil
+                        try? modelContext.save()
+                    } label: {
+                        Label("project.action.noParent", systemImage: "arrow.up.to.line")
+                    }
+                }
+                ForEach(lots, id: \.id) { lot in
+                    Button {
+                        project.parentProjectID = lot.id
+                        try? modelContext.save()
+                    } label: {
+                        Label(lot.name, systemImage: project.parentProjectID == lot.id ? "checkmark" : "folder")
+                    }
+                }
+            } label: {
+                Label("project.action.move", systemImage: "arrow.turn.down.right")
+            }
+        }
+        Button {
+            project.status = (project.status == .prospect) ? .active : .prospect
+            try? modelContext.save()
+        } label: {
+            Label(project.status == .prospect ? "project.action.activate" : "project.action.plan",
+                  systemImage: project.status == .prospect ? "play.circle" : "flag")
+        }
+
         Button {
             project.status = (project.status == .active) ? .finished : .active
             try? modelContext.save()
@@ -173,6 +220,62 @@ struct ProjectsView: View {
                 Label("project.action.delete", systemImage: "trash")
             }
         }
+    }
+
+    // MARK: - v0.4 Units (houses / flats inside a lot)
+
+    private func unitsCard(for lot: Project, units: [Project]) -> some View {
+        VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+            Text("project.units.title")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryInk)
+            ForEach(units, id: \.id) { unit in
+                let model = cardModel(for: unit)
+                NavigationLink(value: unit) {
+                    HStack(spacing: 8) {
+                        Circle().fill(CustomCategoryPalette.color(unit.colorIndex)).frame(width: 8, height: 8)
+                        Text(unit.name)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                        if unit.status != .active { ProjectStatusBadge(status: unit.status) }
+                        Spacer(minLength: 6)
+                        Text("\(model.spent.formatted(.number.precision(.fractionLength(0...0)))) \(Currency.ron.displayCode)")
+                            .font(Typography.amount(.caption, weight: .semibold))
+                            .foregroundStyle(Palette.accent)
+                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.secondaryInk)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .contextMenu { projectContextMenu(unit, hasTransactions: model.hasTransactions) }
+                .accessibilityIdentifier("projects.unitRow")
+            }
+            Button {
+                addingUnitTo = lot
+            } label: {
+                Label("project.action.addUnit", systemImage: "plus")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("projects.addUnit")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(metrics.cardPadding)
+        .padding(.leading, metrics.elementSpacing)
+        .metalSurface(cornerRadius: Radius.card)
+    }
+
+    /// Active top-level projects (or orphans), in `ProjectTree` order.
+    private var rootProjects: [Project] {
+        let byID = Dictionary(uniqueKeysWithValues: activeProjects.map { ($0.id, $0) })
+        return ProjectTree.roots(activeProjects.map(\.snapshot)).compactMap { byID[$0.id] }
+    }
+
+    private func childProjects(of lot: Project) -> [Project] {
+        let byID = Dictionary(uniqueKeysWithValues: activeProjects.map { ($0.id, $0) })
+        return ProjectTree.children(of: lot.id, in: activeProjects.map(\.snapshot)).compactMap { byID[$0.id] }
     }
 
     // MARK: - Archived disclosure
