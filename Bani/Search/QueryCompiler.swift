@@ -74,6 +74,13 @@ enum QueryCompiler {
            let verified = verifyPersonName(personName, people: people, historicalCounterparties: historicalCounterparties) {
             filter.personNames = [verified]
         }
+        // v0.4 — FM named no person, but the query carries a registered name or
+        // trade ("electricianul") → that person. Registry-verified, never invented.
+        if filter.personNames.isEmpty,
+           let byRegistry = InterpretationService.inferCounterparty(text: trimmed, people: people),
+           byRegistry.confidence >= Interpretation.preFillThreshold {
+            filter.personNames = [byRegistry.name]
+        }
         if let remainder = proposal.remainderText?.trimmingCharacters(in: .whitespacesAndNewlines), !remainder.isEmpty {
             filter.freeTextTerms = [remainder]
         }

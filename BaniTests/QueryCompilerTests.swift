@@ -42,8 +42,22 @@ final class QueryCompilerTests: XCTestCase {
     private func project(_ name: String) -> ProjectSnapshot {
         ProjectSnapshot(id: UUID(), name: name, status: .active, colorIndex: 0, sortOrder: 0, archived: false, createdAt: Date())
     }
-    private func person(_ name: String) -> PersonSnapshot {
-        PersonSnapshot(id: UUID(), name: name, normalizedName: Categorizer.normalize(name), kind: nil, notes: nil, createdAt: Date())
+    private func person(_ name: String, role: String? = nil) -> PersonSnapshot {
+        PersonSnapshot(id: UUID(), name: name, normalizedName: Categorizer.normalize(name), kind: nil, notes: nil, createdAt: Date(), role: role)
+    }
+
+    // MARK: - v0.4 trade word → registered person
+
+    func testTradeWordResolvesToRegisteredPersonWhenFMNamesNobody() async throws {
+        let ion = person("Ion", role: "electrician")
+        let mock = MockQueryCompiler(proposal: SearchQueryProposal(remainderText: "electricianul"))
+        let compiled = await QueryCompiler.compile(
+            query: "cât am dat electricianul anul ăsta", now: fixedNow, calendar: calendar,
+            projects: [], people: [ion], compiler: mock
+        )
+        let filter = try XCTUnwrap(compiled)
+        XCTAssertEqual(filter.personNames, ["Ion"])
+        XCTAssertEqual(filter.freeTextTerms, ["electricianul"])
     }
 
     // MARK: - RO + EN corpus → expected SearchFilter
