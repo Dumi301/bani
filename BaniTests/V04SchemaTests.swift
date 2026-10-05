@@ -106,7 +106,10 @@ final class V04SchemaTests: XCTestCase {
         let saleDate = Date(timeIntervalSince1970: 1_780_000_000)
 
         do {
-            let ctx = try currentContainer(at: url).mainContext
+            // Hold the container: ModelContext keeps it unowned, so an inline
+            // `currentContainer(at:).mainContext` deallocates it mid-save (crash).
+            let container = try currentContainer(at: url)
+            let ctx = container.mainContext
             ctx.insert(Project(id: lotID, name: "Lot Crângași", status: .prospect, colorIndex: 0,
                                expectedSalePrice: 150_000, expectedSaleDate: saleDate,
                                aliasesRaw: " crangasi , lotul ,, "))
@@ -115,7 +118,8 @@ final class V04SchemaTests: XCTestCase {
             try ctx.save()
         }
 
-        let ctx = try currentContainer(at: url).mainContext
+        let container = try currentContainer(at: url)
+        let ctx = container.mainContext
         let projects = try ctx.fetch(FetchDescriptor<Project>())
         let lot = try XCTUnwrap(projects.first { $0.id == lotID })
         let house = try XCTUnwrap(projects.first { $0.id == houseID })
