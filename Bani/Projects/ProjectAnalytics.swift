@@ -10,13 +10,19 @@ struct ProjectTxLine: Equatable, Sendable {
     var direction: TransactionDirection
     var projectID: UUID?
     var date: Date
+    /// v0.4 — acquisition / labor / materials / other, resolved by the caller
+    /// from the row’s seeded custom category (`CostBucket(seeded:)`). Defaults
+    /// to `.other` so every existing call site is unchanged.
+    var bucket: CostBucket = .other
 
-    init(amount: Decimal, currency: Currency, direction: TransactionDirection, projectID: UUID?, date: Date = .now) {
+    init(amount: Decimal, currency: Currency, direction: TransactionDirection, projectID: UUID?, date: Date = .now,
+         bucket: CostBucket = .other) {
         self.amount = amount
         self.currency = currency
         self.direction = direction
         self.projectID = projectID
         self.date = date
+        self.bucket = bucket
     }
 }
 
