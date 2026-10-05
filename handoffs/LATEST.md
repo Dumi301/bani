@@ -1,5 +1,5 @@
-# LATEST — Bani (2026-09-27)
-State: **v0.3.80 LIVE** on AltStore (release job run 36321242316 green; feed version 0.3.80 == IPA 0.3.80/80; 3,211,645 bytes). Version line reset 2.3 → 0.3.
-Last commit: 0ae9f67 (release source.json) on top of 4024f0a (PR #7 squash: phases 0–5).
-Next step: D installs on both phones — backup → delete Bani → install 0.3.80 from the AltStore source → restore (0.3 is NOT offered as an update over 2.3.72). Then the device checklist in HANDOFF.md (+ one "Sync now" showing a balance, one cash anchor on Raport).
-Open items: client 6-question conversation · sidelined: project milestones / precontract→contract duration / budget vs Depășire · payment-method learning loop.
+# LATEST — Bani (2026-10-05)
+State: v0.3.80 live on AltStore (never installed on the phones). Redesign v0.4→v0.7 approved by D 2026-10-05 (PLAN.md top section); branch `v0.4`, Phase 0 (schema prep + SyncStamp) pushed, CI pending.
+Last commit: see `git log -1` on v0.4.
+Next step: P0 gate green → Phase 1 `ProjectTree` engine (pure) + `ProjectTreeTests`.
+Open items: client interview still unanswered (verdict pack) · phones still on 2.3.72 → first install of 0.4.N is backup → delete → install → restore.

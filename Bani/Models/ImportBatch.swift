@@ -27,6 +27,10 @@ final class ImportBatch {
     var contextChoice: String
     /// Free-form provenance note (sheet name, negatives policy, date format used).
     var notes: String
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
 
     init(
         id: UUID = UUID(),

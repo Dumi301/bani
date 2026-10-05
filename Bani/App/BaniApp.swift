@@ -62,6 +62,8 @@ struct BaniApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+        // v0.4 — stamp `updatedAt` on every row the main context saves (sync prep).
+        SyncStamp.shared.install(on: container.mainContext)
 
         if let idx = args.firstIndex(of: "-appearance"), idx + 1 < args.count {
             UserDefaults.standard.set(args[idx + 1], forKey: "appearanceMode")

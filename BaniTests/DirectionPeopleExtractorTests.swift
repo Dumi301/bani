@@ -110,7 +110,7 @@ final class DirectionPeopleExtractorTests: XCTestCase {
     // MARK: - Pre-seeded custom categories (H2 colors)
 
     func testSeededCustomsPalette() {
-        XCTAssertEqual(SeededCustomCategory.allCases.count, 16)
+        XCTAssertEqual(SeededCustomCategory.allCases.count, 17)
         for c in SeededCustomCategory.allCases {
             XCTAssertEqual(c.colorIndex, c.order % 8, "H2 — color = order mod 8")
             XCTAssertTrue((0...7).contains(c.colorIndex))

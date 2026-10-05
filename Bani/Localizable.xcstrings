@@ -2,6 +2,12 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "project.status.prospect": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Planned" } },
+        "ro": { "stringUnit": { "state": "translated", "value": "Planificat" } }
+      }
+    },
     "raport.avans.title %lld": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Down payment available at %lld days" } },

@@ -168,6 +168,10 @@ final class BankLink {
     /// Latest balance per account as JSON (`[String: BankBalance]`). Optional
     /// `Data` is the most migration-proof shape for a dictionary of structs.
     var balancesJSON: Data?
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
     var balancesByAccount: [String: BankBalance] {
         get { balancesJSON.flatMap { try? JSONDecoder().decode([String: BankBalance].self, from: $0) } ?? [:] }
         set { balancesJSON = try? JSONEncoder().encode(newValue) }

@@ -28,6 +28,9 @@ enum SeededCustomCategory: String, CaseIterable, Sendable, Equatable {
     case salariuIncasari
     case platiPersoane
     case incasariPersoane
+    /// v0.4 — the sale that closes a project (income). Appended last: order
+    /// drives color + seeding, never reorder.
+    case vanzareProprietate
 
     /// The user-visible name (Romanian; kept verbatim as the `CustomCategory.name`).
     /// Also the idempotency key for find-or-create seeding.
@@ -49,6 +52,7 @@ enum SeededCustomCategory: String, CaseIterable, Sendable, Equatable {
         case .salariuIncasari: "Salariu / Încasări"
         case .platiPersoane: "Plăți persoane"
         case .incasariPersoane: "Încasări persoane"
+        case .vanzareProprietate: "Vânzare proprietate"
         }
     }
 
@@ -71,6 +75,7 @@ enum SeededCustomCategory: String, CaseIterable, Sendable, Equatable {
         case .salariuIncasari: "dollarsign.circle.fill"
         case .platiPersoane: "person.fill"
         case .incasariPersoane: "person.2.fill"
+        case .vanzareProprietate: "tag.fill"
         }
     }
 
@@ -125,6 +130,8 @@ enum ObservatiiVocabulary {
         ("dobanda", .dobanda), ("salariu", .salariuIncasari), ("incasare", .salariuIncasari),
         // Personal card spend
         ("cheltuieli personale", .cheltuieliPersonale),
+        // v0.4 — project sale (income)
+        ("vanzare", .vanzareProprietate), ("pret vanzare", .vanzareProprietate),
     ]
 
     /// Longest-matching keyword for a normalized free-text label, or `nil`.

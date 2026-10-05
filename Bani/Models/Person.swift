@@ -45,7 +45,15 @@ final class Person {
     /// `String`-raw backing for `PersonKind` — additive, optional.
     var kindRaw: String?
     var notes: String?
+    /// v0.4 — trade / role ("electrician", "zidar"), matched by smart search
+    /// alongside the name so "electricianul" finds the person. Optional +
+    /// additive (this entity has live rows).
+    var roleRaw: String?
     var createdAt: Date
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
 
     /// Non-optional-style computed accessor over the optional raw backing,
     /// mirroring `ScheduledItem.recurrence` / `Loan.kind`.
@@ -60,7 +68,8 @@ final class Person {
         normalizedName: String,
         kind: PersonKind? = nil,
         notes: String? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        role: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -68,6 +77,7 @@ final class Person {
         self.kindRaw = kind?.rawValue
         self.notes = notes
         self.createdAt = createdAt
+        self.roleRaw = role
     }
 }
 
@@ -83,13 +93,15 @@ struct PersonSnapshot: Identifiable, Hashable, Sendable {
     let kind: PersonKind?
     let notes: String?
     let createdAt: Date
+    /// v0.4 — defaulted so existing memberwise call sites keep compiling.
+    var role: String? = nil
 }
 
 extension Person {
     var snapshot: PersonSnapshot {
         PersonSnapshot(
             id: id, name: name, normalizedName: normalizedName,
-            kind: kind, notes: notes, createdAt: createdAt
+            kind: kind, notes: notes, createdAt: createdAt, role: roleRaw
         )
     }
 }

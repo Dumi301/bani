@@ -9,12 +9,17 @@ import SwiftData
 enum ProjectStatus: String, Codable, CaseIterable, Hashable, Sendable {
     case active
     case finished
+    /// v0.4 — a property not yet bought. Carries the planned contract schedule
+    /// (reserve / balance / expected sale) that drives the Future column; never
+    /// counted in realized P&L. Additive case, stored as "prospect".
+    case prospect
 
     /// Localized display name (ro + en) — the stored `rawValue` is unchanged.
     var label: String {
         switch self {
         case .active:   String(localized: "project.status.active")
         case .finished: String(localized: "project.status.finished")
+        case .prospect: String(localized: "project.status.prospect")
         }
     }
 }
@@ -48,6 +53,24 @@ final class Project {
     var sortOrder: Int
     var archived: Bool
     var createdAt: Date
+    // v0.4 — project tree + expected sale. This entity now has live rows, so
+    // the direction-crash law applies: every column below is Optional.
+    /// Parent node — a house inside a lot, an apartment inside a block. `nil` =
+    /// top-level. An id pointer resolved by lookup (`ProjectTree`), never a
+    /// SwiftData relationship; every existing `projectID` pointer on
+    /// Transaction / ScheduledItem / Loan keeps working unchanged for children.
+    var parentProjectID: UUID?
+    /// Expected sale price (RON) while the project is active or a prospect.
+    /// `nil` = held / rented / unknown — the card then shows recurring income.
+    var expectedSalePrice: Decimal?
+    var expectedSaleDate: Date?
+    /// Comma-separated voice aliases ("casa 3, crangasi"); diacritic-folded at
+    /// match time via `Categorizer.normalize`, never stored normalized.
+    var aliasesRaw: String?
+    /// v0.4 — last local write, stamped by `SyncStamp` just before every save
+    /// (nil = legacy row, read as `createdAt`). Optional + additive — the v0.5
+    /// shared vault merges on it (last write wins).
+    var updatedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -56,7 +79,11 @@ final class Project {
         colorIndex: Int,
         sortOrder: Int = 0,
         archived: Bool = false,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        parentProjectID: UUID? = nil,
+        expectedSalePrice: Decimal? = nil,
+        expectedSaleDate: Date? = nil,
+        aliasesRaw: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -65,6 +92,19 @@ final class Project {
         self.sortOrder = sortOrder
         self.archived = archived
         self.createdAt = createdAt
+        self.parentProjectID = parentProjectID
+        self.expectedSalePrice = expectedSalePrice
+        self.expectedSaleDate = expectedSaleDate
+        self.aliasesRaw = aliasesRaw
+    }
+
+    /// The parsed voice aliases (trimmed, non-empty), from `aliasesRaw`.
+    var aliases: [String] { Project.parseAliases(aliasesRaw) }
+
+    static func parseAliases(_ raw: String?) -> [String] {
+        (raw ?? "").split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
 
@@ -81,13 +121,20 @@ struct ProjectSnapshot: Identifiable, Hashable, Sendable {
     let sortOrder: Int
     let archived: Bool
     let createdAt: Date
+    // v0.4 — defaulted so existing memberwise call sites keep compiling.
+    var parentProjectID: UUID? = nil
+    var expectedSalePrice: Decimal? = nil
+    var expectedSaleDate: Date? = nil
+    var aliases: [String] = []
 }
 
 extension Project {
     var snapshot: ProjectSnapshot {
         ProjectSnapshot(
             id: id, name: name, status: status, colorIndex: colorIndex,
-            sortOrder: sortOrder, archived: archived, createdAt: createdAt
+            sortOrder: sortOrder, archived: archived, createdAt: createdAt,
+            parentProjectID: parentProjectID, expectedSalePrice: expectedSalePrice,
+            expectedSaleDate: expectedSaleDate, aliases: aliases
         )
     }
 }
